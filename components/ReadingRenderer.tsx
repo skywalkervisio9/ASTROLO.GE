@@ -1,0 +1,400 @@
+// ============================================================
+// ReadingRenderer — Converts Claude's JSON reading into card UI
+// This is the bridge between the AI pipeline and the visual layout.
+//
+// Architecture:
+//   NatalReading JSON (from DB) → ReadingRenderer → Card-based UI
+//
+// Responsibilities:
+//   1. Iterate over 8 sections of the reading
+//   2. Render each Card with label, title, body paragraphs,
+//      cross-references, expandable content, hints, accent elements
+//   3. Handle content gating (locked sections for free/invited users)
+//   4. Render the planet table + aspects in the overview section
+//   5. Support language switching (reading data is already pre-generated)
+// ============================================================
+
+'use client';
+
+import React, { useState } from 'react';
+import type {
+  NatalReading,
+  OverviewSection,
+  ContentSection,
+  Card,
+  PlanetRow,
+  Aspect,
+  SectionKey,
+} from '@/types/reading';
+import { SECTION_KEYS, FREE_ALWAYS_VISIBLE, FREE_PICKABLE } from '@/types/reading';
+import { canAccessSection, type User, PRICING } from '@/types/user';
+import { SECTION_ICONS, ELEMENT_COLORS } from '@/lib/utils/constants';
+import type { Lang } from '@/lib/utils/translations';
+
+// ── Props ──
+
+interface ReadingRendererProps {
+  reading: NatalReading;
+  user: User;
+  language: Lang;
+  onUpgrade?: () => void;         // Open payment modal
+  onSectionPick?: (key: string) => void;  // Free section pick callback
+}
+
+// ── Main component ──
+
+export default function ReadingRenderer({
+  reading,
+  user,
+  language,
+  onUpgrade,
+  onSectionPick,
+}: ReadingRendererProps) {
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [activeSection, setActiveSection] = useState<SectionKey>('overview');
+
+  const toggleExpand = (cardId: string) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  };
+
+  const currentSection = reading[activeSection];
+  const isLocked = !canAccessSection(user, activeSection);
+
+  return (
+    <div className="reading-renderer">
+      {/* Section navigation tabs */}
+      <nav className="reading-nav" role="tablist">
+        {SECTION_KEYS.map((key) => {
+          const accessible = canAccessSection(user, key);
+          return (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={activeSection === key}
+              className={`reading-nav__tab ${activeSection === key ? 'active' : ''} ${!accessible ? 'locked' : ''}`}
+              onClick={() => setActiveSection(key)}
+            >
+              <svg className="reading-nav__icon" width="16" height="16">
+                <use href={`#${SECTION_ICONS[key]}`} />
+              </svg>
+              <span>{getSectionTitle(reading, key)}</span>
+              {!accessible && <span className="reading-nav__lock">&#128274;</span>}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Section content */}
+      <div className="reading-section" data-section={activeSection}>
+        {isLocked ? (
+          <LockedSection
+            sectionKey={activeSection}
+            section={currentSection}
+            user={user}
+            language={language}
+            onUpgrade={onUpgrade}
+            onSectionPick={onSectionPick}
+          />
+        ) : activeSection === 'overview' ? (
+          <OverviewRenderer
+            section={reading.overview}
+            expandedCards={expandedCards}
+            onToggleExpand={toggleExpand}
+          />
+        ) : (
+          <ContentRenderer
+            section={currentSection as ContentSection}
+            expandedCards={expandedCards}
+            onToggleExpand={toggleExpand}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Overview section (with planet table + aspects) ──
+
+function OverviewRenderer({
+  section,
+  expandedCards,
+  onToggleExpand,
+}: {
+  section: OverviewSection;
+  expandedCards: Set<string>;
+  onToggleExpand: (id: string) => void;
+}) {
+  return (
+    <div className="reading-overview">
+      <header className="section-header">
+        <h2 className="section-title">{section.sectionTitle}</h2>
+        <p className="section-tagline">{section.sectionTagline}</p>
+      </header>
+
+      {/* Planet table */}
+      {section.planetTable && section.planetTable.length > 0 && (
+        <div className="planet-table-wrap">
+          <table className="planet-table">
+            <tbody>
+              {section.planetTable.map((row, i) => (
+                <PlanetRowComponent key={i} row={row} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Aspects */}
+      {section.aspects && section.aspects.length > 0 && (
+        <div className="aspects-grid">
+          {section.aspects.map((aspect, i) => (
+            <AspectBadge key={i} aspect={aspect} />
+          ))}
+        </div>
+      )}
+
+      {/* Core cards */}
+      {section.coreCards?.map((card) => (
+        <CardComponent
+          key={card.id}
+          card={card}
+          expanded={expandedCards.has(card.id)}
+          onToggleExpand={() => onToggleExpand(card.id)}
+        />
+      ))}
+
+      {section.pullQuote && (
+        <blockquote className="pull-quote">{section.pullQuote}</blockquote>
+      )}
+    </div>
+  );
+}
+
+// ── Content section (sections 2-8) ──
+
+function ContentRenderer({
+  section,
+  expandedCards,
+  onToggleExpand,
+}: {
+  section: ContentSection;
+  expandedCards: Set<string>;
+  onToggleExpand: (id: string) => void;
+}) {
+  return (
+    <div className="reading-content">
+      <header className="section-header">
+        <h2 className="section-title">{section.sectionTitle}</h2>
+        <p className="section-tagline">{section.sectionTagline}</p>
+      </header>
+
+      {section.cards?.map((card) => (
+        <CardComponent
+          key={card.id}
+          card={card}
+          expanded={expandedCards.has(card.id)}
+          onToggleExpand={() => onToggleExpand(card.id)}
+        />
+      ))}
+
+      {section.pullQuote && (
+        <blockquote className="pull-quote">{section.pullQuote}</blockquote>
+      )}
+    </div>
+  );
+}
+
+// ── Individual card ──
+
+function CardComponent({
+  card,
+  expanded,
+  onToggleExpand,
+}: {
+  card: Card;
+  expanded: boolean;
+  onToggleExpand: () => void;
+}) {
+  return (
+    <article
+      className={`reading-card ${expanded ? 'expanded' : ''}`}
+      data-element={card.accentElement}
+      style={card.accentElement ? {
+        borderLeftColor: ELEMENT_COLORS[card.accentElement],
+      } : undefined}
+    >
+      {/* Card header */}
+      <div className="card-header">
+        <span className="card-label">{card.label}</span>
+        <h3 className="card-title">{card.title}</h3>
+      </div>
+
+      {/* Body paragraphs */}
+      <div className="card-body">
+        {card.body.map((paragraph, i) => (
+          <p key={i}>{paragraph}</p>
+        ))}
+      </div>
+
+      {/* Cross references */}
+      {card.crossReferences && card.crossReferences.length > 0 && (
+        <div className="card-crossrefs">
+          {card.crossReferences.map((ref, i) => (
+            <p key={i} className="crossref">{ref}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Expandable content */}
+      {card.expandedContent && card.expandedContent.length > 0 && (
+        <>
+          <button
+            className="card-expand-btn"
+            onClick={onToggleExpand}
+            aria-expanded={expanded}
+          >
+            {expanded ? '−' : '+'}
+          </button>
+          {expanded && (
+            <div className="card-expanded">
+              {card.expandedContent.map((para, i) => (
+                <p key={i}>{para}</p>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Hint */}
+      {card.hint && (
+        <div className="card-hint">
+          <span className="hint-title">{card.hint.title}</span>
+          <p className="hint-content">{card.hint.content}</p>
+          {card.hint.bullets && (
+            <ul className="hint-bullets">
+              {card.hint.bullets.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+// ── Planet row in overview table ──
+
+function PlanetRowComponent({ row }: { row: PlanetRow }) {
+  return (
+    <tr className="planet-row" data-element={row.element}>
+      <td className="planet-cell">
+        <svg width="14" height="14"><use href={`#gl-${row.planet.toLowerCase()}`} /></svg>
+        <span>{row.planet}</span>
+        {row.retrograde && <span className="retro-badge">R</span>}
+      </td>
+      <td className="sign-cell">
+        <span>{row.sign}</span>
+      </td>
+      <td className="degree-cell">{row.degree}</td>
+      <td className="house-cell">{row.house}</td>
+    </tr>
+  );
+}
+
+// ── Aspect badge ──
+
+function AspectBadge({ aspect }: { aspect: Aspect }) {
+  return (
+    <div className={`aspect-badge aspect-${aspect.aspectType}`}>
+      <span>{aspect.planet1}</span>
+      <span className="aspect-symbol">{aspect.aspectSymbol}</span>
+      <span>{aspect.planet2}</span>
+    </div>
+  );
+}
+
+// ── Locked section teaser ──
+
+function LockedSection({
+  sectionKey,
+  section,
+  user,
+  language,
+  onUpgrade,
+  onSectionPick,
+}: {
+  sectionKey: SectionKey;
+  section: OverviewSection | ContentSection;
+  user: User;
+  language: Lang;
+  onUpgrade?: () => void;
+  onSectionPick?: (key: string) => void;
+}) {
+  const isPickable = FREE_PICKABLE.includes(sectionKey) && !user.free_section_pick;
+
+  // Show price based on user type
+  const price = user.account_type === 'invited'
+    ? PRICING.natal_unlock
+    : PRICING.premium_upgrade;
+
+  const ctaText = language === 'ka'
+    ? `სრული წაკითხვის განბლოკვა — ₾${price}`
+    : `Unlock full reading — ₾${price}`;
+
+  const pickText = language === 'ka'
+    ? 'აირჩიე ეს სექცია უფასოდ'
+    : 'Choose this section for free';
+
+  return (
+    <div className="locked-section">
+      <header className="section-header">
+        <h2 className="section-title">{section.sectionTitle}</h2>
+        <p className="section-tagline">{section.sectionTagline}</p>
+      </header>
+
+      {/* Teaser: show first card badge + title, blurred body */}
+      {'cards' in section && section.cards?.[0] && (
+        <div className="locked-teaser">
+          <div className="teaser-card">
+            <span className="card-label">{section.cards[0].label}</span>
+            <h3 className="card-title">{section.cards[0].title}</h3>
+            <div className="teaser-blur">
+              <p>{section.cards[0].body[0]?.slice(0, 120)}...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="locked-cta-area">
+        {/* Free section pick option */}
+        {isPickable && onSectionPick && (
+          <button
+            className="btn-section-pick"
+            onClick={() => onSectionPick(sectionKey)}
+          >
+            {pickText}
+          </button>
+        )}
+
+        {/* Payment unlock */}
+        <button className="btn-unlock" onClick={onUpgrade}>
+          {ctaText}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Helpers ──
+
+function getSectionTitle(reading: NatalReading, key: SectionKey): string {
+  const section = reading[key];
+  if ('sectionTitle' in section) return section.sectionTitle;
+  return key;
+}

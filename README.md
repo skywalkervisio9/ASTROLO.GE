@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ASTROLO.GE
+
+AI-powered astrology reading platform. Bilingual (Georgian + English) natal chart and synastry analysis.
+
+## Stack
+
+- **Next.js 16** (App Router, Turbopack)
+- **React 19**
+- **Supabase** (PostgreSQL + Auth + RLS)
+- **Claude AI** (Anthropic) — two-call pipeline for bilingual readings
+- **Astrologer API** (RapidAPI) — birth chart calculation
+- **TBC Pay + BOG iPay** — Georgian bank payment integration
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+cp .env.example .env.local   # fill in your keys
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app runs in **prototype mode** without Supabase — all UI states are testable via the dev panel (bottom-right corner).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+See `docs/SYSTEM-ARCHITECTURE.md` and `docs/DEVELOPER-GUIDE.md` for full details.
 
-## Learn More
+### Reading Types
+- **Natal** — 8-section personal birth chart reading
+- **Synastry Couple** — 8-section romantic compatibility
+- **Synastry Friend** — 8-section friendship compatibility
 
-To learn more about Next.js, take a look at the following resources:
+### Account Tiers
+| Tier | Natal | Synastry | Price |
+|------|-------|----------|-------|
+| FREE | 3 sections (overview + mission + 1 pick) | Locked | Free |
+| PREMIUM | Full 8 sections | 1 free invite slot | 15 GEL |
+| PREMIUM+ | Full 8 sections | 2 slots (1 free + 1 paid) | 15 + 5 GEL |
+| INVITED | 3 sections (like free) | 1 slot (inviter's synastry) | Free |
+| INVITED+ | Full 8 sections + 2nd synastry slot | Both unlocked | 5 + 5 GEL |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Database
+Migrations in `supabase/migrations/` — 6 files covering users, chart data, readings, synastry, payments, and RLS policies.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## License
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Private. All rights reserved.
