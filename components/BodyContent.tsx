@@ -89,7 +89,7 @@ export default function BodyContent() {
 <div className="account-dd" id="accountDD" onClick={(e) => e.stopPropagation()}>
 <div className="sb-header">
 <div className="sb-avatar">ნ</div>
-<div className="sb-info"><div className="sb-name">ნინო მაისურაძე</div><div className="sb-email">nino@example.com</div>
+<div className="sb-info"><div className="sb-name">ლუკა პ.</div><div className="sb-email">luka.test@astrolo.ge</div>
 <span className="sb-tier premium" id="sbTier"><span className="dot"></span> PREMIUM</span></div></div>
 
 
@@ -158,7 +158,7 @@ export default function BodyContent() {
 <nav className="tb">
 <a className="tbl" href="#"><div className="lm"><svg style={{width: '14px', height: '14px', color: '#f0ead6', fill: '#f0ead6'}}><use href="#gl-sparkle"/></svg></div><span className="lt">ASTROLO.GE</span></a>
 <div className="tbr"><div className="lg"><button className="lo active" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("ka", e.currentTarget); }}>ქარ</button><button className="lo" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("en", e.currentTarget); }}>EN</button></div>
-<button className="pb" onClick={() => { (window as unknown as ProtoGlobals).openSidebar?.(); }}><div className="pa">ნ</div><span className="pn">ნინო მ.</span></button></div></nav>
+<button className="pb" onClick={() => { (window as unknown as ProtoGlobals).openSidebar?.(); }}><div className="pa">ლ</div><span className="pn">ლუკა.პ</span></button></div></nav>
 
 
 
@@ -366,8 +366,8 @@ export default function BodyContent() {
   <div className="pc" id="pc1" onClick={() => { alert("→ ჩემი ნატალური რუკა"); }}>
     <div className="pc-you-dot"></div>
     <div className="pc-tooltip">ჩემი რუკა →</div>
-    <div className="pc-avatar"><span className="pc-avatar-letter">ნ</span></div>
-    <div className="pc-name">ნინო მ.</div>
+    <div className="pc-avatar"><span className="pc-avatar-letter">ლ</span></div>
+    <div className="pc-name">ლუკა.პ</div>
     <div className="pc-sub">სასწორი · ქალწული · ლომი</div>
     <div className="pc-placements">
       <div className="pc-row"><span className="pc-row-label"><svg><use href="#gl-sun"/></svg></span><span className="pc-row-val">სასწორი 22°20'</span></div>
@@ -1012,6 +1012,70 @@ export default function BodyContent() {
   </div>
   <div className="dev-sep"></div>
   <button className="dev-btn discount-btn" onClick={(e) => { (window as unknown as ProtoGlobals).toggleDiscount?.(e.currentTarget); }} id="devDiscount">₾10 DISCOUNT</button>
+  <div className="dev-sep"></div>
+  <div className="dev-label">TEST USER</div>
+  <div className="dev-row">
+    <button className="dev-btn" id="devLuka" onClick={async (e) => {
+      const btn = e.currentTarget;
+      btn.textContent = '...';
+      const { createClient } = await import('@/lib/supabase/client');
+      const sb = createClient();
+      await sb.auth.signInWithPassword({ email: 'luka.test@astrolo.ge', password: 'testpass123!' });
+      window.location.reload();
+    }}>👤 ლუკა.პ</button>
+    <button className="dev-btn" id="devNino" onClick={async (e) => {
+      const btn = e.currentTarget;
+      btn.textContent = '...';
+      const { createClient } = await import('@/lib/supabase/client');
+      const sb = createClient();
+      await sb.auth.signInWithPassword({ email: 'nino.test@astrolo.ge', password: 'testpass123!' });
+      window.location.reload();
+    }}>👤 ნინო.მ</button>
+  </div>
+  <button className="dev-btn" id="devLogout" onClick={async (e) => {
+    const btn = e.currentTarget;
+    btn.textContent = '...';
+    const { createClient } = await import('@/lib/supabase/client');
+    const sb = createClient();
+    await sb.auth.signOut();
+    window.location.reload();
+  }}>↩ LOGOUT</button>
+  <div className="dev-sep"></div>
+  <div className="dev-label">DATA</div>
+  <button className="dev-btn" id="devSeed" onClick={async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    btn.textContent = 'SEEDING...';
+    try {
+      const res = await fetch('/api/dev/seed', { method: 'POST' });
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('No stream');
+      const decoder = new TextDecoder();
+      let lastStep = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value).split('\n').filter(Boolean);
+        for (const line of lines) {
+          try {
+            const msg = JSON.parse(line);
+            lastStep = msg.step || lastStep;
+            btn.textContent = lastStep;
+            if (msg.status === 'error') throw new Error(msg.step);
+          } catch { /* skip parse errors */ }
+        }
+      }
+      btn.textContent = 'DONE! Signing in...';
+      const { createClient } = await import('@/lib/supabase/client');
+      const sb = createClient();
+      await sb.auth.signInWithPassword({ email: 'luka.test@astrolo.ge', password: 'testpass123!' });
+      window.location.reload();
+    } catch (err) {
+      btn.textContent = 'SEED FAILED';
+      btn.disabled = false;
+      console.error('Seed error:', err);
+    }
+  }}>🌱 SEED TEST DATA</button>
 </div>
 </div>
   );

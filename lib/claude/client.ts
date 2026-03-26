@@ -1,10 +1,12 @@
 // ============================================================
-// Anthropic Claude API client — server-side only
+// AI API client — server-side only
+// Uses Google Gemini API (drop-in replacement for Anthropic Claude)
+// Interface kept identical so pipeline.ts needs zero changes
 // ============================================================
 
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export interface ClaudeResponse {
   text: string;
@@ -18,22 +20,28 @@ export async function callClaude(
   userMessage: string,
   maxTokens = 4000
 ): Promise<ClaudeResponse> {
-  const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userMessage }],
+  const model = genai.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    systemInstruction: systemPrompt,
+    generationConfig: {
+      maxOutputTokens: maxTokens,
+    },
   });
 
-  const textBlock = message.content.find((b) => b.type === 'text');
-  if (!textBlock || textBlock.type !== 'text') {
-    throw new Error('No text response from Claude');
+  const result = await model.generateContent(userMessage);
+  const response = result.response;
+  const text = response.text();
+
+  if (!text) {
+    throw new Error('No text response from Gemini');
   }
 
+  const usage = response.usageMetadata;
+
   return {
-    text: textBlock.text,
-    inputTokens: message.usage.input_tokens,
-    outputTokens: message.usage.output_tokens,
-    model: message.model,
+    text,
+    inputTokens: usage?.promptTokenCount ?? 0,
+    outputTokens: usage?.candidatesTokenCount ?? 0,
+    model: 'gemini-2.5-flash',
   };
 }
