@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         api_response: chartData,
         chart_context: context,
-        planets: (chartData as Record<string, unknown>)?.subjects ?? null,
+        planets: (chartData as Record<string, unknown>)?.planets ?? null,
         houses: (chartData as Record<string, unknown>)?.houses ?? null,
         aspects: (chartData as Record<string, unknown>)?.aspects ?? null,
         points: (chartData as Record<string, unknown>)?.points ?? null,
