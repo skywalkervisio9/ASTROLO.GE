@@ -3,26 +3,32 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase/server';
 import { generateInviteCode } from '@/lib/utils/invite';
-import { canInvite } from '@/types/user';
 import type { CreateInviteRequest } from '@/types/api';
+import { requireAuthContext } from '@/lib/auth/guards';
+import { requireCsrfOrThrow } from '@/lib/auth/csrf';
+import { jsonBadRequest, jsonServerError } from '@/lib/auth/http';
+import { asEnum } from '@/lib/auth/validators';
+import { canUserInvite } from '@/lib/auth/policy';
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireCsrfOrThrow();
+    const auth = await requireAuthContext();
+    if (auth.response) return auth.response;
+    const { supabase, authUser } = auth;
 
     const body: CreateInviteRequest = await req.json();
+    const relationshipType = asEnum(body.relationship_type, ['couple', 'friend'] as const);
+    if (!relationshipType) {
+      return jsonBadRequest('Invalid relationship_type');
+    }
 
     // Get user profile
     const { data: profile } = await supabase
       .from('users')
       .select('*')
-      .eq('id', user.id)
+      .eq('id', authUser.id)
       .single();
 
     if (!profile) {
@@ -33,9 +39,9 @@ export async function POST(req: NextRequest) {
     const { count: usedSlots } = await supabase
       .from('invite_codes')
       .select('*', { count: 'exact', head: true })
-      .eq('inviter_id', user.id);
+      .eq('inviter_id', authUser.id);
 
-    if (!canInvite(profile, usedSlots ?? 0)) {
+    if (!canUserInvite(profile, usedSlots ?? 0)) {
       return NextResponse.json(
         { error: 'No available invite slots', requires_payment: true },
         { status: 403 }
@@ -55,8 +61,8 @@ export async function POST(req: NextRequest) {
       .from('invite_codes')
       .insert({
         code,
-        inviter_id: user.id,
-        relationship_type: body.relationship_type,
+        inviter_id: authUser.id,
+        relationship_type: relationshipType,
         slot_number: slotNumber,
       });
 
@@ -66,8 +72,8 @@ export async function POST(req: NextRequest) {
     await supabase
       .from('synastry_connections')
       .insert({
-        inviter_id: user.id,
-        relationship_type: body.relationship_type,
+        inviter_id: authUser.id,
+        relationship_type: relationshipType,
         invite_code: code,
         slot_number: slotNumber,
         status: 'pending',
@@ -82,7 +88,6 @@ export async function POST(req: NextRequest) {
       requires_payment: requiresPayment,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonServerError(error);
   }
 }

@@ -16,46 +16,27 @@ export function useAuth() {
   useEffect(() => {
     const supabase = createClient();
 
-    async function getUser() {
-      const { data: { user: authData } } = await supabase.auth.getUser();
-
-      if (authData) {
-        setAuthUser({ id: authData.id, email: authData.email ?? '' });
-
-        // Fetch profile from users table
-        const { data: profile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', authData.id)
-          .single();
-
-        if (profile) {
-          setUser(profile as User);
-        }
+    async function refreshSessionSnapshot() {
+      const res = await fetch('/api/auth/session', { credentials: 'include' });
+      if (!res.ok) {
+        setLoading(false);
+        return;
       }
-
+      const data = await res.json() as {
+        authUser: { id: string; email: string } | null;
+        profile: User | null;
+      };
+      setAuthUser(data.authUser);
+      setUser(data.profile);
       setLoading(false);
     }
 
-    getUser();
+    refreshSessionSnapshot();
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session?.user) {
-          setAuthUser({ id: session.user.id, email: session.user.email ?? '' });
-
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profile) setUser(profile as User);
-        } else {
-          setAuthUser(null);
-          setUser(null);
-        }
+      async () => {
+        await refreshSessionSnapshot();
       }
     );
 

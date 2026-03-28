@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { asEnum } from '@/lib/auth/validators';
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,10 +13,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     const paymentId = searchParams.get('payment_id');
-    const status = searchParams.get('status');
+    const status = asEnum(searchParams.get('status'), ['success', 'failed'] as const);
+    const provider = asEnum(searchParams.get('provider'), ['tbc', 'bog'] as const);
     const providerTxId = searchParams.get('tx_id');
 
-    if (!paymentId) {
+    if (!paymentId || !provider || !status) {
       return NextResponse.redirect(new URL('/?payment=error', req.url));
     }
 
@@ -33,9 +35,19 @@ export async function GET(req: NextRequest) {
     // TODO: Verify transaction with bank API
     // const verified = await verifyWithBank(payment.provider, providerTxId);
 
-    const isSuccess = status === 'success'; // Replace with bank verification
+    // Soft guard before webhook implementation reaches full maturity:
+    // provider on callback must match payment.provider.
+    if (payment.provider !== provider) {
+      return NextResponse.redirect(new URL('/?payment=error', req.url));
+    }
+
+    const isSuccess = status === 'success'; // TODO: replace with provider verify API
 
     if (isSuccess) {
+      if (payment.status === 'completed') {
+        return NextResponse.redirect(new URL('/?payment=success', req.url));
+      }
+
       // Update payment status
       await supabase
         .from('payments')
@@ -80,6 +92,9 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.redirect(new URL('/?payment=success', req.url));
     } else {
+      if (payment.status === 'failed') {
+        return NextResponse.redirect(new URL('/?payment=failed', req.url));
+      }
       await supabase
         .from('payments')
         .update({ status: 'failed' })
