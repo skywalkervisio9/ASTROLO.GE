@@ -12,7 +12,122 @@ export function parseClaudeJSON(raw: string): unknown {
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```\s*$/i, '')
     .trim();
-  return JSON.parse(cleaned);
+
+  // Fast path: fully valid JSON response.
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Continue with extraction heuristics below.
+  }
+
+  // Common case: model adds pre/post text around JSON.
+  const extracted = extractFirstJSONObject(cleaned);
+  if (extracted) {
+    return JSON.parse(extracted);
+  }
+
+  throw new SyntaxError('Model response did not contain parseable JSON');
+}
+
+export function normalizeNatalReadingShape(input: Record<string, unknown>): Record<string, unknown> {
+  const json: Record<string, unknown> = { ...input };
+  const sections = Array.isArray(json.sections) ? (json.sections as Array<Record<string, unknown>>) : [];
+
+  if (sections.length === 0) return json;
+
+  const sectionMap: Record<string, string> = {
+    overview: 'overview',
+    mission: 'mission',
+    mission_karmic_path: 'mission',
+    missionandkarmicpath: 'mission',
+    characteristics: 'characteristics',
+    personality: 'characteristics',
+    relationships: 'relationships',
+    relationship: 'relationships',
+    work: 'work',
+    career: 'work',
+    shadow: 'shadow',
+    spiritual: 'spiritual',
+    spirituality: 'spiritual',
+    potential: 'potential',
+  };
+
+  const normalizeKey = (value: unknown) =>
+    String(value ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+
+  for (const section of sections) {
+    const rawId = section.id ?? section.key ?? section.slug ?? section.sectionKey ?? section.title;
+    const mapped = sectionMap[normalizeKey(rawId)];
+    if (!mapped) continue;
+
+    if (mapped === 'overview') {
+      const overviewCards = Array.isArray(section.cards) ? section.cards : (Array.isArray(section.coreCards) ? section.coreCards : []);
+      json.overview = {
+        sectionTitle: section.sectionTitle ?? section.title ?? '',
+        sectionTagline: section.sectionTagline ?? section.tagline ?? '',
+        planetTable: Array.isArray(section.planetTable) ? section.planetTable : [],
+        aspects: Array.isArray(section.aspects) ? section.aspects : [],
+        coreCards: overviewCards,
+        pullQuote: section.pullQuote ?? null,
+      };
+      continue;
+    }
+
+    json[mapped] = {
+      sectionTitle: section.sectionTitle ?? section.title ?? '',
+      sectionTagline: section.sectionTagline ?? section.tagline ?? '',
+      cards: Array.isArray(section.cards) ? section.cards : [],
+      pullQuote: section.pullQuote ?? null,
+    };
+  }
+
+  return json;
+}
+
+function extractFirstJSONObject(input: string): string | null {
+  const start = input.indexOf('{');
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < input.length; i++) {
+    const ch = input[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === '\\') {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') {
+      depth += 1;
+      continue;
+    }
+    if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return input.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -26,13 +141,15 @@ export function validateNatalReading(json: Record<string, unknown>): {
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  const normalized = normalizeNatalReadingShape(json);
+
   // Check all 8 sections present
   for (const key of SECTION_KEYS) {
-    if (!json[key]) errors.push(`Missing section: ${key}`);
+    if (!normalized[key]) errors.push(`Missing section: ${key}`);
   }
 
   // Check meta
-  const meta = json.meta as Record<string, unknown> | undefined;
+  const meta = normalized.meta as Record<string, unknown> | undefined;
   if (meta && !['ka', 'en'].includes(meta.language as string)) {
     errors.push('Invalid language in meta');
   }
@@ -44,7 +161,7 @@ export function validateNatalReading(json: Record<string, unknown>): {
   };
 
   for (const key of SECTION_KEYS) {
-    const section = json[key] as Record<string, unknown> | undefined;
+    const section = normalized[key] as Record<string, unknown> | undefined;
     if (!section) continue;
     const cards = (section.cards ?? section.coreCards) as unknown[] | undefined;
     const count = cards?.length ?? 0;
@@ -55,7 +172,7 @@ export function validateNatalReading(json: Record<string, unknown>): {
   }
 
   // Estimate word count
-  const totalText = JSON.stringify(json);
+  const totalText = JSON.stringify(normalized);
   const wordEstimate = totalText.split(/\s+/).length;
   if (wordEstimate < 5000) {
     warnings.push(`Low word count estimate: ~${wordEstimate} (target 7500-9500)`);

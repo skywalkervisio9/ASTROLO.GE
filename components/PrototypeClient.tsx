@@ -17,6 +17,8 @@ export default function PrototypeClient() {
   // Auto-enable live mode when real data exists
   useEffect(() => {
     if (user && reading) {
+      // This is intentional: we want to flip the prototype into live overlay once.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowLive(true);
     }
   }, [user, reading]);

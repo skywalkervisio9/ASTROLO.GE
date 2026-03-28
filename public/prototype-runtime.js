@@ -1,4 +1,4 @@
-﻿// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // UNIFIED JAVASCRIPT — ASTROLO.GE
 // ═══════════════════════════════════════════════════════════
 
@@ -1199,15 +1199,36 @@ function handleBirthData() {
 // Place suggestions
 (function() {
   const cities = [
-    { name: 'Tbilisi', ka: 'თბილისი', country: 'Georgia', lat: 41.72, lng: 44.79 },
-    { name: 'Batumi', ka: 'ბათუმი', country: 'Georgia', lat: 41.64, lng: 41.64 },
-    { name: 'Kutaisi', ka: 'ქუთაისი', country: 'Georgia', lat: 42.27, lng: 42.70 },
-    { name: 'Dubai', ka: 'დუბაი', country: 'UAE', lat: 25.20, lng: 55.27 },
-    { name: 'London', ka: 'ლონდონი', country: 'UK', lat: 51.51, lng: -0.12 },
-    { name: 'Moscow', ka: 'მოსკოვი', country: 'Russia', lat: 55.75, lng: 37.62 },
-    { name: 'Istanbul', ka: 'სტამბოლი', country: 'Turkey', lat: 41.01, lng: 28.98 },
-    { name: 'Berlin', ka: 'ბერლინი', country: 'Germany', lat: 52.52, lng: 13.40 },
-    { name: 'Paris', ka: 'პარიზი', country: 'France', lat: 48.86, lng: 2.35 }
+    { name: 'Tbilisi', ka: 'თბილისი', country: 'Georgia', lat: 41.72, lng: 44.79, tz: 'Asia/Tbilisi' },
+    { name: 'Batumi', ka: 'ბათუმი', country: 'Georgia', lat: 41.64, lng: 41.64, tz: 'Asia/Tbilisi' },
+    { name: 'Kutaisi', ka: 'ქუთაისი', country: 'Georgia', lat: 42.27, lng: 42.70, tz: 'Asia/Tbilisi' },
+    { name: 'Rustavi', ka: 'რუსთავი', country: 'Georgia', lat: 41.55, lng: 45.00, tz: 'Asia/Tbilisi' },
+    { name: 'Gori', ka: 'გორი', country: 'Georgia', lat: 41.98, lng: 44.11, tz: 'Asia/Tbilisi' },
+    { name: 'Zugdidi', ka: 'ზუგდიდი', country: 'Georgia', lat: 42.51, lng: 41.87, tz: 'Asia/Tbilisi' },
+    { name: 'Dubai', ka: 'დუბაი', country: 'UAE', lat: 25.20, lng: 55.27, tz: 'Asia/Dubai' },
+    { name: 'London', ka: 'ლონდონი', country: 'UK', lat: 51.51, lng: -0.12, tz: 'Europe/London' },
+    { name: 'Moscow', ka: 'მოსკოვი', country: 'Russia', lat: 55.75, lng: 37.62, tz: 'Europe/Moscow' },
+    { name: 'Istanbul', ka: 'სტამბოლი', country: 'Turkey', lat: 41.01, lng: 28.98, tz: 'Europe/Istanbul' },
+    { name: 'Berlin', ka: 'ბერლინი', country: 'Germany', lat: 52.52, lng: 13.40, tz: 'Europe/Berlin' },
+    { name: 'Paris', ka: 'პარიზი', country: 'France', lat: 48.86, lng: 2.35, tz: 'Europe/Paris' },
+    { name: 'New York', ka: 'ნიუ-იორქი', country: 'USA', lat: 40.71, lng: -74.01, tz: 'America/New_York' },
+    { name: 'Los Angeles', ka: 'ლოს-ანჯელესი', country: 'USA', lat: 34.05, lng: -118.24, tz: 'America/Los_Angeles' },
+    { name: 'Kyiv', ka: 'კიევი', country: 'Ukraine', lat: 50.45, lng: 30.52, tz: 'Europe/Kyiv' },
+    { name: 'Yerevan', ka: 'ერევანი', country: 'Armenia', lat: 40.18, lng: 44.51, tz: 'Asia/Yerevan' },
+    { name: 'Baku', ka: 'ბაქო', country: 'Azerbaijan', lat: 40.41, lng: 49.87, tz: 'Asia/Baku' },
+    { name: 'Tel Aviv', ka: 'თელ-ავივი', country: 'Israel', lat: 32.08, lng: 34.78, tz: 'Asia/Jerusalem' },
+    { name: 'Rome', ka: 'რომი', country: 'Italy', lat: 41.90, lng: 12.50, tz: 'Europe/Rome' },
+    { name: 'Madrid', ka: 'მადრიდი', country: 'Spain', lat: 40.42, lng: -3.70, tz: 'Europe/Madrid' },
+    { name: 'Warsaw', ka: 'ვარშავა', country: 'Poland', lat: 52.23, lng: 21.01, tz: 'Europe/Warsaw' },
+    { name: 'Amsterdam', ka: 'ამსტერდამი', country: 'Netherlands', lat: 52.37, lng: 4.90, tz: 'Europe/Amsterdam' },
+    { name: 'Vienna', ka: 'ვენა', country: 'Austria', lat: 48.21, lng: 16.37, tz: 'Europe/Vienna' },
+    { name: 'Prague', ka: 'პრაღა', country: 'Czech Republic', lat: 50.08, lng: 14.44, tz: 'Europe/Prague' },
+    { name: 'Stockholm', ka: 'სტოკჰოლმი', country: 'Sweden', lat: 59.33, lng: 18.07, tz: 'Europe/Stockholm' },
+    { name: 'Lisbon', ka: 'ლისაბონი', country: 'Portugal', lat: 38.72, lng: -9.14, tz: 'Europe/Lisbon' },
+    { name: 'Athens', ka: 'ათენი', country: 'Greece', lat: 37.98, lng: 23.73, tz: 'Europe/Athens' },
+    { name: 'Toronto', ka: 'ტორონტო', country: 'Canada', lat: 43.65, lng: -79.38, tz: 'America/Toronto' },
+    { name: 'Sydney', ka: 'სიდნეი', country: 'Australia', lat: -33.87, lng: 151.21, tz: 'Australia/Sydney' },
+    { name: 'Tokyo', ka: 'ტოკიო', country: 'Japan', lat: 35.68, lng: 139.69, tz: 'Asia/Tokyo' },
   ];
   const placeInput = document.getElementById('birth-place');
   const sugBox = document.getElementById('placeSuggestions');
@@ -1221,7 +1242,15 @@ function handleBirthData() {
     matches.slice(0, 5).forEach(c => {
       const d = document.createElement('div'); d.className = 'place-item';
       d.innerHTML = c.ka + '<small>' + c.country + ' · ' + c.lat.toFixed(2) + '°N, ' + c.lng.toFixed(2) + '°E</small>';
-      d.onclick = () => { placeInput.value = c.ka; sugBox.classList.remove('open'); };
+      d.onclick = () => {
+        placeInput.value = c.ka;
+        // Store minimal geo context for server-side chart generation.
+        // This is a dev fallback when Google Places isn't wired yet.
+        placeInput.dataset.lat = String(c.lat);
+        placeInput.dataset.lng = String(c.lng);
+        placeInput.dataset.tz = c.tz;
+        sugBox.classList.remove('open');
+      };
       sugBox.appendChild(d);
     });
     sugBox.classList.add('open');
@@ -1234,6 +1263,9 @@ const loadMsgs = ['ვარსკვლავური კოორდინა
 const funFacts = ['თევზები ზოდიაქოს ბოლო ნიშანია — ყველა წინა ნიშნის სიბრძნეს ატარებს.','სატურნის დაბრუნება ~29 წელიწადში ხდება და სიმწიფის ახალ ციკლს იწყებს.','მთვარის კვანძები 18.6 წელიწადში ასრულებენ სრულ ციკლს.','პლუტონი მერწყულში 2024-დან 2044-მდე დარჩება — თაობრივი ტრანსფორმაცია.','ვენერა ციურ სხეულებს შორის ყველაზე სრულყოფილ წრეს ხაზავს — ვარდის ნიმუშს.'];
 
 function startLoading() {
+  // If the app is doing real server-side generation, keep the loading overlay
+  // active until `window.finishLoading()` is called by the React layer.
+  const liveMode = !!window.__ASTROLO_LIVE_LOADING;
   authStep = 3; updateAuthStepUI();
   document.getElementById('authWrap').style.display = 'none';
   const overlay = document.getElementById('loadingScreen');
@@ -1273,7 +1305,7 @@ function startLoading() {
       msgEl.style.opacity = '0';
       setTimeout(() => { msgEl.textContent = loadMsgs[msgIdx]; msgEl.style.opacity = '1'; fillEl.style.width = ((msgIdx + 1) / loadMsgs.length * 100) + '%'; msgIdx++; }, 300);
     }
-    if (msgIdx >= loadMsgs.length) {
+    if (!liveMode && msgIdx >= loadMsgs.length) {
       clearInterval(msgInt); clearInterval(zInt); clearInterval(factInt);
       setTimeout(() => {
         overlay.style.opacity = '0';
@@ -1286,9 +1318,30 @@ function startLoading() {
         }, 600);
       }, 1500);
     }
+    if (liveMode && msgIdx >= loadMsgs.length) {
+      // Loop messages smoothly while real generation runs.
+      msgIdx = 0;
+    }
   }
   advance();
   const msgInt = setInterval(advance, 2200);
+
+  // Expose a completion hook for the React layer.
+  window.finishLoading = function finishLoading() {
+    try {
+      clearInterval(msgInt); clearInterval(zInt); clearInterval(factInt);
+      overlay.style.opacity = '0';
+      setTimeout(() => {
+        overlay.classList.remove('active'); overlay.style.opacity = '';
+        document.getElementById('authWrap').style.display = 'flex';
+        switchView('natal', document.getElementById('devNatal'));
+      }, 600);
+    } catch (e) {
+      console.error('finishLoading failed', e);
+    } finally {
+      window.__ASTROLO_LIVE_LOADING = false;
+    }
+  };
 }
 
 // Auth panel mouse glow

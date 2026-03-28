@@ -3,31 +3,32 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase/server';
+import { requireAuthContext } from '@/lib/auth/guards';
+import { requireCsrfOrThrow } from '@/lib/auth/csrf';
+import { jsonBadRequest, jsonServerError } from '@/lib/auth/http';
+import { asEnum } from '@/lib/auth/validators';
 
 export async function PATCH(req: NextRequest) {
   try {
-    const supabase = await createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireCsrfOrThrow();
+    const auth = await requireAuthContext();
+    if (auth.response) return auth.response;
 
     const { language } = await req.json();
-    if (!['ka', 'en'].includes(language)) {
-      return NextResponse.json({ error: 'Invalid language' }, { status: 400 });
+    const validatedLanguage = asEnum(language, ['ka', 'en'] as const);
+    if (!validatedLanguage) {
+      return jsonBadRequest('Invalid language');
     }
 
-    const { error } = await supabase
+    const { error } = await auth.supabase
       .from('users')
-      .update({ language })
-      .eq('id', user.id);
+      .update({ language: validatedLanguage })
+      .eq('id', auth.authUser.id);
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, language });
+    return NextResponse.json({ success: true, language: validatedLanguage });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonServerError(error);
   }
 }

@@ -4,20 +4,26 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase/server';
 import { PRICING } from '@/types/user';
 import type { CreatePaymentRequest } from '@/types/api';
+import { requireAuthContext } from '@/lib/auth/guards';
+import { requireCsrfOrThrow } from '@/lib/auth/csrf';
+import { asEnum } from '@/lib/auth/validators';
+import { jsonBadRequest, jsonServerError } from '@/lib/auth/http';
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireCsrfOrThrow();
+    const auth = await requireAuthContext();
+    if (auth.response) return auth.response;
+    const { supabase, authUser } = auth;
 
     const body: CreatePaymentRequest = await req.json();
-    const { payment_type, provider } = body;
+    const payment_type = asEnum(body.payment_type, ['premium_upgrade', 'natal_unlock', 'invite_slot'] as const);
+    const provider = asEnum(body.provider, ['tbc', 'bog'] as const);
+    if (!payment_type || !provider) {
+      return jsonBadRequest('Invalid payment request');
+    }
 
     // Determine amount
     const amount = PRICING[payment_type];
@@ -26,13 +32,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate idempotency key
-    const idempotencyKey = `${user.id}-${payment_type}-${Date.now()}`;
+    const idempotencyKey = `${authUser.id}-${payment_type}-${Date.now()}`;
 
     // Create payment record
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .insert({
-        user_id: user.id,
+        // user_id is identity-scoped; client cannot override
+        user_id: authUser.id,
         payment_type,
         amount,
         provider,
@@ -67,7 +74,6 @@ export async function POST(req: NextRequest) {
       redirect_url: redirectUrl,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonServerError(error);
   }
 }

@@ -6,8 +6,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { SynastryReading, SynastrySection, SynastryCard, CategoryScore } from '@/types/synastry';
-import { ELEMENT_COLORS } from '@/lib/utils/constants';
+import type { SynastryReading, SynastryCard, CategoryScore } from '@/types/synastry';
 
 interface SynastryRendererProps {
   reading: SynastryReading;
@@ -97,12 +96,10 @@ export default function SynastryRenderer({
 
 function SynastryCardComponent({
   card,
-  cardId,
   expanded,
   onToggleExpand,
 }: {
   card: SynastryCard;
-  cardId: string;
   expanded: boolean;
   onToggleExpand: () => void;
 }) {

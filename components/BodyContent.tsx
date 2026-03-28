@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react/no-unescaped-entities */
 
 /** Full app markup (formerly content/body.html). */
 
@@ -870,8 +871,8 @@ export default function BodyContent() {
         <label className="check-row"><input type="checkbox" id="time-unknown" onChange={() => { (window as unknown as ProtoGlobals).toggleTimeUnknown?.(); }}/><div className="check-box">✓</div><span className="check-label">დაბადების დრო უცნობია</span></label>
         <div className="field" style={{position: 'relative'}}><label>დაბადების ადგილი</label><input type="text" id="birth-place" autoComplete="off" placeholder="ქალაქი, ქვეყანა"/><div className="place-suggestions" id="placeSuggestions"></div></div>
         <label style={{display: 'block', fontSize: '.6rem', letterSpacing: '.14em', color: 'var(--gd)', marginBottom: '6px', fontWeight: 400}}>სქესი</label>
-        <div className="gender-row"><div className="gender-opt" onClick={(e) => { (window as unknown as ProtoGlobals).selectGender?.(e.currentTarget, "female"); }}><span className="g-icon">♀</span>ქალი</div><div className="gender-opt" onClick={(e) => { (window as unknown as ProtoGlobals).selectGender?.(e.currentTarget, "male"); }}><span className="g-icon">♂</span>კაცი</div></div>
-        <button className="auth-btn" onClick={() => { (window as unknown as ProtoGlobals).handleBirthData?.(); }} style={{marginTop: '6px'}}><span className="btn-text">რუკის აგება ✦</span></button>
+        <div className="gender-row"><div className="gender-opt" data-gender="female" onClick={(e) => { (window as unknown as ProtoGlobals).selectGender?.(e.currentTarget, "female"); }}><span className="g-icon">♀</span>ქალი</div><div className="gender-opt" data-gender="male" onClick={(e) => { (window as unknown as ProtoGlobals).selectGender?.(e.currentTarget, "male"); }}><span className="g-icon">♂</span>კაცი</div></div>
+        <button className="auth-btn" onClick={() => { (window as unknown as { __authBirthSubmit?: () => void }).__authBirthSubmit?.(); }} style={{marginTop: '6px'}}><span className="btn-text">რუკის აგება ✦</span></button>
         <div className="nav-row"><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).goAuthStep?.(1); }}>← უკან</button><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).startLoading?.(); }} style={{color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ გამოტოვება → (dev)</button></div>
       </div>
     </div>

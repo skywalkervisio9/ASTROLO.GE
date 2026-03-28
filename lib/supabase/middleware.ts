@@ -6,6 +6,24 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+const PUBLIC_PREFIXES = [
+  '/auth',
+  '/inv',
+  '/api/auth/callback',
+  '/api/auth/oauth/start',
+  '/api/auth/csrf',
+  '/api/invite/validate',
+];
+
+function isPublicRoute(path: string) {
+  const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(path);
+  if (path === '/') return true;
+  if (hasFileExtension) return true;
+  // API routes enforce auth/authorization at handler level.
+  if (path.startsWith('/api/')) return true;
+  return PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
 export async function updateSession(request: NextRequest) {
   const response = NextResponse.next({
     request: { headers: request.headers },
@@ -39,10 +57,7 @@ export async function updateSession(request: NextRequest) {
 
   // Redirect unauthenticated users away from protected routes
   const path = request.nextUrl.pathname;
-  const isPublic = path.startsWith('/auth')
-    || path.startsWith('/inv')
-    || path.startsWith('/api')
-    || path === '/';
+  const isPublic = isPublicRoute(path);
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

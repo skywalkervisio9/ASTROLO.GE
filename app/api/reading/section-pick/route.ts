@@ -3,52 +3,49 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabase } from '@/lib/supabase/server';
 import { FREE_PICKABLE } from '@/types/reading';
+import { requireAuthContext } from '@/lib/auth/guards';
+import { requireCsrfOrThrow } from '@/lib/auth/csrf';
+import { jsonBadRequest, jsonConflict, jsonServerError } from '@/lib/auth/http';
+import { asNonEmptyString } from '@/lib/auth/validators';
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createServerSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireCsrfOrThrow();
+    const auth = await requireAuthContext();
+    if (auth.response) return auth.response;
+    const { supabase, authUser } = auth;
 
-    const { sectionKey } = await req.json();
+    const { sectionKey: rawSectionKey } = await req.json() as { sectionKey?: string };
+    const sectionKey = asNonEmptyString(rawSectionKey);
+    if (!sectionKey) return jsonBadRequest('Invalid section key');
 
     // Validate section key
     if (!FREE_PICKABLE.includes(sectionKey)) {
-      return NextResponse.json(
-        { error: 'Invalid section key' },
-        { status: 400 }
-      );
+      return jsonBadRequest('Invalid section key');
     }
 
     // Check user hasn't already picked
     const { data: profile } = await supabase
       .from('users')
       .select('free_section_pick, account_type')
-      .eq('id', user.id)
+      .eq('id', authUser.id)
       .single();
 
     if (profile?.free_section_pick) {
-      return NextResponse.json(
-        { error: 'Section already picked' },
-        { status: 409 }
-      );
+      return jsonConflict('Section already picked');
     }
 
     // Save pick
     const { error } = await supabase
       .from('users')
       .update({ free_section_pick: sectionKey })
-      .eq('id', user.id);
+      .eq('id', authUser.id);
 
     if (error) throw error;
 
     return NextResponse.json({ success: true, sectionKey });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonServerError(error);
   }
 }

@@ -4,13 +4,18 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { asNonEmptyString } from '@/lib/auth/validators';
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const { code } = await params;
+    const { code: rawCode } = await params;
+    const code = asNonEmptyString(rawCode);
+    if (!code) {
+      return NextResponse.json({ valid: false, error: 'Invalid invite code' });
+    }
     const supabase = await createServerSupabase();
 
     const { data: invite } = await supabase
@@ -32,7 +37,7 @@ export async function GET(
       relationship_type: invite.relationship_type,
       inviter_name: (invite.inviter as { full_name: string })?.full_name ?? null,
     });
-  } catch (error: unknown) {
+  } catch {
     return NextResponse.json({ valid: false, error: 'Validation failed' });
   }
 }

@@ -12,6 +12,7 @@ export interface BirthData {
   longitude: number;
   latitude: number;
   timezone: string;
+  city: string;
 }
 
 export interface ChartData {

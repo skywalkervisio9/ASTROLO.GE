@@ -26,7 +26,7 @@ import type {
   Aspect,
   SectionKey,
 } from '@/types/reading';
-import { SECTION_KEYS, FREE_ALWAYS_VISIBLE, FREE_PICKABLE } from '@/types/reading';
+import { SECTION_KEYS, FREE_PICKABLE } from '@/types/reading';
 import { canAccessSection, type User, PRICING } from '@/types/user';
 import { SECTION_ICONS, ELEMENT_COLORS } from '@/lib/utils/constants';
 import type { Lang } from '@/lib/utils/translations';
