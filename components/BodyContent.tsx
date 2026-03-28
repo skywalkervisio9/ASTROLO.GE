@@ -983,8 +983,8 @@ export default function BodyContent() {
 
 <div className="dev-panel" id="devPanel">
   <div className="dev-label">VIEW</div>
-  <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).switchView?.("auth", e.currentTarget); }} id="devAuth">☽ AUTH</button>
-  <button className="dev-btn active" onClick={(e) => { (window as unknown as ProtoGlobals).switchView?.("natal", e.currentTarget); }} id="devNatal">⊙ NATAL</button>
+  <button className="dev-btn" onClick={() => { window.location.href = "/auth"; }} id="devAuth">☽ AUTH</button>
+  <button className="dev-btn active" onClick={() => { window.location.href = "/"; }} id="devNatal">⊙ NATAL</button>
   <div className="dev-row">
     <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).switchSynastry?.("couple", e.currentTarget); }} id="devCouple">☌ COUPLE</button>
     <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).switchSynastry?.("friend", e.currentTarget); }} id="devFriend">☌ FRIEND</button>

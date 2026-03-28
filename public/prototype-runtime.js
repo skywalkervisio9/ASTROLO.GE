@@ -71,7 +71,7 @@ function setMode(mode, btn) {
 function setTier(tier, btn) {
   currentAccountType = tier;
   document.querySelectorAll('#devFree,#devPremium,#devPremPlus,#devInvited,#devInvitedPlus').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
 
   const badge = document.getElementById('sbTier');
   badge.style.color = '';
@@ -404,9 +404,11 @@ function showUpgrade() {
 // ═══ LANGUAGE ═══
 function setLang(l, b) {
   document.querySelectorAll('.lo').forEach(x => x.classList.remove('active'));
-  b.classList.add('active');
+  if (b) b.classList.add('active');
   document.body.classList.toggle('lang-en', l === 'en');
   applyTranslations(l);
+  // Notify HydrationBridge of language change
+  window.dispatchEvent(new CustomEvent('astrolo:lang-change', { detail: { lang: l } }));
 }
 
 // Translation map for all fixed UI text
@@ -1352,6 +1354,333 @@ document.addEventListener('mousemove', e => {
     c.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
   });
 });
+
+// ═══ READING HYDRATION ═══
+// Replaces hardcoded prototype content with real Claude-generated data.
+// Called by HydrationBridge.tsx after reading loads from Supabase.
+
+const SECTION_KEYS = ['overview','mission','characteristics','relationships','work','shadow','spiritual','potential'];
+const SECTION_ICONS_MAP = {
+  overview: 'gl-sparkle', mission: 'gl-node', characteristics: 'gl-diamond',
+  relationships: 'gl-venus', work: 'gl-mars', shadow: 'gl-moon',
+  spiritual: 'gl-sparkle', potential: 'gl-diamond'
+};
+const ELEMENT_CLASS = { fire: 'af', earth: 'ae', air: 'aa', water: 'aw' };
+const ELEMENT_LABEL_CLASS = { fire: 'ef', earth: 'ee', air: 'ea', water: 'ew' };
+
+function _canAccess(user, key) {
+  if (user.account_type === 'premium') return true;
+  if (user.account_type === 'invited' && user.natal_chart_unlocked) return true;
+  if (key === 'overview' || key === 'mission') return true;
+  if (user.free_section_pick === key) return true;
+  return false;
+}
+
+function _esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function _planetGlyph(name) {
+  const id = 'gl-' + name.toLowerCase();
+  return '<span class="gi gi-pl"><svg><use href="#' + id + '"/></svg></span>';
+}
+
+function _signGlyph(signName, element) {
+  // Map common sign names to glyph IDs
+  const map = {
+    aries: 'gl-aries', taurus: 'gl-taurus', gemini: 'gl-gemini',
+    cancer: 'gl-cancer', leo: 'gl-leo', virgo: 'gl-virgo',
+    libra: 'gl-libra', scorpio: 'gl-scorpio', sagittarius: 'gl-sagittarius',
+    capricorn: 'gl-capricorn', aquarius: 'gl-aquarius', pisces: 'gl-pisces'
+  };
+  const lower = signName.toLowerCase();
+  // Try exact match, then partial match
+  let id = map[lower];
+  if (!id) {
+    for (const [k, v] of Object.entries(map)) {
+      if (lower.includes(k) || k.includes(lower)) { id = v; break; }
+    }
+  }
+  if (!id) return '';
+  const elClass = element ? ELEMENT_LABEL_CLASS[element] || '' : '';
+  return '<span class="gi gi-' + (element || '') + '"><svg><use href="#' + id + '"/></svg></span>';
+}
+
+function _buildPlanetRow(row) {
+  const retro = row.retrograde ? ' class="retro"' : '';
+  const retroBadge = row.retrograde ? ' &#8478;' : '';
+  const elClass = ELEMENT_LABEL_CLASS[row.element] || '';
+  const elLabel = { fire: 'ცეცხლი', earth: 'მიწა', air: 'ჰაერი', water: 'წყალი' };
+  return '<tr>' +
+    '<td class="pl-btn" data-pl="' + row.planet.toLowerCase() + '">' +
+      _planetGlyph(row.planet) + ' ' + _esc(row.planet) + '</td>' +
+    '<td>' + _esc(row.sign) + ' ' + _signGlyph(row.sign, row.element) + '</td>' +
+    '<td' + retro + '>' + _esc(row.degree) + retroBadge + '</td>' +
+    '<td>' + _esc(row.house) + '</td>' +
+    '<td><span class="et ' + elClass + '">' + (elLabel[row.element] || _esc(row.element)) + '</span></td>' +
+    '</tr>';
+}
+
+function _buildAspect(asp) {
+  const typeLabel = {
+    conjunction: 'კონიუნქცია', trine: 'ტრინი', square: 'კვადრატი',
+    opposition: 'ოპოზიცია', sextile: 'სექსტილი'
+  };
+  return '<div class="al">' +
+    '<span class="asy">' + _esc(asp.aspectSymbol) + '</span>' +
+    _planetGlyph(asp.planet1) + ' ' + _esc(asp.planet1) + ' ' +
+    _esc(asp.aspectSymbol) + ' ' +
+    _planetGlyph(asp.planet2) + ' ' + _esc(asp.planet2) +
+    (asp.description ? ' — ' + _esc(asp.description) : '') +
+    '<span class="alb">' + _esc(typeLabel[asp.aspectType] || asp.aspectType) + '</span>' +
+    '</div>';
+}
+
+function _buildCard(card) {
+  const elClass = card.accentElement ? ELEMENT_CLASS[card.accentElement] || '' : '';
+  let html = '<div class="c ' + elClass + '">';
+  html += '<div class="b">' + _esc(card.label) + '</div>';
+  html += '<h3>' + _esc(card.title) + '</h3>';
+  if (card.body && card.body.length) {
+    card.body.forEach(function(p) { html += '<p>' + _esc(p) + '</p>'; });
+  }
+  if (card.crossReferences && card.crossReferences.length) {
+    card.crossReferences.forEach(function(ref) {
+      html += '<p class="xref"><em>' + _esc(ref) + '</em></p>';
+    });
+  }
+  if (card.expandedContent && card.expandedContent.length) {
+    html += '<button class="tb2" onclick="toggleExp(this)">+</button>';
+    html += '<div class="ce">';
+    card.expandedContent.forEach(function(p) { html += '<p>' + _esc(p) + '</p>'; });
+    html += '</div>';
+  }
+  if (card.hint) {
+    html += '<div class="h"><div class="ht"><svg><use href="#gl-sparkle"/></svg> ' + _esc(card.hint.title) + '</div>';
+    html += '<p>' + _esc(card.hint.content) + '</p>';
+    if (card.hint.bullets && card.hint.bullets.length) {
+      html += '<ul>';
+      card.hint.bullets.forEach(function(b) { html += '<li>' + _esc(b) + '</li>'; });
+      html += '</ul>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function _buildLockWrap(sectionKey, section, iconId) {
+  const cards = section.coreCards || section.cards || [];
+  const firstCard = cards[0];
+  let html = '<div class="lock-wrap locked" id="lock-s' + (SECTION_KEYS.indexOf(sectionKey) + 1) + '">';
+  html += '<div class="sh"><div class="section-icon"><svg style="color:var(--gold)"><use href="#' + iconId + '"/></svg></div>';
+  html += '<h2>' + _esc(section.sectionTitle || '') + '</h2>';
+  html += '<div class="st">' + _esc(section.sectionTagline || '') + '</div></div>';
+  html += '<div class="lock-preview">';
+  if (firstCard) {
+    html += '<div class="b">' + _esc(firstCard.label) + '</div>';
+    html += '<h3>' + _esc(firstCard.title) + '</h3>';
+    if (firstCard.hint) {
+      html += '<div class="lock-hint">✦ ' + _esc(firstCard.hint.content.slice(0, 120)) + '</div>';
+    }
+  }
+  html += '<div class="blur-lines">';
+  [100, 93, 97, 86, 91].forEach(function(w) {
+    html += '<div class="blur-line" style="width:' + w + '%"></div>';
+  });
+  html += '</div>';
+  html += '<button class="unlock-cta" onclick="showUpgrade()"><span>✦</span> სრული წაკითხვის განბლოკვა</button>';
+  html += '</div></div>';
+  return html;
+}
+
+function _buildSectionContent(sectionKey, section) {
+  const idx = SECTION_KEYS.indexOf(sectionKey) + 1;
+  const iconId = SECTION_ICONS_MAP[sectionKey] || 'gl-sparkle';
+  let html = '<section id="s' + idx + '">';
+  html += '<div class="sh"><div class="section-icon"><svg style="color:var(--gold)"><use href="#' + iconId + '"/></svg></div>';
+  html += '<h2>' + _esc(section.sectionTitle || '') + '</h2>';
+  html += '<div class="st">' + _esc(section.sectionTagline || '') + '</div></div>';
+
+  if (sectionKey === 'overview') {
+    // Planet table
+    if (section.planetTable && section.planetTable.length) {
+      html += '<div class="c"><table class="pt"><thead><tr><th>პლანეტა</th><th>ნიშანი</th><th>გრადუსი</th><th>სახლი</th><th>სტიქია</th></tr></thead><tbody>';
+      section.planetTable.forEach(function(row) { html += _buildPlanetRow(row); });
+      html += '</tbody></table></div>';
+    }
+    // Aspects
+    if (section.aspects && section.aspects.length) {
+      html += '<div class="c"><div class="b">მთავარი ასპექტები</div><h3>პლანეტარული საუბრები</h3>';
+      section.aspects.forEach(function(asp) { html += _buildAspect(asp); });
+      // Aspect interpretations expand
+      const interps = section.aspects.filter(function(a) { return a.interpretation; });
+      if (interps.length) {
+        html += '<button class="tb2" onclick="toggleExp(this)">ასპექტების ინტერპრეტაცია ↓</button>';
+        html += '<div class="ce">';
+        interps.forEach(function(a) {
+          html += '<p><strong>' + _esc(a.planet1) + ' ' + _esc(a.aspectSymbol) + ' ' + _esc(a.planet2) + ':</strong> ' + _esc(a.interpretation) + '</p>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    // Core cards
+    var cards = section.coreCards || [];
+    cards.forEach(function(card) { html += _buildCard(card); });
+  } else {
+    // Content sections (2-8)
+    var sCards = section.cards || [];
+    sCards.forEach(function(card) { html += _buildCard(card); });
+  }
+
+  // Pull quote
+  if (section.pullQuote) {
+    html += '<div class="pq"><p>' + _esc(section.pullQuote) + '</p></div>';
+  }
+
+  html += '</section>';
+  return html;
+}
+
+function hydrateReading(reading, user) {
+  if (!reading || !user) return;
+  console.log('[HYDRATE] Starting reading hydration', { user: user.full_name, lang: reading.meta?.language });
+
+  // 1. Sidebar user info
+  var nameEl = document.querySelector('.sb-name');
+  if (nameEl) nameEl.textContent = user.full_name || user.email || '';
+  var emailEl = document.querySelector('.sb-email');
+  if (emailEl) emailEl.textContent = user.email || '';
+  var avatarEl = document.querySelector('.sb-avatar');
+  if (avatarEl) avatarEl.textContent = (user.full_name || user.email || '?')[0].toUpperCase();
+  var pnEl = document.querySelector('.pn');
+  if (pnEl) pnEl.textContent = (user.full_name || user.email || '').split(' ')[0];
+  var paEl = document.querySelector('.pa');
+  if (paEl) paEl.textContent = (user.full_name || user.email || '?')[0].toUpperCase();
+
+  // 2. Set tier
+  var tierMap = { free: 'free', premium: 'premium', invited: 'invited' };
+  var mappedTier = tierMap[user.account_type] || 'free';
+  if (user.natal_chart_unlocked && user.account_type === 'invited') mappedTier = 'invited-plus';
+  setTier(mappedTier, null);
+
+  // 3. Hero chips
+  var heroChips = document.querySelector('.hero-chips');
+  if (heroChips && reading.meta) {
+    var meta = reading.meta;
+    var sun = reading.overview?.planetTable?.find(function(r) { return r.planet.toLowerCase() === 'sun'; });
+    var moon = reading.overview?.planetTable?.find(function(r) { return r.planet.toLowerCase() === 'moon'; });
+    var asc = reading.overview?.planetTable?.find(function(r) { return r.planet.toLowerCase() === 'asc' || r.planet.toLowerCase() === 'ascendant'; });
+    var mc = reading.overview?.planetTable?.find(function(r) { return r.planet.toLowerCase() === 'mc' || r.planet.toLowerCase() === 'midheaven'; });
+
+    var chips = '';
+    chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-sun"/></svg></span> ' + _esc(meta.sunSign || (sun ? sun.sign + ' ' + sun.degree : '')) + '</span>';
+    chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-moon"/></svg></span> ' + _esc(meta.moonSign || (moon ? moon.sign + ' ' + moon.degree : '')) + '</span>';
+    chips += '<span><span class="chip-label">ASC</span> ' + _esc(meta.risingSign || (asc ? asc.sign + ' ' + asc.degree : '')) + '</span>';
+    if (mc) {
+      chips += '<span><span class="chip-label">MC</span> ' + _esc(mc.sign + ' ' + mc.degree) + '</span>';
+    }
+    heroChips.innerHTML = chips;
+  }
+
+  // 4. Build all sections + lock wraps
+  // Find the content container inside #view-natal (after the hero and nav bar)
+  var viewNatal = document.getElementById('view-natal');
+  if (!viewNatal) { console.error('[HYDRATE] #view-natal not found'); return; }
+
+  // Keep the hero and nav bar, replace everything after
+  var hero = viewNatal.querySelector('.hero');
+  var nb = viewNatal.querySelector('.nb');
+
+  // Build nav buttons
+  if (nb) {
+    var nbCt = nb.querySelector('.ct');
+    if (nbCt) {
+      var nbHtml = '';
+      SECTION_KEYS.forEach(function(key, i) {
+        var sec = reading[key];
+        var accessible = _canAccess(user, key);
+        var label = sec ? (sec.sectionTitle || key) : key;
+        nbHtml += '<button class="nbtn' + (i === 0 ? ' active' : '') + (!accessible ? ' locked' : '') + '" onclick="go(\'s' + (i + 1) + '\')">';
+        nbHtml += _esc(label);
+        if (!accessible) nbHtml += '<span class="lock-dot"></span>';
+        nbHtml += '</button>';
+      });
+      nbCt.innerHTML = nbHtml;
+    }
+  }
+
+  // Build section content area
+  var contentHtml = '<div class="ct">';
+  SECTION_KEYS.forEach(function(key, i) {
+    var section = reading[key];
+    if (!section) return;
+    var accessible = _canAccess(user, key);
+
+    // Lock wrap for inaccessible sections (skip overview and mission which are always visible)
+    if (!accessible) {
+      contentHtml += _buildLockWrap(key, section, SECTION_ICONS_MAP[key] || 'gl-sparkle');
+    }
+    contentHtml += _buildSectionContent(key, section);
+
+    // Section divider (except after last)
+    if (i < SECTION_KEYS.length - 1) {
+      contentHtml += '<div class="sec-div"><div class="sec-div-line"></div></div>';
+    }
+  });
+  contentHtml += '</div>';
+
+  // Remove everything after nb, then insert new content
+  var children = Array.from(viewNatal.children);
+  var pastNb = false;
+  children.forEach(function(child) {
+    if (child === hero || child === nb) { pastNb = (child === nb); return; }
+    if (pastNb || (!hero && !nb)) {
+      // Remove old content (sections, dividers, etc.)
+      if (child.classList && (child.classList.contains('ct') || child.tagName === 'SECTION' || child.classList.contains('sec-div') || child.classList.contains('lock-wrap'))) {
+        child.remove();
+      } else if (child !== hero && child !== nb) {
+        child.remove();
+      }
+    }
+  });
+  // Remove any remaining .ct from view-natal that's not the nb's .ct
+  viewNatal.querySelectorAll(':scope > .ct').forEach(function(el) { el.remove(); });
+  viewNatal.querySelectorAll(':scope > section').forEach(function(el) { el.remove(); });
+  viewNatal.querySelectorAll(':scope > .sec-div').forEach(function(el) { el.remove(); });
+  viewNatal.querySelectorAll(':scope > .lock-wrap').forEach(function(el) { el.remove(); });
+
+  // Insert after nb (or at end if no nb)
+  var insertAfter = nb || hero || null;
+  if (insertAfter && insertAfter.nextSibling) {
+    var temp = document.createElement('div');
+    temp.innerHTML = contentHtml;
+    while (temp.firstChild) {
+      viewNatal.insertBefore(temp.firstChild, insertAfter.nextSibling);
+      insertAfter = insertAfter.nextSibling;
+    }
+  } else {
+    viewNatal.insertAdjacentHTML('beforeend', contentHtml);
+  }
+
+  // 5. Switch to natal view if not already there
+  if (document.body.getAttribute('data-view') !== 'natal') {
+    switchView('natal', document.getElementById('devNatal'));
+  }
+
+  // 6. Make natal view visible (in case it was hidden to prevent flash)
+  viewNatal.style.visibility = 'visible';
+
+  // 7. Re-init observers for scroll animations + nav sync
+  setTimeout(initObservers, 100);
+
+  console.log('[HYDRATE] Reading hydration complete');
+}
+
+window.hydrateReading = hydrateReading;
 
 // ═══ INIT ═══
 initObservers();

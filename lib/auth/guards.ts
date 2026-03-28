@@ -1,5 +1,5 @@
 import { createServerSupabase } from '@/lib/supabase/server';
-import { jsonUnauthorized } from '@/lib/auth/http';
+import { jsonUnauthorized, jsonForbidden } from '@/lib/auth/http';
 import type { User } from '@/types/user';
 import { authAudit } from '@/lib/auth/audit';
 import type { User as SupabaseAuthUser } from '@supabase/supabase-js';

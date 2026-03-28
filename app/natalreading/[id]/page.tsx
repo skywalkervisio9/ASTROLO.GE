@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
-import NatalReadingClient from '@/components/NatalReadingClient';
+import PrototypeClient from '@/components/PrototypeClient';
 
 export default async function NatalReadingPage({
   params,
@@ -17,6 +17,5 @@ export default async function NatalReadingPage({
     redirect('/auth');
   }
 
-  return <NatalReadingClient userId={id} />;
+  return <PrototypeClient />;
 }
-

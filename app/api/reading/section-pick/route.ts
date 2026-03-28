@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     if (!sectionKey) return jsonBadRequest('Invalid section key');
 
     // Validate section key
-    if (!FREE_PICKABLE.includes(sectionKey)) {
+    if (!(FREE_PICKABLE as readonly string[]).includes(sectionKey)) {
       return jsonBadRequest('Invalid section key');
     }
 

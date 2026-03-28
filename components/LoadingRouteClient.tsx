@@ -40,12 +40,13 @@ export default function LoadingRouteClient() {
 
       setStatusText('Checking your existing reading...');
 
-      // If already generated, go straight to natalreading
+      // If already generated, finish loading and let HydrationBridge handle display
       const check = await fetch('/api/reading/natal?lang=ka', { credentials: 'include' });
       if (check.ok) {
         const payload = await check.json() as { reading: unknown | null };
         if (payload.reading) {
-          window.location.href = `/natalreading/${user.id}`;
+          const finish = (window as unknown as { finishLoading?: () => void }).finishLoading;
+          if (finish) finish();
           return;
         }
       }
@@ -145,7 +146,8 @@ export default function LoadingRouteClient() {
         if (status.status === 'complete') {
           const finish = (window as unknown as { finishLoading?: () => void }).finishLoading;
           if (finish) finish();
-          window.location.href = `/natalreading/${user.id}`;
+          // HydrationBridge will detect the reading and hydrate the prototype DOM.
+          // finishLoading() transitions to the natal view within the prototype UI.
           return;
         }
       }

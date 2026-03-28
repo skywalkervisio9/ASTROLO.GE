@@ -79,7 +79,6 @@ export default function SynastryRenderer({
             <SynastryCardComponent
               key={`${activeSection.id}-${i}`}
               card={card}
-              cardId={`${activeSection.id}-${i}`}
               expanded={expandedCards.has(`${activeSection.id}-${i}`)}
               onToggleExpand={() => toggleExpand(`${activeSection.id}-${i}`)}
             />
