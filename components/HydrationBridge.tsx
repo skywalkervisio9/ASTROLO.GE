@@ -12,9 +12,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useReading } from "@/hooks/useReading";
 
 export default function HydrationBridge() {
-  const { user } = useAuth();
+  const { user, authUser } = useAuth();
   const [lang, setLang] = useState<"ka" | "en">("ka");
-  const { reading } = useReading(lang);
+  const { reading } = useReading(lang, authUser?.id);
   const hydrated = useRef(false);
 
   // Listen for language changes dispatched by prototype-runtime.js setLang()

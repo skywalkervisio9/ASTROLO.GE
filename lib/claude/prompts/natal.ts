@@ -1,6 +1,6 @@
 // ============================================================
 // Natal chart prompts — Call 1 (analysis) + Call 2 (reading)
-// Full prompt text lives in docs/SYSTEM-PROMPT-8SEC_i4.md
+// Full prompt text lives in docs/SYSTEM-PROMPT-8SEC_i5.md
 // This file loads and parameterizes them at runtime
 // ============================================================
 
@@ -14,7 +14,7 @@ let _promptSpec: string | null = null;
 function loadPromptSpec(): string {
   if (!_promptSpec) {
     _promptSpec = readFileSync(
-      join(process.cwd(), 'docs', 'SYSTEM-PROMPT-8SEC_i4.md'),
+      join(process.cwd(), 'docs', 'SYSTEM-PROMPT-8SEC_i5.md'),
       'utf-8'
     );
   }

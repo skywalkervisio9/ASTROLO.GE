@@ -16,7 +16,8 @@ export interface ClaudeResponse {
 export async function callClaude(
   systemPrompt: string,
   userMessage: string,
-  maxTokens = 4000
+  maxTokens = 4000,
+  jsonMode = true
 ): Promise<ClaudeResponse> {
   // Prefer Anthropic if configured
   if (process.env.ANTHROPIC_API_KEY) {
@@ -54,8 +55,7 @@ export async function callClaude(
       systemInstruction: systemPrompt,
       generationConfig: {
         maxOutputTokens: maxTokens,
-        // Strongly nudge valid JSON for downstream parser stability.
-        responseMimeType: 'application/json',
+        ...(jsonMode && { responseMimeType: 'application/json' }),
       },
     });
 

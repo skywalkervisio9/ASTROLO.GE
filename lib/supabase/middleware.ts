@@ -8,6 +8,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const PUBLIC_PREFIXES = [
   '/auth',
+  '/r/',   // public reading pages — accessible without login
   '/inv',
   '/api/auth/callback',
   '/api/auth/oauth/start',

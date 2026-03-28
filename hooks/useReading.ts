@@ -8,12 +8,19 @@ import { useState, useEffect } from 'react';
 import type { NatalReading } from '@/types/reading';
 import type { Language } from '@/types/user';
 
-export function useReading(language: Language = 'ka') {
+export function useReading(language: Language = 'ka', userId?: string | null) {
   const [reading, setReading] = useState<NatalReading | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!userId) {
+      setReading(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     async function fetchReading() {
       try {
         const res = await fetch(`/api/reading/natal?lang=${language}`, {
@@ -34,7 +41,7 @@ export function useReading(language: Language = 'ka') {
     }
 
     fetchReading();
-  }, [language]);
+  }, [language, userId]);
 
   return { reading, chartData: null, loading, error };
 }

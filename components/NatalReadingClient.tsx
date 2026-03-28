@@ -6,9 +6,9 @@ import { useReading } from '@/hooks/useReading';
 import ReadingRenderer from '@/components/ReadingRenderer';
 
 export default function NatalReadingClient({ userId }: { userId: string }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, authUser, loading: authLoading } = useAuth();
   const [lang, setLang] = useState<'ka' | 'en'>('ka');
-  const { reading, loading: readingLoading, error } = useReading(lang);
+  const { reading, loading: readingLoading, error } = useReading(lang, authUser?.id);
 
   if (authLoading) return null;
   if (!user || user.id !== userId) return null;

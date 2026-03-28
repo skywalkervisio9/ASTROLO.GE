@@ -114,6 +114,26 @@ export async function GET(req: NextRequest) {
 
     const full = (lang === 'ka' ? row.reading_ka : row.reading_en) as Record<string, unknown>;
 
+    // Inject planetTable and aspects from chart_data into overview section
+    const { data: chartRow } = await supabase
+      .from('chart_data')
+      .select('planets, aspects, points')
+      .eq('user_id', authUser.id)
+      .maybeSingle();
+
+    if (chartRow && full.overview && typeof full.overview === 'object') {
+      const overview = full.overview as Record<string, unknown>;
+      if (!overview.planetTable && chartRow.planets) {
+        overview.planetTable = chartRow.planets;
+      }
+      if (!overview.aspects && chartRow.aspects) {
+        overview.aspects = chartRow.aspects;
+      }
+      if (!overview.points && chartRow.points) {
+        overview.points = chartRow.points;
+      }
+    }
+
     // Keep shape stable for the client: always return all section keys,
     // but downgrade locked sections to a teaser payload.
     const gated: Record<string, unknown> = { ...full };

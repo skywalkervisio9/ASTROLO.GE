@@ -15,6 +15,11 @@ import {
   NINO_CHART_DATA,
 } from '@/lib/dev/test-charts';
 import { generateInviteCode } from '@/lib/utils/invite';
+import crypto from 'crypto';
+
+function generateShareSlug(): string {
+  return crypto.randomBytes(6).toString('base64url').slice(0, 8).toLowerCase();
+}
 
 export const maxDuration = 300; // 5 min timeout for AI generation
 
@@ -140,10 +145,11 @@ export async function POST() {
 
         const { error: natalErr } = await admin.from('natal_readings').insert({
           user_id: lukaId,
+          share_slug: generateShareSlug(),
           analysis_en: natalResult.analysis,
           reading_ka: natalResult.readingKa,
           reading_en: natalResult.readingEn,
-          prompt_version: 'SYSTEM-PROMPT-8SEC_i4',
+          prompt_version: 'SYSTEM-PROMPT-8SEC_i5',
           model_call1: natalResult.meta.modelCall1,
           model_call2: natalResult.meta.modelCall2,
           tokens_call1: natalResult.meta.tokensCall1,

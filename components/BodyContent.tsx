@@ -159,7 +159,7 @@ export default function BodyContent() {
 <nav className="tb">
 <a className="tbl" href="#"><div className="lm"><svg style={{width: '14px', height: '14px', color: '#f0ead6', fill: '#f0ead6'}}><use href="#gl-sparkle"/></svg></div><span className="lt">ASTROLO.GE</span></a>
 <div className="tbr"><div className="lg"><button className="lo active" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("ka", e.currentTarget); }}>ქარ</button><button className="lo" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("en", e.currentTarget); }}>EN</button></div>
-<button className="pb" onClick={() => { (window as unknown as ProtoGlobals).openSidebar?.(); }}><div className="pa">ლ</div><span className="pn">ლუკა.პ</span></button></div></nav>
+<button type="button" className="pb" onClick={() => { (window as unknown as ProtoGlobals).openSidebar?.(); }}><div className="pa">ლ</div><span className="pn">ლუკა.პ</span></button></div></nav>
 
 
 
@@ -824,8 +824,8 @@ export default function BodyContent() {
         <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="login-pw" placeholder="••••••••" autoComplete="current-password"/><button className="pw-toggle" onClick={(e) => { (window as unknown as ProtoGlobals).togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
         <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '16px'}}><a href="#" onClick={(e) => { e.preventDefault(); (window as unknown as ProtoGlobals).showAuthPage?.("page-forgot"); }} style={{fontSize: '.72rem', color: 'var(--gd)', textDecoration: 'none', transition: 'color .3s'}}>დაგავიწყდა?</a></div>
         <button className="auth-btn" onClick={() => { (window as unknown as ProtoGlobals).handleLogin?.(); }}><span className="btn-text">შესვლა</span></button>
-        <div className="nav-row" style={{marginTop: '10px'}}><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).showAuthPage?.("page-signup"); }} style={{width: '100%'}}>ანგარიშის შექმნა →</button></div>
-        <div className="nav-row" style={{marginTop: '8px'}}><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).goAuthStep?.(2); }} style={{width: '100%', color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ გამოტოვება → (dev)</button></div>
+        <div className="nav-row" style={{marginTop: '10px'}}><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).showAuthPage?.("page-signup"); }} style={{width: '100%'}}>რეგისტრაცია →</button></div>
+        <div className="nav-row" style={{marginTop: '8px'}}><button className="auth-btn-ghost" onClick={() => { (window as unknown as Record<string, () => void>).handleTestUser?.(); }} style={{width: '100%', color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ Test User</button></div>
       </div>
     </div>
 
@@ -841,7 +841,7 @@ export default function BodyContent() {
         <div className="field"><label>სახელი</label><input type="text" id="signup-name" autoComplete="name"/></div>
         <div className="field"><label>ელ-ფოსტა</label><input type="email" id="signup-email" placeholder="name@example.com" autoComplete="email"/></div>
         <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="signup-pw" placeholder="მინ. 8 სიმბოლო" autoComplete="new-password"/><button className="pw-toggle" onClick={(e) => { (window as unknown as ProtoGlobals).togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
-        <button className="auth-btn" onClick={() => { (window as unknown as ProtoGlobals).handleSignup?.(); }} style={{marginTop: '4px'}}><span className="btn-text">ანგარიშის შექმნა</span></button>
+        <button className="auth-btn" onClick={() => { (window as unknown as ProtoGlobals).handleSignup?.(); }} style={{marginTop: '4px'}}><span className="btn-text">რეგისტრაცია</span></button>
         <div className="terms">რეგისტრაციით ეთანხმები <a href="#">პირობებს</a> და <a href="#">კონფიდენციალობას</a></div>
         <div className="auth-footer">უკვე გაქვს ანგარიში? <a href="#" onClick={(e) => { e.preventDefault(); (window as unknown as ProtoGlobals).showAuthPage?.("page-login"); }}>შესვლა</a></div>
       </div>
@@ -873,7 +873,7 @@ export default function BodyContent() {
         <label style={{display: 'block', fontSize: '.6rem', letterSpacing: '.14em', color: 'var(--gd)', marginBottom: '6px', fontWeight: 400}}>სქესი</label>
         <div className="gender-row"><div className="gender-opt" data-gender="female" onClick={(e) => { (window as unknown as ProtoGlobals).selectGender?.(e.currentTarget, "female"); }}><span className="g-icon">♀</span>ქალი</div><div className="gender-opt" data-gender="male" onClick={(e) => { (window as unknown as ProtoGlobals).selectGender?.(e.currentTarget, "male"); }}><span className="g-icon">♂</span>კაცი</div></div>
         <button className="auth-btn" onClick={() => { (window as unknown as { __authBirthSubmit?: () => void }).__authBirthSubmit?.(); }} style={{marginTop: '6px'}}><span className="btn-text">რუკის აგება ✦</span></button>
-        <div className="nav-row"><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).goAuthStep?.(1); }}>← უკან</button><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).startLoading?.(); }} style={{color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ გამოტოვება → (dev)</button></div>
+        <div className="nav-row"><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).goAuthStep?.(1); }}>← უკან</button><button className="auth-btn-ghost" onClick={() => { (window as unknown as Record<string, () => void>).handleTestUser?.(); }} style={{color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ Test User</button></div>
       </div>
     </div>
   </div>
@@ -1012,7 +1012,23 @@ export default function BodyContent() {
     <button className="dev-btn slot-btn" onClick={(e) => { (window as unknown as ProtoGlobals).occupySlot?.(2, e.currentTarget); }} id="devSlot2Occupy">👤 occupy</button>
   </div>
   <div className="dev-sep"></div>
-  <button className="dev-btn discount-btn" onClick={(e) => { (window as unknown as ProtoGlobals).toggleDiscount?.(e.currentTarget); }} id="devDiscount">₾10 DISCOUNT</button>
+  <button className="dev-btn" id="devRandomLogin" onClick={async (e) => {
+    const btn = e.currentTarget;
+    btn.textContent = '...';
+    try {
+      const res = await fetch('/api/dev/test-user', { method: 'POST' });
+      const data = await res.json() as { email: string; password: string; hasReading: boolean; shareSlug?: string };
+      const { createClient } = await import('@/lib/supabase/client');
+      const sb = createClient();
+      await sb.auth.signOut();
+      await sb.auth.signInWithPassword({ email: data.email, password: data.password });
+      if (data.hasReading && data.shareSlug) {
+        window.location.href = `/r/${data.shareSlug}`;
+      } else {
+        window.location.reload();
+      }
+    } catch { btn.textContent = 'ERROR'; }
+  }}>🎲 RANDOM LOGIN</button>
   <div className="dev-sep"></div>
   <div className="dev-label">TEST USER</div>
   <div className="dev-row">
@@ -1021,62 +1037,26 @@ export default function BodyContent() {
       btn.textContent = '...';
       const { createClient } = await import('@/lib/supabase/client');
       const sb = createClient();
+      await sb.auth.signOut();
       await sb.auth.signInWithPassword({ email: 'luka.test@astrolo.ge', password: 'testpass123!' });
-      window.location.reload();
+      window.location.href = '/';
     }}>👤 ლუკა.პ</button>
-    <button className="dev-btn" id="devNino" onClick={async (e) => {
+    <button className="dev-btn" id="devLastUser" onClick={async (e) => {
       const btn = e.currentTarget;
       btn.textContent = '...';
-      const { createClient } = await import('@/lib/supabase/client');
-      const sb = createClient();
-      await sb.auth.signInWithPassword({ email: 'nino.test@astrolo.ge', password: 'testpass123!' });
-      window.location.reload();
-    }}>👤 ნინო.მ</button>
+      try {
+        const res = await fetch('/api/dev/test-user');
+        if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
+        const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
+        const { createClient } = await import('@/lib/supabase/client');
+        const sb = createClient();
+        await sb.auth.signOut();
+        await sb.auth.signInWithPassword({ email: data.email, password: data.password });
+        if (data.shareSlug) { window.location.href = `/r/${data.shareSlug}`; return; }
+        window.location.reload();
+      } catch { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); }
+    }}>🔁 Last</button>
   </div>
-  <button className="dev-btn" id="devLogout" onClick={async (e) => {
-    const btn = e.currentTarget;
-    btn.textContent = '...';
-    const { createClient } = await import('@/lib/supabase/client');
-    const sb = createClient();
-    await sb.auth.signOut();
-    window.location.reload();
-  }}>↩ LOGOUT</button>
-  <div className="dev-sep"></div>
-  <div className="dev-label">DATA</div>
-  <button className="dev-btn" id="devSeed" onClick={async (e) => {
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    btn.textContent = 'SEEDING...';
-    try {
-      const res = await fetch('/api/dev/seed', { method: 'POST' });
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error('No stream');
-      const decoder = new TextDecoder();
-      let lastStep = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const lines = decoder.decode(value).split('\n').filter(Boolean);
-        for (const line of lines) {
-          try {
-            const msg = JSON.parse(line);
-            lastStep = msg.step || lastStep;
-            btn.textContent = lastStep;
-            if (msg.status === 'error') throw new Error(msg.step);
-          } catch { /* skip parse errors */ }
-        }
-      }
-      btn.textContent = 'DONE! Signing in...';
-      const { createClient } = await import('@/lib/supabase/client');
-      const sb = createClient();
-      await sb.auth.signInWithPassword({ email: 'luka.test@astrolo.ge', password: 'testpass123!' });
-      window.location.reload();
-    } catch (err) {
-      btn.textContent = 'SEED FAILED';
-      btn.disabled = false;
-      console.error('Seed error:', err);
-    }
-  }}>🌱 SEED TEST DATA</button>
 </div>
 </div>
   );

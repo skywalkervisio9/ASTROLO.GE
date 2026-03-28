@@ -17,6 +17,172 @@ import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonBadRequest, jsonServerError } from '@/lib/auth/http';
 import { requireCsrfOrThrow } from '@/lib/auth/csrf';
 import { clearOnboardingToken } from '@/lib/auth/onboarding';
+import crypto from 'crypto';
+
+function generateShareSlug(): string {
+  // 8-char URL-safe slug (base36 = lowercase alphanumeric)
+  return crypto.randomBytes(6).toString('base64url').slice(0, 8).toLowerCase();
+}
+
+// ── Normalize Astrologer API response to the format hydrateReading() expects ──
+// The real API returns raw astronomical data (p1_name, p2_name, orbit, abs_pos).
+// We transform it to match the clean LUKA_CHART_DATA schema the frontend uses.
+
+const ZODIAC_SIGNS = [
+  'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+  'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces',
+];
+const SIGN_ELEMENTS: Record<string, string> = {
+  Aries: 'Fire', Taurus: 'Earth', Gemini: 'Air', Cancer: 'Water',
+  Leo: 'Fire', Virgo: 'Earth', Libra: 'Air', Scorpio: 'Water',
+  Sagittarius: 'Fire', Capricorn: 'Earth', Aquarius: 'Air', Pisces: 'Water',
+};
+
+function absToSign(absPos: number): { sign: string; degree: string; element: string } {
+  const signIdx = Math.floor(absPos / 30) % 12;
+  const deg = absPos % 30;
+  const d = Math.floor(deg);
+  const m = Math.round((deg - d) * 60);
+  const sign = ZODIAC_SIGNS[signIdx];
+  return { sign, degree: `${d}°${String(m).padStart(2, '0')}'`, element: SIGN_ELEMENTS[sign] || '' };
+}
+
+function cleanPlanetName(raw: string): string {
+  // "True_North_Lunar_Node" → "North Node", "Mean_Lilith" → "Lilith", etc.
+  const map: Record<string, string> = {
+    True_North_Lunar_Node: 'North Node', True_South_Lunar_Node: 'South Node',
+    Mean_Lilith: 'Lilith', Medium_Coeli: 'Midheaven', Imum_Coeli: 'IC',
+  };
+  return map[raw] || raw.replace(/_/g, ' ');
+}
+
+const MAIN_PLANETS = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
+const POINT_KEYS: Record<string, string> = {
+  Ascendant: 'ascendant', Descendant: 'descendant',
+  Medium_Coeli: 'midheaven', Imum_Coeli: 'ic',
+  True_North_Lunar_Node: 'northNode', True_South_Lunar_Node: 'southNode',
+  Mean_Lilith: 'lilith',
+};
+
+interface RawAspect {
+  p1_name?: string; p2_name?: string; p1_abs_pos?: number; p2_abs_pos?: number;
+  p1_speed?: number; p2_speed?: number;
+  aspect?: string; orbit?: number; diff?: number;
+  [key: string]: unknown;
+}
+
+function normalizeChartData(raw: unknown): {
+  planets: unknown[] | null;
+  aspects: unknown[] | null;
+  points: Record<string, unknown> | null;
+  houses: unknown[] | null;
+} {
+  if (!raw || typeof raw !== 'object') return { planets: null, aspects: null, points: null, houses: null };
+  const data = raw as Record<string, unknown>;
+
+  // If already in clean format (e.g., LUKA_CHART_DATA), pass through
+  if (Array.isArray(data.planets) && data.planets[0] && 'name' in (data.planets[0] as Record<string, unknown>)) {
+    return {
+      planets: data.planets as unknown[],
+      aspects: data.aspects as unknown[] ?? null,
+      points: data.points as Record<string, unknown> ?? null,
+      houses: data.houses as unknown[] ?? null,
+    };
+  }
+
+  // Transform Astrologer API format
+  const rawAspects = Array.isArray(data.aspects) ? data.aspects as RawAspect[] : [];
+
+  // Build planets from unique planet positions in aspects data
+  const planetPositions = new Map<string, { absPos: number; speed: number }>();
+  for (const asp of rawAspects) {
+    if (asp.p1_name && asp.p1_abs_pos != null && MAIN_PLANETS.includes(asp.p1_name)) {
+      if (!planetPositions.has(asp.p1_name)) {
+        planetPositions.set(asp.p1_name, { absPos: asp.p1_abs_pos, speed: asp.p1_speed ?? 0 });
+      }
+    }
+    if (asp.p2_name && asp.p2_abs_pos != null && MAIN_PLANETS.includes(asp.p2_name)) {
+      if (!planetPositions.has(asp.p2_name)) {
+        planetPositions.set(asp.p2_name, { absPos: asp.p2_abs_pos, speed: asp.p2_speed ?? 0 });
+      }
+    }
+  }
+
+  // Build house cusps array for planet house assignment
+  // Houses data from API might be array of objects with abs_pos or degree
+  const houseCusps: number[] = [];
+  if (Array.isArray(data.houses)) {
+    for (const h of data.houses as Record<string, unknown>[]) {
+      const pos = (h.abs_pos ?? h.degree ?? h.position) as number | undefined;
+      if (typeof pos === 'number') houseCusps.push(pos);
+    }
+  }
+
+  function getHouse(absPos: number): string {
+    if (houseCusps.length < 12) return '';
+    const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+    for (let i = 0; i < 12; i++) {
+      const next = (i + 1) % 12;
+      let start = houseCusps[i];
+      let end = houseCusps[next];
+      if (end < start) end += 360; // wrap around
+      let pos = absPos;
+      if (pos < start) pos += 360;
+      if (pos >= start && pos < end) return ROMAN[i];
+    }
+    return '';
+  }
+
+  const planets = MAIN_PLANETS
+    .filter(name => planetPositions.has(name))
+    .map(name => {
+      const pos = planetPositions.get(name)!;
+      const { sign, degree, element } = absToSign(pos.absPos);
+      return { name, sign, degree, house: getHouse(pos.absPos), element, retrograde: pos.speed < 0 };
+    });
+
+  // Build points from non-planet positions
+  const points: Record<string, { sign: string; degree: string }> = {};
+  for (const asp of rawAspects) {
+    for (const [pName, pAbsPos] of [[asp.p1_name, asp.p1_abs_pos], [asp.p2_name, asp.p2_abs_pos]] as [string, number][]) {
+      if (pName && pAbsPos != null && POINT_KEYS[pName] && !points[POINT_KEYS[pName]]) {
+        const { sign, degree } = absToSign(pAbsPos);
+        points[POINT_KEYS[pName]] = { sign, degree };
+      }
+    }
+  }
+
+  // Normalize aspects: only keep major planet-to-planet aspects with tight orbs
+  const majorAspectTypes = ['conjunction', 'opposition', 'trine', 'square', 'sextile'];
+  const normalizedAspects = rawAspects
+    .filter(a => a.p1_name && a.p2_name && a.aspect && majorAspectTypes.includes(a.aspect) && (a.orbit ?? 99) < 8)
+    .map(a => ({
+      planet1: cleanPlanetName(a.p1_name!),
+      planet2: cleanPlanetName(a.p2_name!),
+      aspect: a.aspect,
+      orb: Math.round((a.orbit ?? a.diff ?? 0) * 100) / 100,
+    }))
+    .sort((a, b) => a.orb - b.orb)
+    .slice(0, 15); // Top 15 tightest
+
+  // Normalize houses to { number, sign, degree } format
+  let normalizedHouses: unknown[] | null = null;
+  if (houseCusps.length >= 12) {
+    normalizedHouses = houseCusps.map((absPos, i) => {
+      const { sign, degree } = absToSign(absPos);
+      return { number: i + 1, sign, degree };
+    });
+  } else if (Array.isArray(data.houses)) {
+    normalizedHouses = data.houses as unknown[];
+  }
+
+  return {
+    planets: planets.length > 0 ? planets : null,
+    aspects: normalizedAspects.length > 0 ? normalizedAspects : null,
+    points: Object.keys(points).length > 0 ? points : null,
+    houses: normalizedHouses,
+  };
+}
 
 export const maxDuration = 300; // Claude + external APIs can take 1-2 minutes
 
@@ -118,13 +284,13 @@ export async function POST(req: NextRequest) {
     // Check if reading already exists
     const { data: existing } = await supabase
       .from('natal_readings')
-      .select('id')
+      .select('id, share_slug')
       .eq('user_id', user.id)
       .single();
 
     if (existing) {
       await clearOnboardingToken();
-      return NextResponse.json({ readingId: existing.id, status: 'complete' });
+      return NextResponse.json({ readingId: existing.id, shareSlug: existing.share_slug, status: 'complete' });
     }
 
     // 2. Get or create chart_data (idempotent)
@@ -161,15 +327,18 @@ export async function POST(req: NextRequest) {
       context = generated.context;
       chartData = generated.chartData;
 
+      // Normalize raw Astrologer API data to the format the frontend expects
+      const normalized = normalizeChartData(chartData);
+
       // Store chart data (unique on user_id)
       await supabase.from('chart_data').insert({
         user_id: user.id,
         api_response: chartData,
         chart_context: context,
-        planets: (chartData as Record<string, unknown>)?.planets ?? null,
-        houses: (chartData as Record<string, unknown>)?.houses ?? null,
-        aspects: (chartData as Record<string, unknown>)?.aspects ?? null,
-        points: (chartData as Record<string, unknown>)?.points ?? null,
+        planets: normalized.planets,
+        houses: normalized.houses,
+        aspects: normalized.aspects,
+        points: normalized.points,
       });
     }
 
@@ -180,15 +349,17 @@ export async function POST(req: NextRequest) {
     // 3. Run Claude pipeline (KA + EN in parallel)
     const result = await generateNatalReading(context);
 
-    // Store reading
+    // Store reading with public share slug
+    const shareSlug = generateShareSlug();
     const { data: reading, error: readingError } = await supabase
       .from('natal_readings')
       .insert({
         user_id: user.id,
+        share_slug: shareSlug,
         analysis_en: result.analysis,
         reading_ka: result.readingKa,
         reading_en: result.readingEn,
-        prompt_version: 'SYSTEM-PROMPT-8SEC_i4',
+        prompt_version: 'SYSTEM-PROMPT-8SEC_i5',
         model_call1: result.meta.modelCall1,
         model_call2: result.meta.modelCall2,
         tokens_call1: result.meta.tokensCall1,
@@ -196,7 +367,7 @@ export async function POST(req: NextRequest) {
         tokens_call2_en: result.meta.tokensCall2En,
         validation_warnings: result.meta.validationWarnings,
       })
-      .select('id')
+      .select('id, share_slug')
       .single();
 
     if (readingError) throw readingError;
@@ -210,6 +381,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       readingId: reading?.id,
+      shareSlug: reading?.share_slug ?? shareSlug,
       status: 'complete',
       userId: user.id,
     });

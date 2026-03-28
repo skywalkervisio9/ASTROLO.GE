@@ -44,20 +44,19 @@ export interface NatalPipelineResult {
 export async function generateNatalReading(
   chartContext: string
 ): Promise<NatalPipelineResult> {
-  // Call 1: Chart Analysis (always English)
+  // Call 1: Chart Analysis (always English) — plain text output, not JSON
   const call1 = await callClaude(
     getNatalCall1Prompt(),
     `Analyze this natal chart:\n\n${chartContext}`,
-    3000
+    3000,
+    false
   );
 
-  // Call 2: Full reading — run KA and EN in parallel
+  // Call 2: Full reading — run KA then EN sequentially to avoid Gemini throttling
   const userMsg = `Chart Analysis:\n${call1.text}\n\nOriginal Chart Data:\n${chartContext}`;
 
-  const [readingKa, readingEn] = await Promise.all([
-    generateSingleReading(userMsg, 'ka'),
-    generateSingleReading(userMsg, 'en'),
-  ]);
+  const readingKa = await generateSingleReading(userMsg, 'ka');
+  const readingEn = await generateSingleReading(userMsg, 'en');
 
   return {
     analysis: call1.text,
@@ -89,7 +88,7 @@ async function generateSingleReading(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await callClaude(prompt, userMessage, 16000);
+      const response = await callClaude(prompt, userMessage, 65536);
       let parsed = normalizeNatalReadingShape(
         await parseOrRepairJSON(response.text) as Record<string, unknown>
       );
@@ -145,20 +144,19 @@ export async function generateSynastryReading(
   chart2Context: string,
   relationshipType: 'couple' | 'friend'
 ): Promise<SynastryPipelineResult> {
-  // Call 1: Synastry Analysis (always English)
+  // Call 1: Synastry Analysis (always English) — plain text output, not JSON
   const call1 = await callClaude(
     getSynastryCall1Prompt(relationshipType),
     `Person 1 Chart:\n${chart1Context}\n\nPerson 2 Chart:\n${chart2Context}`,
-    4200
+    4200,
+    false
   );
 
-  // Call 2: Full reading — KA and EN in parallel
+  // Call 2: Full reading — run KA then EN sequentially to avoid Gemini throttling
   const userMsg = `Synastry Analysis:\n${call1.text}\n\nPerson 1 Chart:\n${chart1Context}\n\nPerson 2 Chart:\n${chart2Context}`;
 
-  const [readingKa, readingEn] = await Promise.all([
-    generateSingleSynastryReading(userMsg, 'ka', relationshipType),
-    generateSingleSynastryReading(userMsg, 'en', relationshipType),
-  ]);
+  const readingKa = await generateSingleSynastryReading(userMsg, 'ka', relationshipType);
+  const readingEn = await generateSingleSynastryReading(userMsg, 'en', relationshipType);
 
   return {
     analysis: call1.text,
@@ -191,7 +189,7 @@ async function generateSingleSynastryReading(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await callClaude(prompt, userMessage, 16000);
+      const response = await callClaude(prompt, userMessage, 65536);
       const parsed = await parseOrRepairJSON(response.text) as Record<string, unknown>;
       const validation = validateSynastryReading(parsed, relationshipType);
 
@@ -220,6 +218,9 @@ async function parseOrRepairJSON(raw: string): Promise<unknown> {
     return parseClaudeJSON(raw);
   } catch (initialErr) {
     console.warn('[pipeline] Initial JSON parse failed, attempting repair pass', initialErr);
+    console.warn('[pipeline] Raw response preview (first 500 chars):', raw.slice(0, 500));
+    console.warn('[pipeline] Raw response tail (last 200 chars):', raw.slice(-200));
+    console.warn('[pipeline] Raw response total length:', raw.length);
   }
 
   const repairSystemPrompt = [
@@ -237,7 +238,8 @@ async function parseOrRepairJSON(raw: string): Promise<unknown> {
     '--- END CONTENT ---',
   ].join('\n');
 
-  const repaired = await callClaude(repairSystemPrompt, repairUserMessage, 16000);
+  const repaired = await callClaude(repairSystemPrompt, repairUserMessage, 65536);
+  console.warn('[pipeline] Repair response preview (first 500 chars):', repaired.text.slice(0, 500));
   return parseClaudeJSON(repaired.text);
 }
 
@@ -276,7 +278,7 @@ async function completeMissingNatalSections(
     userMessage.slice(0, JSON_REPAIR_MAX_CHARS),
   ].join('\n');
 
-  const completion = await callClaude(completionSystemPrompt, completionUserMessage, 14000);
+  const completion = await callClaude(completionSystemPrompt, completionUserMessage, 16000);
   const parsed = await parseOrRepairJSON(completion.text);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Section completion returned invalid JSON object');

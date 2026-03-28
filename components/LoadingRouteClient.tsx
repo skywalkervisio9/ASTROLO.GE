@@ -18,7 +18,6 @@ function shouldReturnToBirth(status: number, message: string) {
 }
 
 export default function LoadingRouteClient() {
-  const [statusText, setStatusText] = useState('Generating your reading...');
   const [errorText, setErrorText] = useState<string | null>(null);
   const [canReturnToBirth, setCanReturnToBirth] = useState(false);
 
@@ -26,10 +25,20 @@ export default function LoadingRouteClient() {
     const supabase = createClient();
 
     const run = async () => {
-      // Start the prototype loading overlay if available
+      // Mark as live so prototype animation loops instead of auto-completing
       const w = window as unknown as Record<string, unknown>;
-      const startLoading = w.startLoading as (() => void) | undefined;
-      if (startLoading) startLoading();
+      w.__ASTROLO_LIVE_LOADING = true;
+
+      // Wait for prototype-runtime.js to load, then start the animation
+      const waitForStart = () => new Promise<void>((resolve) => {
+        const attempt = () => {
+          const fn = (window as unknown as Record<string, unknown>).startLoading as (() => void) | undefined;
+          if (fn) { fn(); resolve(); }
+          else setTimeout(attempt, 100);
+        };
+        attempt();
+      });
+      waitForStart();
 
       const { data: auth } = await supabase.auth.getUser();
       const user = auth.user;
@@ -38,22 +47,18 @@ export default function LoadingRouteClient() {
         return;
       }
 
-      setStatusText('Checking your existing reading...');
-
-      // If already generated, finish loading and let HydrationBridge handle display
-      const check = await fetch('/api/reading/natal?lang=ka', { credentials: 'include' });
-      if (check.ok) {
-        const payload = await check.json() as { reading: unknown | null };
-        if (payload.reading) {
-          const finish = (window as unknown as { finishLoading?: () => void }).finishLoading;
-          if (finish) finish();
+      // Check if reading already exists — redirect to public URL if so
+      const earlyCheck = await fetch('/api/onboarding/status', { credentials: 'include' });
+      if (earlyCheck.ok) {
+        const earlyStatus = await earlyCheck.json() as { status: string; shareSlug?: string };
+        if (earlyStatus.status === 'complete' && earlyStatus.shareSlug) {
+          window.location.href = `/r/${earlyStatus.shareSlug}`;
           return;
         }
       }
 
       // Kick off generation if not already running/complete.
       // Prefer server-issued onboarding payload, then fallback to profile snapshot.
-      setStatusText('Preparing birth data...');
       let reqBody: GenerateChartRequest | null = null;
       const pendingRes = await fetch('/api/onboarding/pending', { credentials: 'include' });
       if (pendingRes.ok) {
@@ -98,7 +103,6 @@ export default function LoadingRouteClient() {
       // If we have complete data, call generate (idempotent)
       if (reqBody?.birth_day && reqBody?.birth_month && reqBody?.birth_year && reqBody?.birth_lat && reqBody?.birth_lng && reqBody?.birth_timezone && reqBody?.gender) {
         try {
-          setStatusText('Generating your natal reading...');
           // Keep URL at /loading while this runs
           const init = await withCsrfHeaders({
             method: 'POST',
@@ -119,7 +123,6 @@ export default function LoadingRouteClient() {
             }
             setErrorText('Reading generation is temporarily overloaded. Please wait and retry.');
             setCanReturnToBirth(false);
-            setStatusText('Retrying in background...');
           }
         } catch {
           // Keep polling path, but show visible hint.
@@ -129,7 +132,6 @@ export default function LoadingRouteClient() {
       }
 
       // Poll until reading appears
-      setStatusText('Finalizing your reading...');
       let attempts = 0;
       const maxAttempts = 120; // ~5 min at 2.5s interval
       for (;;) {
@@ -142,12 +144,16 @@ export default function LoadingRouteClient() {
         await sleep(2500);
         const statusRes = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (!statusRes.ok) continue;
-        const status = await statusRes.json() as { status: 'queued' | 'generating' | 'complete'; readingId: string | null };
+        const status = await statusRes.json() as { status: 'queued' | 'generating' | 'complete'; readingId: string | null; shareSlug?: string };
         if (status.status === 'complete') {
-          const finish = (window as unknown as { finishLoading?: () => void }).finishLoading;
-          if (finish) finish();
-          // HydrationBridge will detect the reading and hydrate the prototype DOM.
-          // finishLoading() transitions to the natal view within the prototype UI.
+          // Redirect to public reading URL
+          if (status.shareSlug) {
+            window.location.href = `/r/${status.shareSlug}`;
+          } else {
+            // Fallback: finish loading in-place
+            const finish = (window as unknown as { finishLoading?: () => void }).finishLoading;
+            if (finish) finish();
+          }
           return;
         }
       }
@@ -161,72 +167,44 @@ export default function LoadingRouteClient() {
     window.location.href = invite ? `/auth?step=birth&invite=${invite}` : '/auth?step=birth';
   };
 
+  if (!errorText) return null;
+
   return (
     <div
       style={{
         position: 'fixed',
-        inset: 0,
+        bottom: 24,
+        left: '50%',
+        transform: 'translateX(-50%)',
         zIndex: 10001,
-        display: 'grid',
-        placeItems: 'center',
-        pointerEvents: 'none',
+        width: 'min(480px, calc(100vw - 32px))',
+        background: 'rgba(7,10,20,0.92)',
+        border: '1px solid rgba(255,80,80,0.3)',
+        borderRadius: 12,
+        padding: '12px 16px',
+        color: '#fecaca',
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: 13,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
       }}
     >
-      <div
-        style={{
-          pointerEvents: 'auto',
-          width: 'min(560px, calc(100vw - 32px))',
-          background: 'rgba(7,10,20,0.86)',
-          border: '1px solid rgba(255,255,255,0.16)',
-          borderRadius: 12,
-          padding: 16,
-          color: '#fff',
-          fontFamily: 'system-ui, sans-serif',
-        }}
+      <span style={{ flex: 1, lineHeight: 1.4 }}>{errorText}</span>
+      <button
+        onClick={() => window.location.reload()}
+        style={{ border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', color: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
       >
-        <div style={{ fontSize: 13, opacity: 0.82, marginBottom: 8 }}>{statusText}</div>
-        {errorText ? (
-          <div style={{ color: '#fecaca', fontSize: 13, lineHeight: 1.4, marginBottom: 12 }}>
-            {errorText}
-          </div>
-        ) : (
-          <div style={{ color: 'rgba(255,255,255,0.62)', fontSize: 12, marginBottom: 12 }}>
-            This can take up to a few minutes.
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              border: '1px solid rgba(255,255,255,0.3)',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
-              borderRadius: 8,
-              padding: '8px 12px',
-              fontSize: 12,
-              cursor: 'pointer',
-            }}
-          >
-            Retry
-          </button>
-          {canReturnToBirth && (
-            <button
-              onClick={goBirth}
-              style={{
-                border: '1px solid rgba(251,191,36,0.5)',
-                background: 'rgba(251,191,36,0.12)',
-                color: '#fde68a',
-                borderRadius: 8,
-                padding: '8px 12px',
-                fontSize: 12,
-                cursor: 'pointer',
-              }}
-            >
-              Back to birth form
-            </button>
-          )}
-        </div>
-      </div>
+        Retry
+      </button>
+      {canReturnToBirth && (
+        <button
+          onClick={goBirth}
+          style={{ border: '1px solid rgba(251,191,36,0.5)', background: 'rgba(251,191,36,0.12)', color: '#fde68a', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          Back to form
+        </button>
+      )}
     </div>
   );
 }

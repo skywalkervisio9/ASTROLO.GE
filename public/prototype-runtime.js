@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════
 
 let currentAccountType = 'premium';
-let discountOn = false;
+let discountOn = true;
 // Slot overrides: null = follow tier defaults, true/false = dev override
 let slot1UnlockedOverride = null;
 let slot1OccupiedOverride = null;
@@ -16,6 +16,8 @@ function switchView(view, btn) {
   document.querySelectorAll('#devAuth,#devNatal,#devCouple,#devFriend').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Reset synced progress handler when leaving natal; raw scroll takes over
+  if (view !== 'natal') window._syncNavProgress = null;
 
   // Update sidebar nav active states
   const natalNav = document.querySelector('#sbNavRow .sb-nav-item:first-child');
@@ -307,7 +309,14 @@ function selectPayMethod(method, el) {
 
 // ═══ SIDEBAR ═══
 let ddOpen = false;
-function openSidebar() { ddOpen = !ddOpen; document.getElementById('accountDD').classList.toggle('open', ddOpen); }
+function openSidebar() {
+  // If public view (not logged in), redirect to auth
+  if (window.__ASTROLO_PUBLIC_VIEW) {
+    window.location.href = '/auth';
+    return;
+  }
+  ddOpen = !ddOpen; document.getElementById('accountDD').classList.toggle('open', ddOpen);
+}
 function closeSidebar() { ddOpen = false; document.getElementById('accountDD').classList.remove('open'); }
 document.addEventListener('click', e => {
   if (ddOpen && !e.target.closest('.account-dd') && !e.target.closest('.pb')) closeSidebar();
@@ -567,8 +576,12 @@ function toggleExp(btn) {
 
 // ═══ SCROLL PROGRESS ═══
 window.addEventListener('scroll', () => {
-  const h = document.documentElement.scrollHeight - window.innerHeight;
-  document.getElementById('prog').style.width = (window.scrollY / h * 100) + '%';
+  if (typeof window._syncNavProgress === 'function') {
+    window._syncNavProgress();
+  } else {
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    document.getElementById('prog').style.width = (window.scrollY / h * 100) + '%';
+  }
   document.getElementById('scrollTop').classList.toggle('show', window.scrollY > 600);
 
   // Reading progress (natal)
@@ -593,31 +606,37 @@ function initObservers() {
     document.querySelectorAll('#view-natal section, #view-natal .lock-wrap').forEach(s => {
       if (!s.classList.contains('vis')) revealObs.observe(s);
     });
-    // Nav active
-    const secs = document.querySelectorAll('#view-natal section');
-    const nbs = document.querySelectorAll('.nbtn');
-    const secNavObs = new IntersectionObserver(es => {
-      es.forEach(e => {
-        if (e.isIntersecting) {
-          const i = [...secs].indexOf(e.target);
-          nbs.forEach(b => b.classList.remove('active'));
-          if (nbs[i]) nbs[i].classList.add('active');
-        }
-      });
-    }, { threshold: .15, rootMargin: '-80px 0px -60% 0px' });
-    secs.forEach(s => secNavObs.observe(s));
+    // Nav active + progress bar — scroll-driven so both stay in sync
+    const secs = Array.from(document.querySelectorAll('#view-natal section'));
+    const nbs  = Array.from(document.querySelectorAll('.nbtn'));
+    var _firstSecTop = null;
+    var _lastSecBottom = null;
+    function _calcSecBounds() {
+      if (!secs.length) return;
+      _firstSecTop    = secs[0].getBoundingClientRect().top + window.scrollY;
+      _lastSecBottom  = secs[secs.length - 1].getBoundingClientRect().bottom + window.scrollY;
+    }
+    _calcSecBounds();
+    window.addEventListener('resize', _calcSecBounds);
 
-    // Lock wrap nav
-    const lockNavObs = new IntersectionObserver(es => {
-      es.forEach(e => {
-        if (e.isIntersecting) {
-          const sNum = e.target.id.replace('lock-', '');
-          const idx = [...secs].findIndex(s => s.id === sNum);
-          if (idx >= 0) { nbs.forEach(b => b.classList.remove('active')); nbs[idx].classList.add('active'); }
-        }
-      });
-    }, { threshold: .15 });
-    document.querySelectorAll('#view-natal .lock-wrap').forEach(l => lockNavObs.observe(l));
+    window._syncNavProgress = function() {
+      var offset = 130; // px from top to consider a section "in view"
+      var activeIdx = 0;
+      for (var _si = 0; _si < secs.length; _si++) {
+        if (secs[_si].getBoundingClientRect().top <= offset) activeIdx = _si;
+      }
+      nbs.forEach(function(b) { b.classList.remove('active'); });
+      if (nbs[activeIdx]) nbs[activeIdx].classList.add('active');
+
+      // Progress bar: 0 = top of first section, 100 = bottom of last section scrolled into view
+      var scrollable = (_lastSecBottom || 0) - window.innerHeight - (_firstSecTop || 0);
+      var pct = scrollable > 0
+        ? Math.min(100, Math.max(0, (window.scrollY - (_firstSecTop || 0)) / scrollable * 100))
+        : 0;
+      var prog = document.getElementById('prog');
+      if (prog) prog.style.width = pct + '%';
+    };
+    window._syncNavProgress();
 
     // Reading progress
     const readSections = new Set();
@@ -689,13 +708,20 @@ function initObservers() {
   }
 }
 
-// ═══ MOUSE-TRACKING GLOW ═══
-document.querySelectorAll('.c,.nbtn,.card,.cat,.pc,.bb,.snb').forEach(el => {
-  el.addEventListener('mousemove', e => {
-    const r = el.getBoundingClientRect();
-    el.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
-    el.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
-  });
+// Safe closest — SVG elements (e.g. <use>) lack .closest(), walk up to nearest HTMLElement first
+function _closest(el, sel) {
+  var node = el;
+  while (node && !(node instanceof HTMLElement)) node = node.parentNode;
+  return node ? node.closest(sel) : null;
+}
+
+// ═══ MOUSE-TRACKING GLOW (delegated) ═══
+document.addEventListener('mousemove', e => {
+  const el = _closest(e.target, '.c,.nbtn,.card,.cat,.pc,.bb,.snb');
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+  el.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
 });
 
 // ═══ ELEMENT POPUPS (NATAL) ═══
@@ -774,86 +800,133 @@ function getElType(el) {
   return null;
 }
 
-// Element tag popups
-document.querySelectorAll('.et').forEach(tag => {
-  tag.addEventListener('click', e => {
+// ═══ DELEGATED POPUP HANDLERS ═══
+// All popup interactions use event delegation so they work on dynamically hydrated content.
+
+function _showPopup(anchor, className, titleHtml, bodyHtml) {
+  closePopup();
+  const pop = document.createElement('div');
+  pop.className = 'el-popup ' + className;
+  pop.innerHTML = '<div class="el-popup-title">' + titleHtml + '</div><div class="el-popup-body">' + bodyHtml + '</div>';
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.min(r.left, window.innerWidth - 275) + 'px';
+  pop.style.top = (r.top - pop.offsetHeight - 8) + 'px';
+  if (r.top - pop.offsetHeight - 8 < 60) pop.style.top = (r.bottom + 8) + 'px';
+  requestAnimationFrame(() => pop.classList.add('show'));
+  activePopup = pop; activeTag = anchor;
+}
+
+document.addEventListener('click', e => {
+  // Element tag popups (.et)
+  const etTag = _closest(e.target, '.et');
+  if (etTag) {
     e.stopPropagation();
-    if (activeTag === tag) { closePopup(); return; }
-    closePopup();
-    const type = getElType(tag); if (!type) return;
+    if (activeTag === etTag) { closePopup(); return; }
+    const type = getElType(etTag); if (!type) return;
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
     const d = elData[lang][type];
-    const pop = document.createElement('div');
-    pop.className = 'el-popup ' + type + '-pop';
-    pop.innerHTML = '<div class="el-popup-title">' + d.title + '</div><div class="el-popup-body">' + d.body + '</div>';
-    document.body.appendChild(pop);
-    const r = tag.getBoundingClientRect();
-    pop.style.left = Math.min(r.left, window.innerWidth - 275) + 'px';
-    pop.style.top = (r.top - pop.offsetHeight - 8) + 'px';
-    if (r.top - pop.offsetHeight - 8 < 60) pop.style.top = (r.bottom + 8) + 'px';
-    requestAnimationFrame(() => pop.classList.add('show'));
-    activePopup = pop; activeTag = tag;
-  });
-  tag.addEventListener('mouseleave', () => {
-    setTimeout(() => { if (activePopup && !activePopup.matches(':hover')) closePopup(); }, 150);
-  });
-});
+    _showPopup(etTag, type + '-pop', d.title, d.body);
+    return;
+  }
 
-// Planet button popups
-document.querySelectorAll('.pl-btn').forEach(btn => {
-  btn.addEventListener('click', e => {
+  // Planet button popups (.pl-btn)
+  const plBtn = _closest(e.target, '.pl-btn');
+  if (plBtn) {
     e.stopPropagation();
-    const key = btn.getAttribute('data-pl'); if (!key) return;
-    if (activeTag === btn) { closePopup(); return; }
-    closePopup();
+    const key = plBtn.getAttribute('data-pl'); if (!key) return;
+    if (activeTag === plBtn) { closePopup(); return; }
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
     const d = plData[lang][key];
-    const pop = document.createElement('div');
-    pop.className = 'el-popup planet-pop';
-    pop.innerHTML = '<div class="el-popup-title">' + d.t + '</div><div class="el-popup-body">' + d.b + '</div>';
-    document.body.appendChild(pop);
-    const r = btn.getBoundingClientRect();
-    pop.style.left = Math.min(r.left, window.innerWidth - 275) + 'px';
-    pop.style.top = (r.top - pop.offsetHeight - 8) + 'px';
-    if (r.top - pop.offsetHeight - 8 < 60) pop.style.top = (r.bottom + 8) + 'px';
-    requestAnimationFrame(() => pop.classList.add('show'));
-    activePopup = pop; activeTag = btn;
-  });
-});
+    if (!d) return;
+    _showPopup(plBtn, 'planet-pop', d.t, d.b);
+    return;
+  }
 
-// Aspect tag popups (synastry)
-document.querySelectorAll('.aspect-tag').forEach(tag => {
-  tag.style.cursor = 'pointer';
-  tag.addEventListener('click', e => {
+  // Aspect tag popups (.aspect-tag)
+  const aspTag = _closest(e.target, '.aspect-tag');
+  if (aspTag) {
     e.stopPropagation();
-    if (activeTag === tag) { closePopup(); return; }
-    closePopup();
+    if (activeTag === aspTag) { closePopup(); return; }
     let type = null;
-    if (tag.classList.contains('harmony')) type = 'harmony';
-    else if (tag.classList.contains('tension')) type = 'tension';
-    else if (tag.classList.contains('magnetic')) type = 'magnetic';
+    if (aspTag.classList.contains('harmony')) type = 'harmony';
+    else if (aspTag.classList.contains('tension')) type = 'tension';
+    else if (aspTag.classList.contains('magnetic')) type = 'magnetic';
     if (!type) return;
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
     const d = aspectData[lang][type];
-    const pop = document.createElement('div');
-    pop.className = 'el-popup ' + type + '-pop';
-    pop.innerHTML = '<div class="el-popup-title">' + d.t + '</div><div class="el-popup-body">' + d.b + '</div>';
-    document.body.appendChild(pop);
-    const r = tag.getBoundingClientRect();
-    pop.style.left = Math.min(r.left, window.innerWidth - 275) + 'px';
-    pop.style.top = (r.top - pop.offsetHeight - 8) + 'px';
-    if (r.top - pop.offsetHeight - 8 < 60) pop.style.top = (r.bottom + 8) + 'px';
-    requestAnimationFrame(() => pop.classList.add('show'));
-    activePopup = pop; activeTag = tag;
-  });
+    _showPopup(aspTag, type + '-pop', d.t, d.b);
+    return;
+  }
+
+  // Close popup when clicking elsewhere
+  if (activePopup && !_closest(e.target, '.el-popup') && !_closest(e.target, '.mc-sign-btn')) closePopup();
 });
 
-document.addEventListener('click', e => {
-  if (activePopup && !e.target.closest('.et') && !e.target.closest('.pl-btn') && !e.target.closest('.aspect-tag') && !e.target.closest('.mc-sign-btn')) closePopup();
-});
+// Close popup on mouseleave from element tags (delegated)
+document.addEventListener('mouseleave', e => {
+  var tag = _closest(e.target, '.et');
+  if (tag && activePopup) {
+    setTimeout(() => { if (activePopup && !activePopup.matches(':hover')) closePopup(); }, 150);
+  }
+}, true);
 
 // ═══ MINI NATAL CHART ═══
-(function() {
+
+// Helpers for converting reading planet data → chart format
+var _ZODIAC_EN = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
+var _PLANET_KA = { sun:'მზე', moon:'მთვარე', mercury:'მერკური', venus:'ვენერა', mars:'მარსი', jupiter:'იუპიტერი', saturn:'სატურნი', uranus:'ურანი', neptune:'ნეპტუნი', pluto:'პლუტონი' };
+var _PLANET_META = {
+  sun:     { g:'☉', r:4.5, c:'#c9a84c' }, moon:    { g:'☽', r:4,   c:'#b8b8cc' },
+  mercury: { g:'☿', r:3,   c:'#8ab5d4' }, venus:   { g:'♀', r:3.5, c:'#c47a8a' },
+  mars:    { g:'♂', r:3,   c:'#d4644a' }, jupiter: { g:'♃', r:3,   c:'#8a7abf' },
+  saturn:  { g:'♄', r:3,   c:'#7a8a6e' }, uranus:  { g:'♅', r:3,   c:'#5a9ab5' },
+  neptune: { g:'♆', r:2.5, c:'#6b7baa' }, pluto:   { g:'♇', r:2.5, c:'#9a6b6b' }
+};
+
+function _signDegToEcl(sign, degStr) {
+  var idx = _ZODIAC_EN.indexOf(sign);
+  if (idx < 0) return 0;
+  var m = (degStr || '').match(/(\d+)[°º](\d+)/);
+  var d = m ? parseInt(m[1]) + parseInt(m[2]) / 60 : 0;
+  return idx * 30 + d;
+}
+
+function _readingToChartPlanets(planetTable) {
+  var out = [];
+  planetTable.forEach(function(row) {
+    var key = (row.planet || row.name || '').toLowerCase().replace(/[^a-z]/g, '');
+    var meta = _PLANET_META[key];
+    if (!meta) return;
+    var ecl = _signDegToEcl(row.sign, row.degree);
+    out.push({
+      n: _PLANET_KA[key] || row.planet || key,
+      g: row.symbol || meta.g,
+      deg: ecl,
+      si: _ZODIAC_EN.indexOf(row.sign),
+      sd: (row.degree || '') + (row.retrograde ? '℞' : ''),
+      h: row.house || '',
+      r: meta.r,
+      c: meta.c
+    });
+  });
+  return out;
+}
+
+var _DEMO_PLANETS = [
+  { n: 'მზე', g: '☉', deg: 202.33, si: 6, sd: "22°20'", h: 'III', r: 4.5, c: '#c9a84c' },
+  { n: 'მთვარე', g: '☽', deg: 152.67, si: 5, sd: "2°40'", h: 'II', r: 4, c: '#b8b8cc' },
+  { n: 'მერკური', g: '☿', deg: 215.92, si: 7, sd: "5°55'", h: 'IV', r: 3, c: '#8ab5d4' },
+  { n: 'ვენერა', g: '♀', deg: 198.67, si: 6, sd: "18°40'", h: 'III', r: 3.5, c: '#c47a8a' },
+  { n: 'მარსი', g: '♂', deg: 155.12, si: 5, sd: "5°07'", h: 'II', r: 3, c: '#d4644a' },
+  { n: 'იუპიტერი', g: '♃', deg: 349.53, si: 11, sd: "19°32'℞", h: 'VIII', r: 3, c: '#8a7abf' },
+  { n: 'სატურნი', g: '♄', deg: 30.78, si: 1, sd: "0°47'℞", h: 'X', r: 3, c: '#7a8a6e' },
+  { n: 'ურანი', g: '♅', deg: 308.82, si: 10, sd: "8°49'℞", h: 'VII', r: 3, c: '#5a9ab5' },
+  { n: 'ნეპტუნი', g: '♆', deg: 299.4, si: 9, sd: "29°24'", h: 'VI', r: 2.5, c: '#6b7baa' },
+  { n: 'პლუტონი', g: '♇', deg: 246.3, si: 8, sd: "6°18'", h: 'V', r: 2.5, c: '#9a6b6b' }
+];
+
+function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
   const svg = document.getElementById('miniChart');
   if (!svg) return;
   const wrap = svg.parentElement;
@@ -861,20 +934,9 @@ document.addEventListener('click', e => {
   const CX = 210, CY = 210, R = 190, RI = 150, RP = 118;
   const SIGN_KA = ['ვერძი','კურო','ტყუპი','კირჩხიბი','ლომი','ქალწული','სასწორი','მორიელი','მშვილდოსანი','თხის რქა','მერწყული','თევზები'];
   const SIGN_IDS = ['gl-aries','gl-taurus','gl-gemini','gl-cancer','gl-leo','gl-virgo','gl-libra','gl-scorpio','gl-sagittarius','gl-capricorn','gl-aquarius','gl-pisces'];
-  const ASC_ECL = 137.33; // Leo 17°20' = 120 + 17.33
-  const MC_ECL = 37.65;   // Taurus 7°39' = 30 + 7.65
-  const planets = [
-    { n: 'მზე', g: '☉', deg: 202.33, si: 6, sd: "22°20'", h: 'III', r: 4.5, c: '#c9a84c' },
-    { n: 'მთვარე', g: '☽', deg: 152.67, si: 5, sd: "2°40'", h: 'II', r: 4, c: '#b8b8cc' },
-    { n: 'მერკური', g: '☿', deg: 215.92, si: 7, sd: "5°55'", h: 'IV', r: 3, c: '#8ab5d4' },
-    { n: 'ვენერა', g: '♀', deg: 198.67, si: 6, sd: "18°40'", h: 'III', r: 3.5, c: '#c47a8a' },
-    { n: 'მარსი', g: '♂', deg: 155.12, si: 5, sd: "5°07'", h: 'II', r: 3, c: '#d4644a' },
-    { n: 'იუპიტერი', g: '♃', deg: 349.53, si: 11, sd: "19°32'℞", h: 'VIII', r: 3, c: '#8a7abf' },
-    { n: 'სატურნი', g: '♄', deg: 30.78, si: 1, sd: "0°47'℞", h: 'X', r: 3, c: '#7a8a6e' },
-    { n: 'ურანი', g: '♅', deg: 308.82, si: 10, sd: "8°49'℞", h: 'VII', r: 3, c: '#5a9ab5' },
-    { n: 'ნეპტუნი', g: '♆', deg: 299.4, si: 9, sd: "29°24'", h: 'VI', r: 2.5, c: '#6b7baa' },
-    { n: 'პლუტონი', g: '♇', deg: 246.3, si: 8, sd: "6°18'", h: 'V', r: 2.5, c: '#9a6b6b' }
-  ];
+  const ASC_ECL = (ascEclIn != null) ? ascEclIn : 137.33;
+  const MC_ECL  = (mcEclIn  != null) ? mcEclIn  : 37.65;
+  const planets = planetsIn || _DEMO_PLANETS;
   // Convert ecliptic degree to SVG input angle: ASC at LEFT (270°), counterclockwise for increasing ecliptic
   function eclToAngle(ecl) { return (270 + (ecl - ASC_ECL) + 360) % 360; }
   function pos(ecl, r) {
@@ -1025,7 +1087,9 @@ document.addEventListener('click', e => {
       setTimeout(() => { if (activePopup && !activePopup.matches(':hover')) closePopup(); }, 200);
     });
   });
-})();
+}
+// Initial render with demo data — replaced with real data by hydrateReading()
+renderMiniChart();
 
 // ═══ SHOOTING STAR ═══
 (function() {
@@ -1365,8 +1429,130 @@ const SECTION_ICONS_MAP = {
   relationships: 'gl-venus', work: 'gl-mars', shadow: 'gl-moon',
   spiritual: 'gl-sparkle', potential: 'gl-diamond'
 };
+const SECTION_NAV_LABELS = {
+  ka: {
+    overview: 'მიმოხილვა', mission: 'მისია', characteristics: 'მახასიათებლები',
+    relationships: 'ურთიერთობები', work: 'საქმე', shadow: 'ჩრდილი',
+    spiritual: 'სამშვინველი', potential: 'სრულყოფილება'
+  },
+  en: {
+    overview: 'Overview', mission: 'Mission', characteristics: 'Characteristics',
+    relationships: 'Relationships', work: 'Work', shadow: 'Shadow',
+    spiritual: 'Spiritual', potential: 'Potential'
+  }
+};
 const ELEMENT_CLASS = { fire: 'af', earth: 'ae', air: 'aa', water: 'aw' };
 const ELEMENT_LABEL_CLASS = { fire: 'ef', earth: 'ee', air: 'ea', water: 'ew' };
+const PLANET_KA = {
+  sun: 'მზე', moon: 'მთვარე', mercury: 'მერკური', venus: 'ვენერა', mars: 'მარსი',
+  jupiter: 'იუპიტერი', saturn: 'სატურნი', uranus: 'ურანი', neptune: 'ნეპტუნი',
+  pluto: 'პლუტონი', lilith: 'ლილითი', 'north node': 'ჩრდ. კვანძი', 'south node': 'სამხ. კვანძი',
+  chiron: 'ქირონი', ascendant: 'ასცენდენტი', asc: 'ASC', mc: 'MC', midheaven: 'MC'
+};
+const SIGN_KA = {
+  aries: 'ვერძი', taurus: 'კურო', gemini: 'ტყუპები', cancer: 'კირჩხიბი',
+  leo: 'ლომი', virgo: 'ქალწული', libra: 'სასწორი', scorpio: 'მორიელი',
+  sagittarius: 'მშვილდოსანი', capricorn: 'თხის რქა', aquarius: 'მერწყული', pisces: 'თევზები'
+};
+var _hydrateLang = 'ka';
+function _tr(map, key) {
+  if (!key) return '';
+  if (_hydrateLang !== 'ka') return key;
+  return map[key.toLowerCase()] || key;
+}
+
+// Sign → element mapping for glyph CSS classes
+const SIGN_ELEMENT = {
+  aries: 'fire', taurus: 'earth', gemini: 'air', cancer: 'water',
+  leo: 'fire', virgo: 'earth', libra: 'air', scorpio: 'water',
+  sagittarius: 'fire', capricorn: 'earth', aquarius: 'air', pisces: 'water'
+};
+// Georgian sign name → English key (reverse of SIGN_KA)
+const SIGN_KA_REV = {};
+Object.keys(SIGN_KA).forEach(function(k) { SIGN_KA_REV[SIGN_KA[k]] = k; });
+// Georgian planet name → English key (reverse of PLANET_KA)
+const PLANET_KA_REV = {};
+Object.keys(PLANET_KA).forEach(function(k) { PLANET_KA_REV[PLANET_KA[k]] = k; });
+
+// Unicode planet/sign symbols → glyph IDs
+const SYMBOL_TO_GLYPH = {
+  '☉': 'sun', '☽': 'moon', '☿': 'mercury', '♀': 'venus', '♂': 'mars',
+  '♃': 'jupiter', '♄': 'saturn', '♅': 'uranus', '♆': 'neptune', '♇': 'pluto',
+  '⚸': 'lilith', '☊': 'node', '☋': 'node',
+  '♈': 'aries', '♉': 'taurus', '♊': 'gemini', '♋': 'cancer',
+  '♌': 'leo', '♍': 'virgo', '♎': 'libra', '♏': 'scorpio',
+  '♐': 'sagittarius', '♑': 'capricorn', '♒': 'aquarius', '♓': 'pisces'
+};
+const SIGN_SYMBOLS = new Set(['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓']);
+const PLANET_SYMBOLS = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋']);
+
+// Render rich text: converts Unicode astro symbols to SVG glyphs + basic markdown (bold/italic)
+function _renderRichText(text) {
+  if (!text) return '';
+  // First, escape HTML but preserve our markers
+  var escaped = _esc(text);
+  // Convert **bold** to <strong>
+  escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Convert _italic_ or *italic* to <em>
+  escaped = escaped.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em class="hl">$1</em>');
+  // Now replace Unicode astro symbols with SVG glyphs
+  var chars = Array.from(escaped);
+  var result = '';
+  for (var i = 0; i < chars.length; i++) {
+    var ch = chars[i];
+    if (SYMBOL_TO_GLYPH[ch]) {
+      var glyphName = SYMBOL_TO_GLYPH[ch];
+      if (PLANET_SYMBOLS.has(ch)) {
+        result += '<span class="gi gi-pl"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+      } else if (SIGN_SYMBOLS.has(ch)) {
+        var el = SIGN_ELEMENT[glyphName] || '';
+        result += '<span class="gi gi-' + el + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+      } else {
+        result += ch;
+      }
+    } else {
+      result += ch;
+    }
+  }
+  return result;
+}
+
+// Build rich badge HTML from a label string
+// Converts Unicode symbols to SVG glyphs and adds element-colored sign glyphs
+function _buildBadgeHtml(label) {
+  if (!label) return '';
+  var result = '';
+  var chars = Array.from(label);
+  var i = 0;
+  while (i < chars.length) {
+    var ch = chars[i];
+    if (SYMBOL_TO_GLYPH[ch]) {
+      var glyphName = SYMBOL_TO_GLYPH[ch];
+      if (PLANET_SYMBOLS.has(ch)) {
+        result += '<span class="gi gi-pl"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+      } else if (SIGN_SYMBOLS.has(ch)) {
+        var el = SIGN_ELEMENT[glyphName] || '';
+        result += '<span class="gi gi-' + el + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+      }
+      i++;
+    } else if (ch === '℞') {
+      result += ' ℞';
+      i++;
+    } else if (ch === '☌' || ch === '△' || ch === '□' || ch === '☍' || ch === '⚹') {
+      result += ' ' + _esc(ch) + ' ';
+      i++;
+    } else {
+      // Regular character — collect a run of plain text
+      var run = '';
+      while (i < chars.length && !SYMBOL_TO_GLYPH[chars[i]] && chars[i] !== '℞' && chars[i] !== '☌' && chars[i] !== '△' && chars[i] !== '□' && chars[i] !== '☍' && chars[i] !== '⚹') {
+        run += chars[i];
+        i++;
+      }
+      result += _esc(run);
+    }
+  }
+  return result;
+}
 
 function _canAccess(user, key) {
   if (user.account_type === 'premium') return true;
@@ -1383,6 +1569,7 @@ function _esc(s) {
 }
 
 function _planetGlyph(name) {
+  if (!name) return '';
   const id = 'gl-' + name.toLowerCase();
   return '<span class="gi gi-pl"><svg><use href="#' + id + '"/></svg></span>';
 }
@@ -1404,65 +1591,83 @@ function _signGlyph(signName, element) {
     }
   }
   if (!id) return '';
-  const elClass = element ? ELEMENT_LABEL_CLASS[element] || '' : '';
-  return '<span class="gi gi-' + (element || '') + '"><svg><use href="#' + id + '"/></svg></span>';
+  const elLow = (element || '').toLowerCase();
+  return '<span class="gi gi-' + elLow + '"><svg><use href="#' + id + '"/></svg></span>';
 }
 
 function _buildPlanetRow(row) {
+  const planet = row.planet || row.name || '';
+  const planetKa = _tr(PLANET_KA, planet);
+  const signKa = _tr(SIGN_KA, row.sign);
   const retro = row.retrograde ? ' class="retro"' : '';
   const retroBadge = row.retrograde ? ' &#8478;' : '';
-  const elClass = ELEMENT_LABEL_CLASS[row.element] || '';
+  const elLower = (row.element || '').toLowerCase();
+  const elClass = ELEMENT_LABEL_CLASS[elLower] || '';
   const elLabel = { fire: 'ცეცხლი', earth: 'მიწა', air: 'ჰაერი', water: 'წყალი' };
+  const elKa = _hydrateLang === 'ka' ? (elLabel[elLower] || row.element) : row.element;
   return '<tr>' +
-    '<td class="pl-btn" data-pl="' + row.planet.toLowerCase() + '">' +
-      _planetGlyph(row.planet) + ' ' + _esc(row.planet) + '</td>' +
-    '<td>' + _esc(row.sign) + ' ' + _signGlyph(row.sign, row.element) + '</td>' +
+    '<td class="pl-btn" data-pl="' + planet.toLowerCase() + '">' +
+      _planetGlyph(planet) + ' ' + _esc(planetKa) + '</td>' +
+    '<td>' + _esc(signKa) + ' ' + _signGlyph(row.sign, row.element) + '</td>' +
     '<td' + retro + '>' + _esc(row.degree) + retroBadge + '</td>' +
     '<td>' + _esc(row.house) + '</td>' +
-    '<td><span class="et ' + elClass + '">' + (elLabel[row.element] || _esc(row.element)) + '</span></td>' +
+    '<td><span class="et ' + elClass + '">' + _esc(elKa) + '</span></td>' +
     '</tr>';
 }
 
 function _buildAspect(asp) {
+  if (!asp || typeof asp !== 'object') return '';
   const typeLabel = {
     conjunction: 'კონიუნქცია', trine: 'ტრინი', square: 'კვადრატი',
     opposition: 'ოპოზიცია', sextile: 'სექსტილი'
   };
+  const aspectSymbols = {
+    conjunction: '☌', trine: '△', square: '□', opposition: '☍', sextile: '⚹'
+  };
+  var aspectType = asp.aspectType || asp.aspect || asp.type || '';
+  var symbol = asp.aspectSymbol || aspectSymbols[aspectType] || '';
+  var p1Name = asp.planet1 || asp.planet_1 || asp.body1 || '';
+  var p2Name = asp.planet2 || asp.planet_2 || asp.body2 || '';
+  var p1 = _tr(PLANET_KA, p1Name);
+  var p2 = _tr(PLANET_KA, p2Name);
+  var orbStr = asp.orb != null ? ' (' + asp.orb + '°)' : '';
+  var desc = asp.description ? ' — ' + _esc(asp.description) : orbStr;
+  var typeLbl = _hydrateLang === 'ka' ? (typeLabel[aspectType] || aspectType) : aspectType;
   return '<div class="al">' +
-    '<span class="asy">' + _esc(asp.aspectSymbol) + '</span>' +
-    _planetGlyph(asp.planet1) + ' ' + _esc(asp.planet1) + ' ' +
-    _esc(asp.aspectSymbol) + ' ' +
-    _planetGlyph(asp.planet2) + ' ' + _esc(asp.planet2) +
-    (asp.description ? ' — ' + _esc(asp.description) : '') +
-    '<span class="alb">' + _esc(typeLabel[asp.aspectType] || asp.aspectType) + '</span>' +
+    '<span class="asy">' + _esc(symbol) + '</span>' +
+    _planetGlyph(p1Name) + ' ' + _esc(p1) + ' ' +
+    _esc(symbol) + ' ' +
+    _planetGlyph(p2Name) + ' ' + _esc(p2) +
+    desc +
+    '<span class="alb">' + _esc(typeLbl) + '</span>' +
     '</div>';
 }
 
 function _buildCard(card) {
-  const elClass = card.accentElement ? ELEMENT_CLASS[card.accentElement] || '' : '';
+  const elClass = card.accentElement ? ELEMENT_CLASS[(card.accentElement || '').toLowerCase()] || '' : '';
   let html = '<div class="c ' + elClass + '">';
-  html += '<div class="b">' + _esc(card.label) + '</div>';
+  html += '<div class="b">' + _buildBadgeHtml(card.label) + '</div>';
   html += '<h3>' + _esc(card.title) + '</h3>';
   if (card.body && card.body.length) {
-    card.body.forEach(function(p) { html += '<p>' + _esc(p) + '</p>'; });
+    card.body.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
   }
   if (card.crossReferences && card.crossReferences.length) {
     card.crossReferences.forEach(function(ref) {
-      html += '<p class="xref"><em>' + _esc(ref) + '</em></p>';
+      html += '<p class="xref"><em>' + _renderRichText(ref) + '</em></p>';
     });
   }
   if (card.expandedContent && card.expandedContent.length) {
-    html += '<button class="tb2" onclick="toggleExp(this)">+</button>';
+    html += '<button class="tb2" onclick="toggleExp(this)">' + (_hydrateLang === 'ka' ? 'დეტალური ანალიზი ↓' : 'Detailed Analysis ↓') + '</button>';
     html += '<div class="ce">';
-    card.expandedContent.forEach(function(p) { html += '<p>' + _esc(p) + '</p>'; });
+    card.expandedContent.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
     html += '</div>';
   }
   if (card.hint) {
     html += '<div class="h"><div class="ht"><svg><use href="#gl-sparkle"/></svg> ' + _esc(card.hint.title) + '</div>';
-    html += '<p>' + _esc(card.hint.content) + '</p>';
+    html += '<p>' + _renderRichText(card.hint.content) + '</p>';
     if (card.hint.bullets && card.hint.bullets.length) {
       html += '<ul>';
-      card.hint.bullets.forEach(function(b) { html += '<li>' + _esc(b) + '</li>'; });
+      card.hint.bullets.forEach(function(b) { html += '<li>' + _renderRichText(b) + '</li>'; });
       html += '</ul>';
     }
     html += '</div>';
@@ -1480,7 +1685,7 @@ function _buildLockWrap(sectionKey, section, iconId) {
   html += '<div class="st">' + _esc(section.sectionTagline || '') + '</div></div>';
   html += '<div class="lock-preview">';
   if (firstCard) {
-    html += '<div class="b">' + _esc(firstCard.label) + '</div>';
+    html += '<div class="b">' + _buildBadgeHtml(firstCard.label) + '</div>';
     html += '<h3>' + _esc(firstCard.title) + '</h3>';
     if (firstCard.hint) {
       html += '<div class="lock-hint">✦ ' + _esc(firstCard.hint.content.slice(0, 120)) + '</div>';
@@ -1496,6 +1701,26 @@ function _buildLockWrap(sectionKey, section, iconId) {
   return html;
 }
 
+function _buildCardsGrid(cards) {
+  if (!cards || !cards.length) return '';
+  var html = '';
+  // First card renders full-width (standalone), then remaining cards pair into g2 grids.
+  // This matches the prototype pattern: lead card → paired detail cards → optional trailing card.
+  html += _buildCard(cards[0]);
+  for (var i = 1; i < cards.length; i += 2) {
+    if (i + 1 < cards.length) {
+      html += '<div class="g2">';
+      html += _buildCard(cards[i]);
+      html += _buildCard(cards[i + 1]);
+      html += '</div>';
+    } else {
+      // Odd trailing card — render standalone
+      html += _buildCard(cards[i]);
+    }
+  }
+  return html;
+}
+
 function _buildSectionContent(sectionKey, section) {
   const idx = SECTION_KEYS.indexOf(sectionKey) + 1;
   const iconId = SECTION_ICONS_MAP[sectionKey] || 'gl-sparkle';
@@ -1507,33 +1732,49 @@ function _buildSectionContent(sectionKey, section) {
   if (sectionKey === 'overview') {
     // Planet table
     if (section.planetTable && section.planetTable.length) {
-      html += '<div class="c"><table class="pt"><thead><tr><th>პლანეტა</th><th>ნიშანი</th><th>გრადუსი</th><th>სახლი</th><th>სტიქია</th></tr></thead><tbody>';
+      var thLabels = _hydrateLang === 'ka'
+        ? ['პლანეტა','ნიშანი','გრადუსი','სახლი','სტიქია']
+        : ['Planet','Sign','Degree','House','Element'];
+      html += '<div class="c"><table class="pt"><thead><tr>';
+      thLabels.forEach(function(th) { html += '<th>' + th + '</th>'; });
+      html += '</tr></thead><tbody>';
       section.planetTable.forEach(function(row) { html += _buildPlanetRow(row); });
-      html += '</tbody></table></div>';
+      html += '</tbody></table>';
+      // Points row (ASC, MC, North Node, Lilith)
+      if (section.points && typeof section.points === 'object') {
+        var pts = section.points;
+        html += '<div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:4px">';
+        if (pts.ascendant) html += '<span class="pb2">ASC ' + _signGlyph(pts.ascendant.sign) + ' ' + _esc(pts.ascendant.degree) + '</span>';
+        if (pts.midheaven) html += '<span class="pb2">MC ' + _signGlyph(pts.midheaven.sign) + ' ' + _esc(pts.midheaven.degree) + '</span>';
+        if (pts.northNode) html += '<span class="pb2">' + _planetGlyph('node') + ' ' + _signGlyph(pts.northNode.sign) + ' ' + _esc(pts.northNode.degree) + '</span>';
+        if (pts.lilith) html += '<span class="pb2">' + _planetGlyph('lilith') + ' ' + _signGlyph(pts.lilith.sign) + ' ' + _esc(pts.lilith.degree) + '</span>';
+        html += '</div>';
+      }
+      html += '</div>';
     }
     // Aspects
     if (section.aspects && section.aspects.length) {
-      html += '<div class="c"><div class="b">მთავარი ასპექტები</div><h3>პლანეტარული საუბრები</h3>';
+      html += '<div class="c"><div class="b">' + (_hydrateLang === 'ka' ? 'მთავარი ასპექტები' : 'Major Aspects') + '</div>';
+      html += '<h3>' + (_hydrateLang === 'ka' ? 'პლანეტარული საუბრები' : 'Planetary Conversations') + '</h3>';
       section.aspects.forEach(function(asp) { html += _buildAspect(asp); });
-      // Aspect interpretations expand
-      const interps = section.aspects.filter(function(a) { return a.interpretation; });
+      var interps = section.aspects.filter(function(a) { return a.interpretation; });
       if (interps.length) {
-        html += '<button class="tb2" onclick="toggleExp(this)">ასპექტების ინტერპრეტაცია ↓</button>';
+        html += '<button class="tb2" onclick="toggleExp(this)">' + (_hydrateLang === 'ka' ? 'ასპექტების ინტერპრეტაცია ↓' : 'Aspect Interpretations ↓') + '</button>';
         html += '<div class="ce">';
         interps.forEach(function(a) {
-          html += '<p><strong>' + _esc(a.planet1) + ' ' + _esc(a.aspectSymbol) + ' ' + _esc(a.planet2) + ':</strong> ' + _esc(a.interpretation) + '</p>';
+          html += '<p><strong>' + _esc(_tr(PLANET_KA, a.planet1)) + ' ' + _esc(a.aspectSymbol || '') + ' ' + _esc(_tr(PLANET_KA, a.planet2)) + ':</strong> ' + _esc(a.interpretation) + '</p>';
         });
         html += '</div>';
       }
       html += '</div>';
     }
-    // Core cards
-    var cards = section.coreCards || [];
-    cards.forEach(function(card) { html += _buildCard(card); });
+    // Core cards in 2-column grid
+    var cards = section.coreCards || section.cards || [];
+    html += _buildCardsGrid(cards);
   } else {
-    // Content sections (2-8)
+    // Content sections (2-8) in 2-column grid
     var sCards = section.cards || [];
-    sCards.forEach(function(card) { html += _buildCard(card); });
+    html += _buildCardsGrid(sCards);
   }
 
   // Pull quote
@@ -1547,7 +1788,8 @@ function _buildSectionContent(sectionKey, section) {
 
 function hydrateReading(reading, user) {
   if (!reading || !user) return;
-  console.log('[HYDRATE] Starting reading hydration', { user: user.full_name, lang: reading.meta?.language });
+  _hydrateLang = (reading.meta && reading.meta.language) || 'ka';
+  console.log('[HYDRATE] Starting reading hydration', { user: user.full_name, lang: _hydrateLang });
 
   // 1. Sidebar user info
   var nameEl = document.querySelector('.sb-name');
@@ -1571,10 +1813,11 @@ function hydrateReading(reading, user) {
   var heroChips = document.querySelector('.hero-chips');
   if (heroChips && reading.meta) {
     var meta = reading.meta;
-    var sun = reading.overview?.planetTable?.find(function(r) { return r.planet.toLowerCase() === 'sun'; });
-    var moon = reading.overview?.planetTable?.find(function(r) { return r.planet.toLowerCase() === 'moon'; });
-    var asc = reading.overview?.planetTable?.find(function(r) { return r.planet.toLowerCase() === 'asc' || r.planet.toLowerCase() === 'ascendant'; });
-    var mc = reading.overview?.planetTable?.find(function(r) { return r.planet.toLowerCase() === 'mc' || r.planet.toLowerCase() === 'midheaven'; });
+    var pName = function(r) { return (r.planet || r.name || '').toLowerCase(); };
+    var sun = reading.overview?.planetTable?.find(function(r) { return pName(r) === 'sun'; });
+    var moon = reading.overview?.planetTable?.find(function(r) { return pName(r) === 'moon'; });
+    var asc = reading.overview?.planetTable?.find(function(r) { return pName(r) === 'asc' || pName(r) === 'ascendant'; });
+    var mc = reading.overview?.planetTable?.find(function(r) { return pName(r) === 'mc' || pName(r) === 'midheaven'; });
 
     var chips = '';
     chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-sun"/></svg></span> ' + _esc(meta.sunSign || (sun ? sun.sign + ' ' + sun.degree : '')) + '</span>';
@@ -1586,7 +1829,18 @@ function hydrateReading(reading, user) {
     heroChips.innerHTML = chips;
   }
 
-  // 4. Build all sections + lock wraps
+  // 4. Update mini-chart with real planet positions
+  if (reading.overview && reading.overview.planetTable) {
+    var _pt = reading.overview.planetTable;
+    var _chartPs = _readingToChartPlanets(_pt);
+    var _ascRow = _pt.find(function(r) { var n = (r.planet || r.name || '').toLowerCase(); return n === 'asc' || n === 'ascendant'; });
+    var _mcRow  = _pt.find(function(r) { var n = (r.planet || r.name || '').toLowerCase(); return n === 'mc' || n === 'midheaven'; });
+    var _ascEcl = _ascRow ? _signDegToEcl(_ascRow.sign, _ascRow.degree) : null;
+    var _mcEcl  = _mcRow  ? _signDegToEcl(_mcRow.sign,  _mcRow.degree)  : null;
+    if (_chartPs.length > 0) renderMiniChart(_chartPs, _ascEcl, _mcEcl);
+  }
+
+  // 5. Build all sections + lock wraps
   // Find the content container inside #view-natal (after the hero and nav bar)
   var viewNatal = document.getElementById('view-natal');
   if (!viewNatal) { console.error('[HYDRATE] #view-natal not found'); return; }
@@ -1603,7 +1857,9 @@ function hydrateReading(reading, user) {
       SECTION_KEYS.forEach(function(key, i) {
         var sec = reading[key];
         var accessible = _canAccess(user, key);
-        var label = sec ? (sec.sectionTitle || key) : key;
+        var lang = (reading.meta && reading.meta.language) || 'ka';
+        var navLabels = SECTION_NAV_LABELS[lang] || SECTION_NAV_LABELS.ka;
+        var label = navLabels[key] || key;
         nbHtml += '<button class="nbtn' + (i === 0 ? ' active' : '') + (!accessible ? ' locked' : '') + '" onclick="go(\'s' + (i + 1) + '\')">';
         nbHtml += _esc(label);
         if (!accessible) nbHtml += '<span class="lock-dot"></span>';

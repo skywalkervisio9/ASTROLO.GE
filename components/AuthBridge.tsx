@@ -324,6 +324,38 @@ export default function AuthBridge() {
       w.handleBirthData = handleBirthDataFn;
       w.__authBirthSubmit = handleBirthDataFn;
 
+      // ─── Dev Test User ───
+      // Always creates a fresh account with random birth data and goes to /loading.
+      w.handleTestUser = async () => {
+        try {
+          const res = await fetch('/api/dev/test-user?new=1', { method: 'POST' });
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json() as {
+            email: string;
+            password: string;
+            hasReading: boolean;
+            shareSlug?: string;
+            birthData?: Record<string, unknown>;
+          };
+
+          // Sign out first so there's no stale session racing with the new login
+          await supabase.auth.signOut();
+
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: data.password,
+          });
+          if (signInErr) throw signInErr;
+
+          // New account — save birth data and go to /loading for AI generation
+          if (data.birthData) localStorage.setItem(LEGACY_LS_KEY, JSON.stringify(data.birthData));
+          window.location.href = '/loading';
+        } catch (err) {
+          console.error('[AB] Test user creation failed:', err);
+          showError('login-error', err instanceof Error ? err.message : 'Test user failed');
+        }
+      };
+
       // ─── Logout ───
       const logoutBtn = document.querySelector(".sb-logout");
       if (
@@ -354,6 +386,23 @@ export default function AuthBridge() {
       const user = session?.user ?? null;
       console.log("[AB] onAuthSuccess user:", user ? `${user.email} (${user.id})` : "null — returning early");
       if (!user) return;
+
+      // If user already has a reading and we're on the home or auth page, redirect to their reading URL
+      if (!forceBirthStep && (window.location.pathname === '/' || window.location.pathname === '/auth')) {
+        try {
+          const statusRes = await fetch('/api/onboarding/status', { credentials: 'include' });
+          if (statusRes.ok) {
+            const s = await statusRes.json() as { status: string; shareSlug?: string | null };
+            if (s.status === 'complete' && s.shareSlug) {
+              console.log("[AB] onAuthSuccess: reading exists, redirecting to", `/r/${s.shareSlug}`);
+              window.location.href = `/r/${s.shareSlug}`;
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('[AB] onboarding/status check failed:', e);
+        }
+      }
 
       // Profile lookup can fail if the public.users row isn't created yet
       // (trigger delay) or RLS blocks the select. In those cases, treat as no birth data.
@@ -441,6 +490,13 @@ export default function AuthBridge() {
       const user = session?.user ?? null;
       console.log("[AB] Session user:", user ? `${user.email} (${user.id})` : "none");
       if (user) {
+        // /auth is the login page — sign out and stay on the form.
+        // Dev buttons do their own signOut before signIn, so no race.
+        if (window.location.pathname === '/auth') {
+          console.log("[AB] On /auth with active session — signing out");
+          await supabase.auth.signOut();
+          return;
+        }
         await onAuthSuccess();
       }
     }
