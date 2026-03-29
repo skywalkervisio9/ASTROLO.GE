@@ -359,7 +359,7 @@ export async function POST(req: NextRequest) {
         analysis_en: result.analysis,
         reading_ka: result.readingKa,
         reading_en: result.readingEn,
-        prompt_version: 'SYSTEM-PROMPT-8SEC_i5',
+        prompt_version: 'SYSTEM-PROMPT-8SEC_i6',
         model_call1: result.meta.modelCall1,
         model_call2: result.meta.modelCall2,
         tokens_call1: result.meta.tokensCall1,

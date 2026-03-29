@@ -149,7 +149,7 @@ export async function POST() {
           analysis_en: natalResult.analysis,
           reading_ka: natalResult.readingKa,
           reading_en: natalResult.readingEn,
-          prompt_version: 'SYSTEM-PROMPT-8SEC_i5',
+          prompt_version: 'SYSTEM-PROMPT-8SEC_i6',
           model_call1: natalResult.meta.modelCall1,
           model_call2: natalResult.meta.modelCall2,
           tokens_call1: natalResult.meta.tokensCall1,

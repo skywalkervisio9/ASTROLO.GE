@@ -31,13 +31,13 @@ export async function GET() {
     .from('users')
     .select('id, email')
     .eq('id', reading.user_id)
-    .like('email', '%@astrolo.ge')
     .maybeSingle();
 
   if (!user) {
-    return NextResponse.json({ error: 'No test users found' }, { status: 404 });
+    return NextResponse.json({ error: 'No users found' }, { status: 404 });
   }
 
+  // Try known dev passwords — test- accounts use one, others use another
   const password = user.email.startsWith('test-') ? 'testuser123' : 'testpass123!';
 
   return NextResponse.json({
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
   const birthMinute = Math.floor(Math.random() * 60);
   const genders = ['female', 'male'] as const;
   const gender = genders[Math.floor(Math.random() * 2)];
-  const name = `Test ${id.toUpperCase()}`;
+  const name = randomGeorgianName(gender);
 
   const { data: authUser, error } = await admin.auth.admin.createUser({
     email,
@@ -150,4 +150,34 @@ export async function POST(request: Request) {
       gender,
     },
   });
+}
+
+// ── Random Georgian name generator ──
+
+const FEMALE_FIRST = [
+  'ანა', 'მარიამი', 'ნინო', 'თამარი', 'ელენე', 'სალომე', 'ნათია',
+  'ეკა', 'მაია', 'ლიკა', 'სოფო', 'ქეთი', 'დარეჯანი', 'თეა',
+  'ირინე', 'ნანა', 'მანანა', 'ხატია', 'ნუცა', 'ბარბარე',
+];
+
+const MALE_FIRST = [
+  'გიორგი', 'ლუკა', 'ნიკა', 'დავითი', 'ალექსანდრე', 'ილია',
+  'თორნიკე', 'ლაშა', 'გოგა', 'ზურაბი', 'ბექა', 'მიშა',
+  'ვახტანგი', 'ანდრია', 'სანდრო', 'გრიგოლი', 'ნოდარი', 'არჩილი',
+  'ლევანი', 'თემური',
+];
+
+const LAST_NAMES = [
+  'გელაშვილი', 'ბერიძე', 'კაპანაძე', 'წიკლაური', 'მაისურაძე',
+  'ლომიძე', 'ხარაიშვილი', 'ჯანელიძე', 'გოგიჩაიშვილი', 'თოდუა',
+  'ნიკოლაიშვილი', 'ავალიანი', 'მეგრელიშვილი', 'ქუთათელაძე',
+  'დვალიშვილი', 'ჩხეიძე', 'მიქელაძე', 'ხუციშვილი', 'ბაქრაძე',
+  'სურმანიძე',
+];
+
+function randomGeorgianName(gender: 'female' | 'male'): string {
+  const firsts = gender === 'female' ? FEMALE_FIRST : MALE_FIRST;
+  const first = firsts[Math.floor(Math.random() * firsts.length)];
+  const last = LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
+  return `${first} ${last}`;
 }

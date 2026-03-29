@@ -29,6 +29,10 @@ import type {
 import { SECTION_KEYS, FREE_PICKABLE } from '@/types/reading';
 import { canAccessSection, type User, PRICING } from '@/types/user';
 import { SECTION_ICONS, ELEMENT_COLORS } from '@/lib/utils/constants';
+
+const ELEMENT_CSS_CLASS: Record<string, string> = {
+  fire: 'af', earth: 'ae', air: 'aa', water: 'aw',
+};
 import type { Lang } from '@/lib/utils/translations';
 
 // ── Helpers ──
@@ -52,11 +56,27 @@ const SIGN_ELEMENT: Record<string, string> = {
   aries:'fire',taurus:'earth',gemini:'air',cancer:'water',leo:'fire',virgo:'earth',
   libra:'air',scorpio:'water',sagittarius:'fire',capricorn:'earth',aquarius:'air',pisces:'water',
 };
-// Tokenizer: bold, italic, chart points (ASC/MC/IC), astro Unicode symbols
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC)\b|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓])/gu;
+// Tokenizer: bold, italic, chart points (ASC/MC/IC), retrograde ℞, astro Unicode symbols
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓])/gu;
+
+const PT_TIPS_EN: Record<string, string> = {
+  ASC: 'Ascendant — outer mask & first impression',
+  MC: 'Midheaven — career & public role',
+  IC: 'Imum Coeli — roots & private self',
+};
+const PT_TIPS_KA: Record<string, string> = {
+  ASC: 'ასცენდენტი — გარეგანი ნიღაბი და პირველი შთაბეჭდილება',
+  MC: 'მედიუმ ცოელი — კარიერა და საჯარო როლი',
+  IC: 'იმუმ ცოელი — ფესვები და შინაგანი სამყარო',
+};
+
+// Module-level language for renderText (set by ReadingRenderer on mount)
+let _renderLang: Lang = 'ka';
 
 function renderText(text: string): React.ReactNode {
   if (!text) return null;
+  const ptTips = _renderLang === 'ka' ? PT_TIPS_KA : PT_TIPS_EN;
+  const retroTip = _renderLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
   const nodes: React.ReactNode[] = [];
   let last = 0; let k = 0;
   TEXT_TOKEN_RE.lastIndex = 0;
@@ -68,9 +88,11 @@ function renderText(text: string): React.ReactNode {
     } else if (m[2] !== undefined) {
       nodes.push(<em key={k++} className="hl">{m[2]}</em>);
     } else if (m[3] !== undefined) {
-      nodes.push(<span key={k++} className="pt">{m[3]}</span>);
+      nodes.push(<span key={k++} className="pt tip" data-tip={ptTips[m[3]]}>{m[3]}</span>);
     } else if (m[4] !== undefined) {
-      const ch = m[4]; const glyph = SYMBOL_TO_GLYPH[ch];
+      nodes.push(<span key={k++} className="tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
+    } else if (m[5] !== undefined) {
+      const ch = m[5]; const glyph = SYMBOL_TO_GLYPH[ch];
       if (glyph) {
         const cls = PLANET_SET.has(ch) ? 'gi gi-pl' : `gi gi-${SIGN_ELEMENT[glyph] || ''}`;
         nodes.push(<span key={k++} className={cls}><svg><use href={`#gl-${glyph}`}/></svg></span>);
@@ -101,6 +123,7 @@ export default function ReadingRenderer({
   onUpgrade,
   onSectionPick,
 }: ReadingRendererProps) {
+  _renderLang = language;
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<SectionKey>('overview');
 
@@ -271,9 +294,13 @@ function CardComponent({
   expanded: boolean;
   onToggleExpand: () => void;
 }) {
+  const elClass = card.accentElement ? ELEMENT_CSS_CLASS[card.accentElement] || '' : '';
+  const hasCrossRefs = card.crossReferences && card.crossReferences.length > 0;
+  const crossRefPopup = hasCrossRefs ? card.crossReferences.join(' · ') : undefined;
+
   return (
     <article
-      className={`reading-card ${expanded ? 'expanded' : ''}`}
+      className={`reading-card ${elClass} ${expanded ? 'expanded' : ''}`}
       data-element={card.accentElement}
       style={card.accentElement ? {
         borderLeftColor: ELEMENT_COLORS[card.accentElement],
@@ -281,7 +308,12 @@ function CardComponent({
     >
       {/* Card header */}
       <div className="card-header">
-        <span className="card-label">{card.label}</span>
+        <span className={`card-label ${hasCrossRefs ? 'has-popup' : ''}`}>
+          {card.label}
+          {hasCrossRefs && (
+            <span className="label-popup">{crossRefPopup}</span>
+          )}
+        </span>
         <h3 className="card-title">{renderText(card.title)}</h3>
       </div>
 
@@ -291,15 +323,6 @@ function CardComponent({
           <p key={i}>{renderText(paragraph)}</p>
         ))}
       </div>
-
-      {/* Cross references */}
-      {card.crossReferences && card.crossReferences.length > 0 && (
-        <div className="card-crossrefs">
-          {card.crossReferences.map((ref, i) => (
-            <p key={i} className="crossref">{renderText(ref)}</p>
-          ))}
-        </div>
-      )}
 
       {/* Expandable content */}
       {card.expandedContent && card.expandedContent.length > 0 && (

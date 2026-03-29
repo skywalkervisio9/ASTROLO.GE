@@ -1568,8 +1568,14 @@ function _renderRichText(text) {
   escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   // Convert _italic_ or *italic* to <em>
   escaped = escaped.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em class="hl">$1</em>');
-  // Highlight chart points: ASC, MC, IC → gold styled span
-  escaped = escaped.replace(/\b(ASC|MC|IC)\b/g, '<span class="pt">$1</span>');
+  // Highlight chart points: ASC, MC, IC → gold styled span with tooltip
+  var ptTipsEn = { ASC: 'Ascendant — outer mask & first impression', MC: 'Midheaven — career & public role', IC: 'Imum Coeli — roots & private self' };
+  var ptTipsKa = { ASC: 'ასცენდენტი — გარეგანი ნიღაბი და პირველი შთაბეჭდილება', MC: 'მედიუმ ცოელი — კარიერა და საჯარო როლი', IC: 'იმუმ ცოელი — ფესვები და შინაგანი სამყარო' };
+  var ptTips = _hydrateLang === 'ka' ? ptTipsKa : ptTipsEn;
+  escaped = escaped.replace(/\b(ASC|MC|IC)\b/g, function(m) { return '<span class="pt tip" data-tip="' + ptTips[m] + '">' + m + '</span>'; });
+  // Retrograde symbol → tooltip
+  var retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
+  escaped = escaped.replace(/℞/g, '<span class="tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');
   // Now replace Unicode astro symbols with SVG glyphs
   var chars = Array.from(escaped);
   var result = '';
@@ -1588,6 +1594,30 @@ function _renderRichText(text) {
     } else {
       result += ch;
     }
+  }
+  return result;
+}
+
+// Like _renderRichText but without tooltips on ASC/MC/IC/℞ (for use inside popups)
+function _renderRichTextNoTip(text) {
+  if (!text) return '';
+  var escaped = _esc(text);
+  escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  escaped = escaped.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em class="hl">$1</em>');
+  escaped = escaped.replace(/\b(ASC|MC|IC)\b/g, '<span class="pt">$1</span>');
+  var chars = Array.from(escaped);
+  var result = '';
+  for (var i = 0; i < chars.length; i++) {
+    var ch = chars[i];
+    if (SYMBOL_TO_GLYPH[ch]) {
+      var glyphName = SYMBOL_TO_GLYPH[ch];
+      if (PLANET_SYMBOLS.has(ch)) {
+        result += '<span class="gi gi-pl"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+      } else if (SIGN_SYMBOLS.has(ch)) {
+        var el = SIGN_ELEMENT[glyphName] || '';
+        result += '<span class="gi gi-' + el + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+      } else { result += ch; }
+    } else { result += ch; }
   }
   return result;
 }
@@ -1649,7 +1679,9 @@ function _stripPrefix(title) {
 
 function _planetGlyph(name) {
   if (!name) return '';
-  const id = 'gl-' + name.toLowerCase();
+  // Resolve Georgian names to English keys, handle 'north node' → 'node'
+  var key = (PLANET_KA_REV[name] || name).toLowerCase().replace('north node','node').replace('south node','node');
+  var id = 'gl-' + key;
   return '<span class="gi gi-pl"><svg><use href="#' + id + '"/></svg></span>';
 }
 
@@ -1676,6 +1708,8 @@ function _signGlyph(signName, element) {
 
 function _buildPlanetRow(row) {
   const planet = row.planet || row.name || '';
+  // Resolve to English key for glyph lookup + data attribute
+  const planetKey = (PLANET_KA_REV[planet] || planet).toLowerCase();
   const planetKa = _tr(PLANET_KA, planet);
   const signKa = _tr(SIGN_KA, row.sign);
   const retro = row.retrograde ? ' class="retro"' : '';
@@ -1685,7 +1719,7 @@ function _buildPlanetRow(row) {
   const elLabel = { fire: 'ცეცხლი', earth: 'მიწა', air: 'ჰაერი', water: 'წყალი' };
   const elKa = _hydrateLang === 'ka' ? (elLabel[elLower] || row.element) : row.element;
   return '<tr>' +
-    '<td class="pl-btn" data-pl="' + planet.toLowerCase() + '">' +
+    '<td class="pl-btn" data-pl="' + planetKey + '">' +
       _planetGlyph(planet) + ' ' + _esc(planetKa) + '</td>' +
     '<td>' + _esc(signKa) + ' ' + _signGlyph(row.sign, row.element) + '</td>' +
     '<td' + retro + '>' + _esc(row.degree) + retroBadge + '</td>' +
@@ -1724,16 +1758,13 @@ function _buildAspect(asp) {
 
 function _buildCard(card) {
   const elClass = card.accentElement ? ELEMENT_CLASS[(card.accentElement || '').toLowerCase()] || '' : '';
+  var hasCrossRefs = card.crossReferences && card.crossReferences.length;
+  var crossRefPopup = hasCrossRefs ? card.crossReferences.map(function(r){return _renderRichTextNoTip(r);}).join(' · ') : '';
   let html = '<div class="c ' + elClass + '">';
-  html += '<div class="b">' + _buildBadgeHtml(card.label) + '</div>';
+  html += '<div class="b' + (hasCrossRefs ? ' has-popup' : '') + '">' + _buildBadgeHtml(card.label) + (hasCrossRefs ? '<span class="label-popup">' + crossRefPopup + '</span>' : '') + '</div>';
   html += '<h3>' + _esc(card.title) + '</h3>';
   if (card.body && card.body.length) {
     card.body.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
-  }
-  if (card.crossReferences && card.crossReferences.length) {
-    card.crossReferences.forEach(function(ref) {
-      html += '<p class="xref"><em>' + _renderRichText(ref) + '</em></p>';
-    });
   }
   if (card.expandedContent && card.expandedContent.length) {
     html += '<button class="tb2" onclick="toggleExp(this)">' + (_hydrateLang === 'ka' ? 'დეტალური ანალიზი ↓' : 'Detailed Analysis ↓') + '</button>';
@@ -1858,7 +1889,7 @@ function _buildSectionContent(sectionKey, section) {
 
   // Pull quote
   if (section.pullQuote) {
-    html += '<div class="pq"><p>' + _esc(section.pullQuote) + '</p></div>';
+    html += '<div class="pq"><p>' + _renderRichText(section.pullQuote) + '</p></div>';
   }
 
   html += '</section>';
