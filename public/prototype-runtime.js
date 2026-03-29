@@ -411,14 +411,24 @@ function showUpgrade() {
 }
 
 // ═══ LANGUAGE ═══
+var _currentUser = null; // stored by hydrateReading, used for lang switch re-hydration
+
 function setLang(l, b) {
   document.querySelectorAll('.lo').forEach(x => x.classList.remove('active'));
   if (b) b.classList.add('active');
   document.body.classList.toggle('lang-en', l === 'en');
   applyTranslations(l);
-  // Notify HydrationBridge of language change
-  window.dispatchEvent(new CustomEvent('astrolo:lang-change', { detail: { lang: l } }));
+  // If we already have a user, fetch and re-hydrate directly without React
+  if (_currentUser && (l === 'ka' || l === 'en')) {
+    fetch('/api/reading/natal?lang=' + l, { credentials: 'include' })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (data && data.reading) hydrateReading(data.reading, _currentUser);
+      })
+      .catch(function() {});
+  }
 }
+window.setLang = setLang;
 
 // Translation map for all fixed UI text
 const TR = {
@@ -451,7 +461,12 @@ const TR = {
   // Footer
   'footer': { ka: ['ჩვენს შესახებ','კონფიდენციალობა','პირობები','კონტაქტი'], en: ['About','Privacy','Terms','Contact'] },
   // Compatibility
-  'compat': { ka: 'თავსებადობა', en: 'Compatibility' }
+  'compat': { ka: 'თავსებადობა', en: 'Compatibility' },
+  // Auth
+  'auth': {
+    ka: { login: 'შესვლა', loginSub: 'შენი ციური ნახაზი გელოდება', signup: 'რეგისტრაცია', signupSub: 'დაიწყე შენი ციური მოგზაურობა', forgot: 'პაროლის აღდგენა', google: 'Google-ით შესვლა', googleSignup: 'Google-ით რეგისტრაცია', orEmail: 'ან ელ-ფოსტით', email: 'ელ-ფოსტა', password: 'პაროლი', name: 'სახელი', forgotLink: 'დაგავიწყდა?', createAccount: 'რეგისტრაცია', haveAccount: 'უკვე გაქვს ანგარიში?', sendReset: 'ბმულის გაგზავნა', resetSent: 'ბმული გაგზავნილია', backToLogin: 'შესვლაზე დაბრუნება', birthData: 'დაბადების მონაცემები', birthSub: 'ნატალური რუკის აგებისთვის', birthHint: 'რატომ გვჭირდება?', birthHintText: 'ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.', day: 'დღე', month: 'თვე', year: 'წელი', hour: 'საათი', minute: 'წუთი', timeUnknown: 'დაბადების დრო უცნობია', place: 'დაბადების ადგილი', gender: 'სქესი', female: 'ქალი', male: 'კაცი', generateChart: 'რუკის აგება ✦', back: '← უკან', showPw: 'ჩვენება' },
+    en: { login: 'Sign In', loginSub: 'Your celestial blueprint awaits', signup: 'Create Account', signupSub: 'Begin your celestial journey', forgot: 'Reset Password', google: 'Continue with Google', googleSignup: 'Continue with Google', orEmail: 'or with email', email: 'EMAIL', password: 'PASSWORD', name: 'NAME', forgotLink: 'Forgot password?', createAccount: 'Create Account', haveAccount: 'Already have an account?', sendReset: 'Send Reset Link', resetSent: 'Check your email', backToLogin: 'Back to Sign In', birthData: 'Birth Data', birthSub: 'Required for your natal chart', birthHint: 'Why do we need this?', birthHintText: 'Your natal chart maps exact planetary positions at birth. More precision means a deeper reading.', day: 'DAY', month: 'MONTH', year: 'YEAR', hour: 'HOUR', minute: 'MINUTE', timeUnknown: 'Birth time unknown', place: 'PLACE OF BIRTH', gender: 'GENDER', female: 'Female', male: 'Male', generateChart: 'Generate Chart ✦', back: '← Back', showPw: 'Show' }
+  }
 };
 
 function applyTranslations(l) {
@@ -525,6 +540,64 @@ function applyTranslations(l) {
   // Wheel label
   const wheelLabel = document.querySelector('.wheel-label');
   if (wheelLabel) wheelLabel.textContent = TR.compat[l];
+
+  // Auth pages
+  const a = TR.auth[l];
+  function setGoogleBtn(btn, text) {
+    if (!btn) return;
+    var svg = btn.querySelector('svg');
+    btn.textContent = ' ' + text;
+    if (svg) btn.insertBefore(svg, btn.firstChild);
+  }
+  // Login
+  var pl = document.getElementById('page-login');
+  if (pl) {
+    var h = pl.querySelector('.auth-header h1'); if (h) h.textContent = a.login;
+    var sub = pl.querySelector('.auth-header .sub'); if (sub) sub.textContent = a.loginSub;
+    setGoogleBtn(pl.querySelector('.google-btn'), a.google);
+    var ds = pl.querySelector('.auth-divider span'); if (ds) ds.textContent = a.orEmail;
+    var fls = pl.querySelectorAll('.field label'); if (fls[0]) fls[0].textContent = a.email; if (fls[1]) fls[1].textContent = a.password;
+    var fa = pl.querySelector('a[href="#"]'); if (fa) fa.textContent = a.forgotLink;
+    var bt = pl.querySelector('.auth-btn .btn-text'); if (bt) bt.textContent = a.login;
+    var sg = pl.querySelector('.auth-btn-ghost'); if (sg) sg.textContent = a.signup + ' →';
+    pl.querySelectorAll('.pw-toggle').forEach(function(b) { b.textContent = a.showPw; });
+  }
+  // Signup
+  var ps = document.getElementById('page-signup');
+  if (ps) {
+    var h2 = ps.querySelector('.auth-header h1'); if (h2) h2.textContent = a.signup;
+    var sub2 = ps.querySelector('.auth-header .sub'); if (sub2) sub2.textContent = a.signupSub;
+    setGoogleBtn(ps.querySelector('.google-btn'), a.googleSignup);
+    var ds2 = ps.querySelector('.auth-divider span'); if (ds2) ds2.textContent = a.orEmail;
+    var sfl = ps.querySelectorAll('.field label'); if (sfl[0]) sfl[0].textContent = a.name; if (sfl[1]) sfl[1].textContent = a.email; if (sfl[2]) sfl[2].textContent = a.password;
+    var sbt = ps.querySelector('.auth-btn .btn-text'); if (sbt) sbt.textContent = a.createAccount;
+    var af = ps.querySelector('.auth-footer'); if (af) { var afl = af.querySelector('a'); if (afl) { af.childNodes[0].textContent = a.haveAccount + ' '; afl.textContent = a.login; } }
+    ps.querySelectorAll('.pw-toggle').forEach(function(b) { b.textContent = a.showPw; });
+  }
+  // Forgot
+  var pf = document.getElementById('page-forgot');
+  if (pf) {
+    var h3 = pf.querySelector('.auth-header h1'); if (h3) h3.textContent = a.forgot;
+    var bl = pf.querySelector('.back-link'); if (bl) { var sp = bl.querySelector('span'); bl.textContent = ' ' + a.backToLogin; if (sp) bl.insertBefore(sp, bl.firstChild); }
+    var fbt = pf.querySelector('#forgot-form .auth-btn .btn-text'); if (fbt) fbt.textContent = a.sendReset;
+    var rsh = pf.querySelector('.reset-success h3'); if (rsh) rsh.textContent = a.resetSent;
+  }
+  // Birth
+  var pb = document.getElementById('page-birth');
+  if (pb) {
+    var h4 = pb.querySelector('.auth-header h1'); if (h4) h4.textContent = a.birthData;
+    var sub4 = pb.querySelector('.auth-header .sub'); if (sub4) sub4.textContent = a.birthSub;
+    var ht = pb.querySelector('.hint-t'); if (ht) ht.textContent = '✦ ' + a.birthHint;
+    var hp = pb.querySelector('.auth-hint p'); if (hp) hp.textContent = a.birthHintText;
+    var r3 = pb.querySelectorAll('.field-row-3 .field label'); if (r3[0]) r3[0].textContent = a.day; if (r3[1]) r3[1].textContent = a.month; if (r3[2]) r3[2].textContent = a.year;
+    var tr2 = pb.querySelectorAll('.field-row .field label'); if (tr2[0]) tr2[0].textContent = a.hour; if (tr2[1]) tr2[1].textContent = a.minute;
+    var cl = pb.querySelector('.check-label'); if (cl) cl.textContent = a.timeUnknown;
+    var plEl = pb.querySelector('#birth-place'); if (plEl) { var plL = plEl.closest ? plEl.closest('.field').querySelector('label') : null; if (plL) plL.textContent = a.place; }
+    var gl = pb.querySelector('label[style]'); if (gl) gl.textContent = a.gender;
+    var gopts = pb.querySelectorAll('.gender-opt'); gopts.forEach(function(opt, i) { var ic = opt.querySelector('.g-icon'); opt.textContent = ''; if (ic) opt.appendChild(ic); opt.appendChild(document.createTextNode(i === 0 ? a.female : a.male)); });
+    var gbt = pb.querySelector('.auth-btn .btn-text'); if (gbt) gbt.textContent = a.generateChart;
+    var bkg = pb.querySelector('.auth-btn-ghost'); if (bkg) bkg.textContent = a.back;
+  }
 }
 
 // ═══ SHARE ═══
@@ -769,16 +842,16 @@ const plData = {
     pluto: { t: '♇ პლუტონი', b: 'ტრანსფორმაცია, ძალაუფლება და აღდგენა. პლუტონი აჩვენებს სად ხდება ფსიქიკური სიკვდილ-აღდგომა.' }
   },
   en: {
-    sun: { t: '☉ Sun', b: 'Identity, ego, and core life energy.' },
-    moon: { t: '☽ Moon', b: 'Emotions, instincts, and inner world.' },
-    mercury: { t: '☿ Mercury', b: 'Mind, communication, and perception style.' },
-    venus: { t: '♀ Venus', b: 'Love, beauty, and values.' },
-    mars: { t: '♂ Mars', b: 'Will, action, and desire.' },
-    jupiter: { t: '♃ Jupiter', b: 'Expansion, wisdom, and abundance.' },
-    saturn: { t: '♄ Saturn', b: 'Structure, discipline, and karmic lessons.' },
-    uranus: { t: '♅ Uranus', b: 'Freedom, innovation, and breakthrough.' },
-    neptune: { t: '♆ Neptune', b: 'Dreams, spirituality, and transcendence.' },
-    pluto: { t: '♇ Pluto', b: 'Transformation, power, and rebirth.' }
+    sun: { t: '☉ Sun', b: 'Identity, ego, and core life energy. The Sun reveals who you are at your essence.' },
+    moon: { t: '☽ Moon', b: 'Emotions, instincts, and inner world. The Moon reveals how you feel and what you need to feel safe.' },
+    mercury: { t: '☿ Mercury', b: 'Mind, communication, and perception style. Mercury reveals how you think, learn, and express ideas.' },
+    venus: { t: '♀ Venus', b: 'Love, beauty, and values. Venus reveals what you attract, how you love, and what you find beautiful.' },
+    mars: { t: '♂ Mars', b: 'Will, action, and desire. Mars reveals how you fight, what drives you, and where you direct your energy.' },
+    jupiter: { t: '♃ Jupiter', b: 'Expansion, wisdom, and abundance. Jupiter reveals where you grow and where fortune finds you.' },
+    saturn: { t: '♄ Saturn', b: 'Structure, discipline, and karmic lessons. Saturn reveals where your greatest challenge — and mastery — lies.' },
+    uranus: { t: '♅ Uranus', b: 'Freedom, innovation, and breakthrough. Uranus reveals where you rebel and where you seek originality.' },
+    neptune: { t: '♆ Neptune', b: 'Dreams, spirituality, and transcendence. Neptune reveals where you seek the divine and where illusion lives.' },
+    pluto: { t: '♇ Pluto', b: 'Transformation, power, and rebirth. Pluto reveals where deep psychological death and renewal take place.' }
   }
 };
 
@@ -1788,6 +1861,7 @@ function _buildSectionContent(sectionKey, section) {
 
 function hydrateReading(reading, user) {
   if (!reading || !user) return;
+  _currentUser = user; // store for lang switch re-hydration
   _hydrateLang = (reading.meta && reading.meta.language) || 'ka';
   console.log('[HYDRATE] Starting reading hydration', { user: user.full_name, lang: _hydrateLang });
 

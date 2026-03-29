@@ -7,45 +7,29 @@
  * Behavior-only component (renders null), similar to AuthBridge.
  */
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useReading } from "@/hooks/useReading";
 
 export default function HydrationBridge() {
   const { user, authUser } = useAuth();
-  const [lang, setLang] = useState<"ka" | "en">("ka");
-  const { reading } = useReading(lang, authUser?.id);
-  const hydrated = useRef(false);
+  const { reading } = useReading("ka", authUser?.id);
+  const initialHydrated = useRef(false);
 
-  // Listen for language changes dispatched by prototype-runtime.js setLang()
+  // Initial hydration with the default (ka) reading
   useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent<{ lang: string }>).detail;
-      if (detail?.lang === "ka" || detail?.lang === "en") {
-        setLang(detail.lang);
-        hydrated.current = false; // re-hydrate with new language
-      }
-    };
-    window.addEventListener("astrolo:lang-change", handler);
-    return () => window.removeEventListener("astrolo:lang-change", handler);
-  }, []);
-
-  // Hydrate the prototype DOM when data is ready
-  useEffect(() => {
-    if (!user || !reading) return;
-    if (hydrated.current) return;
+    if (!user || !reading || initialHydrated.current) return;
 
     const attempt = () => {
       const w = window as unknown as Record<string, unknown>;
       if (typeof w.hydrateReading === "function") {
         (w.hydrateReading as (r: unknown, u: unknown) => void)(reading, user);
-        hydrated.current = true;
+        initialHydrated.current = true;
         return true;
       }
       return false;
     };
 
-    // Try immediately, then poll in case prototype-runtime.js hasn't loaded yet
     if (attempt()) return;
 
     const timer = setInterval(() => {
@@ -54,6 +38,38 @@ export default function HydrationBridge() {
 
     return () => clearInterval(timer);
   }, [user, reading]);
+
+  // Language switching: fetch the correct reading directly and re-hydrate
+  useEffect(() => {
+    console.log("[HB] lang-switch effect, user=", user?.email ?? null);
+    if (!user) return;
+
+    const handler = async (e: Event) => {
+      const detail = (e as CustomEvent<{ lang: string }>).detail;
+      const lang = detail?.lang;
+      console.log("[HB] lang-change event, lang=", lang);
+      if (lang !== "ka" && lang !== "en") return;
+
+      try {
+        const res = await fetch(`/api/reading/natal?lang=${lang}`, {
+          credentials: "include",
+        });
+        console.log("[HB] fetch done status=", res.status);
+        if (!res.ok) return;
+        const data = await res.json() as { reading: unknown };
+        if (!data.reading) return;
+        const w = window as unknown as Record<string, unknown>;
+        if (typeof w.hydrateReading === "function") {
+          (w.hydrateReading as (r: unknown, u: unknown) => void)(data.reading, user);
+        }
+      } catch (err) {
+        console.log("[HB] error:", err);
+      }
+    };
+
+    window.addEventListener("astrolo:lang-change", handler);
+    return () => window.removeEventListener("astrolo:lang-change", handler);
+  }, [user]);
 
   return null;
 }
