@@ -1,5 +1,5 @@
 :root{--bg:#0a0a0f;--sf:#111118;--sf2:#181822;--sf3:#1c1c28;--gold:#c9a84c;--gd:#8a6d2b;--gold-bright:#e4c76b;--silver:#b8b8cc;--tx:#e0dfe8;--txd:#7a7a8e;--fire:#d4644a;--earth:#6b9a6b;--air:#6b8fb5;--water:#7b6baa;--rose:#c47a8a;--fd:'Noto Serif Georgian',serif;--fb:'Noto Sans Georgian',sans-serif;--lh:1.85;--ease:cubic-bezier(.25,.46,.45,.94)}
-body.lang-en{--fd:'Cormorant Garamond',serif;--fb:'Outfit',sans-serif;--lh:1.7}
+body.lang-en{--fd:'Space Grotesk',sans-serif;--fb:'Outfit',sans-serif;--lh:1.7}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:var(--gd) var(--bg)}
 body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-weight:300;line-height:var(--lh);overflow-x:hidden}

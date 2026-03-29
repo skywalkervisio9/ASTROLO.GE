@@ -1006,7 +1006,6 @@ export default function BodyContent() {
     <button className="dev-btn slot-btn" onClick={(e) => { (window as unknown as ProtoGlobals).toggleSlot?.(1, e.currentTarget); }} id="devSlot1Toggle">🔒 locked</button>
     <button className="dev-btn slot-btn" onClick={(e) => { (window as unknown as ProtoGlobals).occupySlot?.(1, e.currentTarget); }} id="devSlot1Occupy">👤 occupy</button>
   </div>
-  <div className="dev-label">SLOT 2 <span style={{fontSize:'.55rem',opacity:.5}}>override</span></div>
   <div className="dev-row">
     <button className="dev-btn slot-btn" onClick={(e) => { (window as unknown as ProtoGlobals).toggleSlot?.(2, e.currentTarget); }} id="devSlot2Toggle">🔒 locked</button>
     <button className="dev-btn slot-btn" onClick={(e) => { (window as unknown as ProtoGlobals).occupySlot?.(2, e.currentTarget); }} id="devSlot2Occupy">👤 occupy</button>
