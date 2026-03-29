@@ -47,14 +47,14 @@ export default function HydrationBridge() {
     const handler = async (e: Event) => {
       const detail = (e as CustomEvent<{ lang: string }>).detail;
       const lang = detail?.lang;
-      console.log("[HB] lang-change event, lang=", lang);
+      console.log("[HB] lang-change event received, lang=", lang, "user=", user?.email);
       if (lang !== "ka" && lang !== "en") return;
 
       try {
         const res = await fetch(`/api/reading/natal?lang=${lang}`, {
           credentials: "include",
         });
-        console.log("[HB] fetch done status=", res.status);
+        console.log("[HB] fetch done, status=", res.status);
         if (!res.ok) return;
         const data = await res.json() as { reading: unknown };
         if (!data.reading) return;
@@ -63,7 +63,7 @@ export default function HydrationBridge() {
           (w.hydrateReading as (r: unknown, u: unknown) => void)(data.reading, user);
         }
       } catch (err) {
-        console.log("[HB] error:", err);
+        console.log("[HB] fetch error:", err);
       }
     };
 
