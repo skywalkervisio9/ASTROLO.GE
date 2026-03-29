@@ -29,9 +29,44 @@ export function parseClaudeJSON(raw: string): unknown {
   throw new SyntaxError('Model response did not contain parseable JSON');
 }
 
+// Map Georgian (and other variant) element names to canonical English keys
+const ELEMENT_NORMALIZE: Record<string, string> = {
+  fire: 'fire', earth: 'earth', air: 'air', water: 'water',
+  // Georgian
+  'ცეცხლი': 'fire', 'მიწა': 'earth', 'ჰაერი': 'air', 'წყალი': 'water',
+  // Common variants
+  'Fire': 'fire', 'Earth': 'earth', 'Air': 'air', 'Water': 'water',
+};
+
+/** Normalize accentElement on all cards in a section */
+function normalizeCards(cards: unknown[]): unknown[] {
+  return cards.map((card) => {
+    if (!card || typeof card !== 'object') return card;
+    const c = card as Record<string, unknown>;
+    // Coerce body to string array
+    if (typeof c.body === 'string') c.body = [c.body];
+    else if (!Array.isArray(c.body)) c.body = [];
+    // Coerce crossReferences to string array
+    if (!Array.isArray(c.crossReferences)) c.crossReferences = [];
+    // Normalize accentElement
+    if (c.accentElement && typeof c.accentElement === 'string') {
+      c.accentElement = ELEMENT_NORMALIZE[c.accentElement] ?? c.accentElement.toLowerCase();
+    }
+    return c;
+  });
+}
+
 export function normalizeNatalReadingShape(input: Record<string, unknown>): Record<string, unknown> {
   const json: Record<string, unknown> = { ...input };
   const sections = Array.isArray(json.sections) ? (json.sections as Array<Record<string, unknown>>) : [];
+
+  // Normalize accentElement on top-level sections that already exist
+  for (const key of SECTION_KEYS) {
+    const section = json[key] as Record<string, unknown> | undefined;
+    if (!section) continue;
+    if (Array.isArray(section.cards)) section.cards = normalizeCards(section.cards);
+    if (Array.isArray(section.coreCards)) section.coreCards = normalizeCards(section.coreCards);
+  }
 
   if (sections.length === 0) return json;
 
@@ -70,7 +105,7 @@ export function normalizeNatalReadingShape(input: Record<string, unknown>): Reco
         sectionTagline: section.sectionTagline ?? section.tagline ?? '',
         planetTable: Array.isArray(section.planetTable) ? section.planetTable : [],
         aspects: Array.isArray(section.aspects) ? section.aspects : [],
-        coreCards: overviewCards,
+        coreCards: normalizeCards(overviewCards as unknown[]),
         pullQuote: section.pullQuote ?? null,
       };
       continue;
@@ -79,7 +114,7 @@ export function normalizeNatalReadingShape(input: Record<string, unknown>): Reco
     json[mapped] = {
       sectionTitle: section.sectionTitle ?? section.title ?? '',
       sectionTagline: section.sectionTagline ?? section.tagline ?? '',
-      cards: Array.isArray(section.cards) ? section.cards : [],
+      cards: normalizeCards(Array.isArray(section.cards) ? section.cards as unknown[] : []),
       pullQuote: section.pullQuote ?? null,
     };
   }

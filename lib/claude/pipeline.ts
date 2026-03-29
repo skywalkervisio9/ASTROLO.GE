@@ -88,7 +88,7 @@ async function generateSingleReading(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await callClaude(prompt, userMessage, 65536);
+      const response = await callClaude(prompt, userMessage, 38000);
       let parsed = normalizeNatalReadingShape(
         await parseOrRepairJSON(response.text) as Record<string, unknown>
       );
@@ -189,7 +189,7 @@ async function generateSingleSynastryReading(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await callClaude(prompt, userMessage, 65536);
+      const response = await callClaude(prompt, userMessage, 38000);
       const parsed = await parseOrRepairJSON(response.text) as Record<string, unknown>;
       const validation = validateSynastryReading(parsed, relationshipType);
 

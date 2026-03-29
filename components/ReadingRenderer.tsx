@@ -31,6 +31,57 @@ import { canAccessSection, type User, PRICING } from '@/types/user';
 import { SECTION_ICONS, ELEMENT_COLORS } from '@/lib/utils/constants';
 import type { Lang } from '@/lib/utils/translations';
 
+// ── Helpers ──
+
+function stripSectionPrefix(title: string): string {
+  const idx = title.indexOf(': ');
+  return idx !== -1 ? title.slice(idx + 2) : title;
+}
+
+// ── Astro symbol rendering ──
+
+const SYMBOL_TO_GLYPH: Record<string, string> = {
+  '☉':'sun','☽':'moon','☿':'mercury','♀':'venus','♂':'mars',
+  '♃':'jupiter','♄':'saturn','♅':'uranus','♆':'neptune','♇':'pluto',
+  '⚸':'lilith','☊':'node','☋':'node',
+  '♈':'aries','♉':'taurus','♊':'gemini','♋':'cancer','♌':'leo','♍':'virgo',
+  '♎':'libra','♏':'scorpio','♐':'sagittarius','♑':'capricorn','♒':'aquarius','♓':'pisces',
+};
+const PLANET_SET = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋']);
+const SIGN_ELEMENT: Record<string, string> = {
+  aries:'fire',taurus:'earth',gemini:'air',cancer:'water',leo:'fire',virgo:'earth',
+  libra:'air',scorpio:'water',sagittarius:'fire',capricorn:'earth',aquarius:'air',pisces:'water',
+};
+// Tokenizer: bold, italic, chart points (ASC/MC/IC), astro Unicode symbols
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC)\b|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓])/gu;
+
+function renderText(text: string): React.ReactNode {
+  if (!text) return null;
+  const nodes: React.ReactNode[] = [];
+  let last = 0; let k = 0;
+  TEXT_TOKEN_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = TEXT_TOKEN_RE.exec(text)) !== null) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    if (m[1] !== undefined) {
+      nodes.push(<strong key={k++}>{m[1]}</strong>);
+    } else if (m[2] !== undefined) {
+      nodes.push(<em key={k++} className="hl">{m[2]}</em>);
+    } else if (m[3] !== undefined) {
+      nodes.push(<span key={k++} className="pt">{m[3]}</span>);
+    } else if (m[4] !== undefined) {
+      const ch = m[4]; const glyph = SYMBOL_TO_GLYPH[ch];
+      if (glyph) {
+        const cls = PLANET_SET.has(ch) ? 'gi gi-pl' : `gi gi-${SIGN_ELEMENT[glyph] || ''}`;
+        nodes.push(<span key={k++} className={cls}><svg><use href={`#gl-${glyph}`}/></svg></span>);
+      } else nodes.push(ch);
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes.length === 1 ? nodes[0] : nodes;
+}
+
 // ── Props ──
 
 interface ReadingRendererProps {
@@ -132,7 +183,7 @@ function OverviewRenderer({
   return (
     <div className="reading-overview">
       <header className="section-header">
-        <h2 className="section-title">{section.sectionTitle}</h2>
+        <h2 className="section-title">{stripSectionPrefix(section.sectionTitle)}</h2>
         <p className="section-tagline">{section.sectionTagline}</p>
       </header>
 
@@ -169,7 +220,7 @@ function OverviewRenderer({
       ))}
 
       {section.pullQuote && (
-        <blockquote className="pull-quote">{section.pullQuote}</blockquote>
+        <blockquote className="pull-quote">{renderText(section.pullQuote)}</blockquote>
       )}
     </div>
   );
@@ -189,7 +240,7 @@ function ContentRenderer({
   return (
     <div className="reading-content">
       <header className="section-header">
-        <h2 className="section-title">{section.sectionTitle}</h2>
+        <h2 className="section-title">{stripSectionPrefix(section.sectionTitle)}</h2>
         <p className="section-tagline">{section.sectionTagline}</p>
       </header>
 
@@ -203,7 +254,7 @@ function ContentRenderer({
       ))}
 
       {section.pullQuote && (
-        <blockquote className="pull-quote">{section.pullQuote}</blockquote>
+        <blockquote className="pull-quote">{renderText(section.pullQuote)}</blockquote>
       )}
     </div>
   );
@@ -231,13 +282,13 @@ function CardComponent({
       {/* Card header */}
       <div className="card-header">
         <span className="card-label">{card.label}</span>
-        <h3 className="card-title">{card.title}</h3>
+        <h3 className="card-title">{renderText(card.title)}</h3>
       </div>
 
       {/* Body paragraphs */}
       <div className="card-body">
         {card.body.map((paragraph, i) => (
-          <p key={i}>{paragraph}</p>
+          <p key={i}>{renderText(paragraph)}</p>
         ))}
       </div>
 
@@ -245,7 +296,7 @@ function CardComponent({
       {card.crossReferences && card.crossReferences.length > 0 && (
         <div className="card-crossrefs">
           {card.crossReferences.map((ref, i) => (
-            <p key={i} className="crossref">{ref}</p>
+            <p key={i} className="crossref">{renderText(ref)}</p>
           ))}
         </div>
       )}
@@ -263,7 +314,7 @@ function CardComponent({
           {expanded && (
             <div className="card-expanded">
               {card.expandedContent.map((para, i) => (
-                <p key={i}>{para}</p>
+                <p key={i}>{renderText(para)}</p>
               ))}
             </div>
           )}
@@ -273,12 +324,12 @@ function CardComponent({
       {/* Hint */}
       {card.hint && (
         <div className="card-hint">
-          <span className="hint-title">{card.hint.title}</span>
-          <p className="hint-content">{card.hint.content}</p>
+          <span className="hint-title">{renderText(card.hint.title)}</span>
+          <p className="hint-content">{renderText(card.hint.content)}</p>
           {card.hint.bullets && (
             <ul className="hint-bullets">
               {card.hint.bullets.map((b, i) => (
-                <li key={i}>{b}</li>
+                <li key={i}>{renderText(b)}</li>
               ))}
             </ul>
           )}
@@ -354,7 +405,7 @@ function LockedSection({
   return (
     <div className="locked-section">
       <header className="section-header">
-        <h2 className="section-title">{section.sectionTitle}</h2>
+        <h2 className="section-title">{stripSectionPrefix(section.sectionTitle)}</h2>
         <p className="section-tagline">{section.sectionTagline}</p>
       </header>
 

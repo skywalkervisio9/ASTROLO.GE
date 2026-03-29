@@ -58,7 +58,6 @@ export interface PlanetRow {
   planet: string;
   symbol: string;
   sign: string;
-  signSymbol: string;
   degree: string;
   house: string;
   element: 'fire' | 'earth' | 'air' | 'water';
@@ -67,14 +66,10 @@ export interface PlanetRow {
 
 export interface Aspect {
   planet1: string;
-  symbol1: string;
   planet2: string;
-  symbol2: string;
   aspectType: 'conjunction' | 'trine' | 'square' | 'opposition' | 'sextile';
   aspectSymbol: string;
-  description: string;
-  interpretation: string;
-  significance?: 'major' | 'minor';
+  significance: 'high' | 'normal';
 }
 
 // ── Section navigation ──

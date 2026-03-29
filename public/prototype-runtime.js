@@ -1568,6 +1568,8 @@ function _renderRichText(text) {
   escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   // Convert _italic_ or *italic* to <em>
   escaped = escaped.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em class="hl">$1</em>');
+  // Highlight chart points: ASC, MC, IC → gold styled span
+  escaped = escaped.replace(/\b(ASC|MC|IC)\b/g, '<span class="pt">$1</span>');
   // Now replace Unicode astro symbols with SVG glyphs
   var chars = Array.from(escaped);
   var result = '';
@@ -1639,6 +1641,10 @@ function _esc(s) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
+}
+function _stripPrefix(title) {
+  var idx = (title || '').indexOf(': ');
+  return idx !== -1 ? title.slice(idx + 2) : (title || '');
 }
 
 function _planetGlyph(name) {
@@ -1754,7 +1760,7 @@ function _buildLockWrap(sectionKey, section, iconId) {
   const firstCard = cards[0];
   let html = '<div class="lock-wrap locked" id="lock-s' + (SECTION_KEYS.indexOf(sectionKey) + 1) + '">';
   html += '<div class="sh"><div class="section-icon"><svg style="color:var(--gold)"><use href="#' + iconId + '"/></svg></div>';
-  html += '<h2>' + _esc(section.sectionTitle || '') + '</h2>';
+  html += '<h2>' + _esc(_stripPrefix(section.sectionTitle)) + '</h2>';
   html += '<div class="st">' + _esc(section.sectionTagline || '') + '</div></div>';
   html += '<div class="lock-preview">';
   if (firstCard) {
@@ -1799,7 +1805,7 @@ function _buildSectionContent(sectionKey, section) {
   const iconId = SECTION_ICONS_MAP[sectionKey] || 'gl-sparkle';
   let html = '<section id="s' + idx + '">';
   html += '<div class="sh"><div class="section-icon"><svg style="color:var(--gold)"><use href="#' + iconId + '"/></svg></div>';
-  html += '<h2>' + _esc(section.sectionTitle || '') + '</h2>';
+  html += '<h2>' + _esc(_stripPrefix(section.sectionTitle)) + '</h2>';
   html += '<div class="st">' + _esc(section.sectionTagline || '') + '</div></div>';
 
   if (sectionKey === 'overview') {

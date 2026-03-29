@@ -1,6 +1,6 @@
 // ============================================================
 // Natal chart prompts — Call 1 (analysis) + Call 2 (reading)
-// Full prompt text lives in docs/SYSTEM-PROMPT-8SEC_i5.md
+// Full prompt text lives in docs/SYSTEM-PROMPT-8SEC_i8.md
 // This file loads and parameterizes them at runtime
 // ============================================================
 
@@ -8,13 +8,14 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { Language } from '@/types/user';
 
-// Load the full prompt spec at module init (server-side only)
+// Load the full prompt spec (server-side only)
+// In dev mode, always re-read so prompt edits take effect without restart
 let _promptSpec: string | null = null;
 
 function loadPromptSpec(): string {
-  if (!_promptSpec) {
+  if (!_promptSpec || process.env.NODE_ENV === 'development') {
     _promptSpec = readFileSync(
-      join(process.cwd(), 'docs', 'SYSTEM-PROMPT-8SEC_i5.md'),
+      join(process.cwd(), 'docs', 'SYSTEM-PROMPT-8SEC_i8.md'),
       'utf-8'
     );
   }
@@ -37,7 +38,7 @@ function extractSection(text: string, startHeading: string, endHeading: string):
  */
 export function getNatalCall1Prompt(): string {
   const spec = loadPromptSpec();
-  const partA = extractSection(spec, '## PART A', '## PART B');
+  const partA = extractSection(spec, '# PART A', '# PART B');
   if (partA) return partA;
 
   // Fallback: inline prompt
@@ -67,12 +68,12 @@ Write in English. Be analytical, precise, and psychologically insightful. Output
 export function getNatalCall2Prompt(language: Language): string {
   const spec = loadPromptSpec();
 
-  const partB = extractSection(spec, '## PART B', '## PART C');
-  const partD = extractSection(spec, '## PART D', '## PART E');
+  const partB = extractSection(spec, '# PART B', '# PART C');
+  const partD = extractSection(spec, '# PART D', '# PART E');
 
   // Extract relevant language block from Part C
   const langLabel = language === 'ka' ? 'GEORGIAN' : 'ENGLISH';
-  const partC = extractSection(spec, '## PART C', '## PART D');
+  const partC = extractSection(spec, '# PART C', '# PART D');
   const langStart = partC.indexOf(`### ${langLabel}`);
   let langBlock = '';
   if (langStart !== -1) {
@@ -106,7 +107,7 @@ Each card has: id, label, title, body (array of paragraphs), crossReferences (ar
 
 Include a meta object with: name, birthData, sunSign, moonSign, risingSign, language ("${language}"), generatedAt, promptVersion.
 
-Word count target: 7,500-9,500 words total.
+Word count target: 5,000-7,000 words total.
 Minimum cards per section: overview 3, mission 4, characteristics 4, relationships 4, work 4, shadow 4, spiritual 4, potential 2.
 Every card must cross-reference at least 2 other placements showing 3+ step chains.`;
 }
