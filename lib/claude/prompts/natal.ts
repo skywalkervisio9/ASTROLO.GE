@@ -1,6 +1,6 @@
 // ============================================================
 // Natal chart prompts — Call 1 (analysis) + Call 2 (reading)
-// Full prompt text lives in docs/SYSTEM-PROMPT-8SEC_i8.md
+// Full prompt text lives in docs/SYSTEM-PROMPT-8SEC_i9.md
 // This file loads and parameterizes them at runtime
 // ============================================================
 
@@ -10,12 +10,15 @@ import type { Language } from '@/types/user';
 
 // Load the full prompt spec (server-side only)
 // In dev mode, always re-read so prompt edits take effect without restart
+const PROMPT_FILENAME = 'SYSTEM-PROMPT-8SEC_i9.md';
+export const PROMPT_VERSION = PROMPT_FILENAME.replace('.md', '');
+
 let _promptSpec: string | null = null;
 
 function loadPromptSpec(): string {
   if (!_promptSpec || process.env.NODE_ENV === 'development') {
     _promptSpec = readFileSync(
-      join(process.cwd(), 'docs', 'SYSTEM-PROMPT-8SEC_i8.md'),
+      join(process.cwd(), 'docs', PROMPT_FILENAME),
       'utf-8'
     );
   }

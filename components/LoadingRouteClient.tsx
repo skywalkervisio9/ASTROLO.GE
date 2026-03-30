@@ -29,11 +29,21 @@ export default function LoadingRouteClient() {
       const w = window as unknown as Record<string, unknown>;
       w.__ASTROLO_LIVE_LOADING = true;
 
+      // Fetch user's language preference for loading screen
+      let userLang: string = 'ka';
+      try {
+        const langRes = await fetch('/api/auth/session', { credentials: 'include' });
+        if (langRes.ok) {
+          const sess = await langRes.json() as { profile?: { language?: string } };
+          if (sess.profile?.language) userLang = sess.profile.language;
+        }
+      } catch { /* default to ka */ }
+
       // Wait for prototype-runtime.js to load, then start the animation
       const waitForStart = () => new Promise<void>((resolve) => {
         const attempt = () => {
-          const fn = (window as unknown as Record<string, unknown>).startLoading as (() => void) | undefined;
-          if (fn) { fn(); resolve(); }
+          const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string) => void) | undefined;
+          if (fn) { fn(userLang); resolve(); }
           else setTimeout(attempt, 100);
         };
         attempt();
@@ -146,6 +156,20 @@ export default function LoadingRouteClient() {
         if (!statusRes.ok) continue;
         const status = await statusRes.json() as { status: 'queued' | 'generating' | 'complete'; readingId: string | null; shareSlug?: string };
         if (status.status === 'complete') {
+          // Save the user's free section pick before leaving loading
+          const pick = (window as unknown as { _selectedFreePick?: string })._selectedFreePick;
+          if (pick) {
+            try {
+              const pickInit = await withCsrfHeaders({
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ sectionKey: pick }),
+              });
+              await fetch('/api/reading/section-pick', pickInit);
+            } catch { /* best-effort — pick can be set later */ }
+          }
+
           // Redirect to public reading URL
           if (status.shareSlug) {
             window.location.href = `/r/${status.shareSlug}`;

@@ -283,6 +283,15 @@ export default function AuthBridge() {
           };
           console.log("📦 [AB] Birth payload validated, queueing onboarding:", payload);
 
+          // Save the current UI language to user profile
+          const uiLang = document.body.classList.contains("lang-en") ? "en" : "ka";
+          withCsrfHeaders({
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ language: uiLang }),
+          }).then((init: RequestInit) => fetch("/api/user/language", init)).catch(() => {});
+
           try {
             const init = await withCsrfHeaders({
               method: "POST",
@@ -387,7 +396,7 @@ export default function AuthBridge() {
       console.log("[AB] onAuthSuccess user:", user ? `${user.email} (${user.id})` : "null — returning early");
       if (!user) return;
 
-      // If user already has a reading and we're on the home or auth page, redirect to their reading URL
+      // If user already has a reading or one is being generated, redirect accordingly
       if (!forceBirthStep && (window.location.pathname === '/' || window.location.pathname === '/auth')) {
         try {
           const statusRes = await fetch('/api/onboarding/status', { credentials: 'include' });
@@ -396,6 +405,12 @@ export default function AuthBridge() {
             if (s.status === 'complete' && s.shareSlug) {
               console.log("[AB] onAuthSuccess: reading exists, redirecting to", `/r/${s.shareSlug}`);
               window.location.href = `/r/${s.shareSlug}`;
+              return;
+            }
+            // Chart is still being generated (crash recovery) — send back to loading
+            if (s.status === 'generating') {
+              console.log("[AB] onAuthSuccess: generation in progress, redirecting to /loading");
+              window.location.href = '/loading';
               return;
             }
           }

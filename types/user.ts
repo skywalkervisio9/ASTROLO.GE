@@ -32,7 +32,6 @@ export interface User {
   invite_slots_purchased: number;
   free_section_pick: string | null;
   language: Language;
-  prompt_version: string | null;
   created_at: string;
   updated_at: string;
 }

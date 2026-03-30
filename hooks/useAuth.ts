@@ -33,10 +33,14 @@ export function useAuth() {
 
     refreshSessionSnapshot();
 
-    // Listen for auth state changes
+    // Listen for auth state changes (debounced to avoid double-fire during signOut→signIn)
+    let authChangeTimer: ReturnType<typeof setTimeout> | null = null;
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async () => {
-        await refreshSessionSnapshot();
+      () => {
+        if (authChangeTimer) clearTimeout(authChangeTimer);
+        authChangeTimer = setTimeout(() => {
+          refreshSessionSnapshot();
+        }, 300);
       }
     );
 

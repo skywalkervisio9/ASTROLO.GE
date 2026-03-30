@@ -46,6 +46,15 @@ function normalizeCards(cards: unknown[]): unknown[] {
     // Coerce body to string array
     if (typeof c.body === 'string') c.body = [c.body];
     else if (!Array.isArray(c.body)) c.body = [];
+    // Coerce expandedContent to string array
+    if (typeof c.expandedContent === 'string') c.expandedContent = [c.expandedContent];
+    else if (c.expandedContent && !Array.isArray(c.expandedContent)) c.expandedContent = [];
+    // Coerce hint.bullets to string array
+    if (c.hint && typeof c.hint === 'object') {
+      const h = c.hint as Record<string, unknown>;
+      if (typeof h.bullets === 'string') h.bullets = [h.bullets];
+      else if (h.bullets && !Array.isArray(h.bullets)) h.bullets = [];
+    }
     // Coerce crossReferences to string array
     if (!Array.isArray(c.crossReferences)) c.crossReferences = [];
     // Normalize accentElement
@@ -59,6 +68,13 @@ function normalizeCards(cards: unknown[]): unknown[] {
 export function normalizeNatalReadingShape(input: Record<string, unknown>): Record<string, unknown> {
   const json: Record<string, unknown> = { ...input };
   const sections = Array.isArray(json.sections) ? (json.sections as Array<Record<string, unknown>>) : [];
+
+  // Normalize meta.language
+  const meta = json.meta as Record<string, unknown> | undefined;
+  if (meta) {
+    const lang = String(meta.language || '').toLowerCase().trim();
+    meta.language = lang === 'en' ? 'en' : 'ka';
+  }
 
   // Normalize accentElement on top-level sections that already exist
   for (const key of SECTION_KEYS) {

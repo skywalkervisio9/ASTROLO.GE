@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { getChartData } from '@/lib/astrology/api';
 import { generateNatalReading } from '@/lib/claude/pipeline';
+import { PROMPT_VERSION } from '@/lib/claude/prompts/natal';
 import { LUKA_CHART_CONTEXT, LUKA_CHART_DATA } from '@/lib/dev/test-charts';
 import type { GenerateChartRequest } from '@/types/api';
 import type { BirthData } from '@/types/chart';
@@ -359,7 +360,7 @@ export async function POST(req: NextRequest) {
         analysis_en: result.analysis,
         reading_ka: result.readingKa,
         reading_en: result.readingEn,
-        prompt_version: 'SYSTEM-PROMPT-8SEC_i6',
+        prompt_version: PROMPT_VERSION,
         model_call1: result.meta.modelCall1,
         model_call2: result.meta.modelCall2,
         tokens_call1: result.meta.tokensCall1,

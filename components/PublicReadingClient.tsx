@@ -46,7 +46,7 @@ export default function PublicReadingClient({ slug }: Props) {
         }
         const data = await res.json() as {
           reading: unknown;
-          user: { full_name: string; email: string; account_type: string } | null;
+          user: { id: string; full_name: string; email: string; account_type: string } | null;
           isPublic: boolean;
         };
 

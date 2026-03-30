@@ -107,6 +107,34 @@ function setTier(tier, btn) {
   }
 
   rebuildSidebar();
+
+  // Dev mode: persist tier change to the database, then re-hydrate from DB state
+  if (btn && _currentUser && _currentUser.id) {
+    var dbType = tier === 'premium-plus' ? 'premium'
+               : tier === 'invited-plus' ? 'invited'
+               : tier;
+    fetch('/api/dev/test-user', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: _currentUser.id, accountType: dbType })
+    }).then(function(r) {
+      if (!r.ok) return r.json().then(function(d) { console.warn('[DEV] Tier update failed:', d.error); });
+      console.log('[DEV] Tier updated in DB:', dbType);
+      // Re-fetch session to get real DB user state
+      return fetch('/api/auth/session', { credentials: 'include' });
+    }).then(function(r) {
+      if (!r || !r.ok) return;
+      return r.json();
+    }).then(function(session) {
+      if (!session || !session.profile) return;
+      _currentUser = session.profile;
+      // Re-hydrate reading with the real DB user so lock-wraps reflect actual access
+      if (_currentReading) {
+        hydrateReading(_currentReading, _currentUser);
+      }
+      console.log('[DEV] Re-hydrated with DB state:', _currentUser.account_type);
+    }).catch(function(e) { console.warn('[DEV] Tier update error:', e); });
+  }
 }
 
 // ═══ SLOT TOGGLE CONTROLS (override tier defaults) ═══
@@ -412,6 +440,7 @@ function showUpgrade() {
 
 // ═══ LANGUAGE ═══
 var _currentUser = null; // stored by hydrateReading, used for lang switch re-hydration
+var _currentReading = null; // stored by hydrateReading, used for tier switch re-hydration
 
 function setLang(l, b) {
   document.querySelectorAll('.lo').forEach(x => x.classList.remove('active'));
@@ -621,7 +650,12 @@ function shareToSocial(platform) {
 
 // ═══ NAVIGATION ═══
 function go(id) {
-  const el = document.getElementById(id);
+  var el = document.getElementById(id);
+  // If section is hidden (locked), scroll to its lock-wrap instead
+  if (el && el.offsetParent === null) {
+    var lockEl = document.getElementById('lock-' + id);
+    if (lockEl) el = lockEl;
+  }
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function toggleExp(btn) {
@@ -680,26 +714,44 @@ function initObservers() {
       if (!s.classList.contains('vis')) revealObs.observe(s);
     });
     // Nav active + progress bar — scroll-driven so both stay in sync
-    const secs = Array.from(document.querySelectorAll('#view-natal section'));
+    // Collect visible scroll targets: sections + lock-wraps (for free-tier locked sections)
+    const _allNavTargets = Array.from(document.querySelectorAll('#view-natal section, #view-natal > .ct > .lock-wrap'));
+    // Sort by DOM order and deduplicate to one target per nav button index
+    _allNavTargets.sort(function(a, b) { return a.compareDocumentPosition(b) & 2 ? 1 : -1; });
+    // Map each target to its nav index (sections use s1..s8 IDs, lock-wraps use lock-s1..lock-s8)
+    var _navTargets = []; // array of { el, navIdx }
+    _allNavTargets.forEach(function(el) {
+      var id = el.id || '';
+      var idx = -1;
+      if (id.match(/^s\d+$/)) idx = parseInt(id.replace('s', '')) - 1;
+      else if (id.match(/^lock-s\d+$/)) idx = parseInt(id.replace('lock-s', '')) - 1;
+      if (idx >= 0) {
+        // Skip hidden sections (display:none behind a lock-wrap) — use the lock-wrap instead
+        if (el.tagName === 'SECTION' && el.offsetParent === null) return;
+        // Don't duplicate: if a lock-wrap already added this idx, skip
+        if (_navTargets.length > 0 && _navTargets[_navTargets.length - 1].navIdx === idx) return;
+        _navTargets.push({ el: el, navIdx: idx });
+      }
+    });
     const nbs  = Array.from(document.querySelectorAll('.nbtn'));
     var _firstSecTop = null;
     var _lastSecBottom = null;
     function _calcSecBounds() {
-      if (!secs.length) return;
-      _firstSecTop    = secs[0].getBoundingClientRect().top + window.scrollY;
-      _lastSecBottom  = secs[secs.length - 1].getBoundingClientRect().bottom + window.scrollY;
+      if (!_navTargets.length) return;
+      _firstSecTop    = _navTargets[0].el.getBoundingClientRect().top + window.scrollY;
+      _lastSecBottom  = _navTargets[_navTargets.length - 1].el.getBoundingClientRect().bottom + window.scrollY;
     }
     _calcSecBounds();
     window.addEventListener('resize', _calcSecBounds);
 
     window._syncNavProgress = function() {
       var offset = 130; // px from top to consider a section "in view"
-      var activeIdx = 0;
-      for (var _si = 0; _si < secs.length; _si++) {
-        if (secs[_si].getBoundingClientRect().top <= offset) activeIdx = _si;
+      var activeNavIdx = 0;
+      for (var _si = 0; _si < _navTargets.length; _si++) {
+        if (_navTargets[_si].el.getBoundingClientRect().top <= offset) activeNavIdx = _navTargets[_si].navIdx;
       }
       nbs.forEach(function(b) { b.classList.remove('active'); });
-      if (nbs[activeIdx]) nbs[activeIdx].classList.add('active');
+      if (nbs[activeNavIdx]) nbs[activeNavIdx].classList.add('active');
 
       // Progress bar: 0 = top of first section, 100 = bottom of last section scrolled into view
       var scrollable = (_lastSecBottom || 0) - window.innerHeight - (_firstSecTop || 0);
@@ -1161,8 +1213,7 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
     });
   });
 }
-// Initial render with demo data — replaced with real data by hydrateReading()
-renderMiniChart();
+// Mini chart rendered by hydrateReading() with real data
 
 // ═══ SHOOTING STAR ═══
 (function() {
@@ -1398,10 +1449,35 @@ function handleBirthData() {
 })();
 
 // Loading screen
-const loadMsgs = ['ვარსკვლავური კოორდინატების გაანგარიშება…','პლანეტარული პოზიციების მოძიება…','ასპექტების ანალიზი…','სახლების სისტემის აგება…','ელემენტური ბალანსის შეფასება…','კარმული კვანძების ინტერპრეტაცია…','ჩრდილის ინტეგრაციის რუკა…','სულიერი გზის სინთეზი…','შენი ციური ნახაზი მზადდება…'];
-const funFacts = ['თევზები ზოდიაქოს ბოლო ნიშანია — ყველა წინა ნიშნის სიბრძნეს ატარებს.','სატურნის დაბრუნება ~29 წელიწადში ხდება და სიმწიფის ახალ ციკლს იწყებს.','მთვარის კვანძები 18.6 წელიწადში ასრულებენ სრულ ციკლს.','პლუტონი მერწყულში 2024-დან 2044-მდე დარჩება — თაობრივი ტრანსფორმაცია.','ვენერა ციურ სხეულებს შორის ყველაზე სრულყოფილ წრეს ხაზავს — ვარდის ნიმუშს.'];
+var _loadingLang = 'ka';
+var _loadingMsgs = {
+  ka: ['ვარსკვლავური კოორდინატების გაანგარიშება…','პლანეტარული პოზიციების მოძიება…','ასპექტების ანალიზი…','სახლების სისტემის აგება…','ელემენტური ბალანსის შეფასება…','კარმული კვანძების ინტერპრეტაცია…','ჩრდილის ინტეგრაციის რუკა…','სულიერი გზის სინთეზი…','შენი ციური ნახაზი მზადდება…'],
+  en: ['Calculating stellar coordinates…','Locating planetary positions…','Analysing aspects…','Building house system…','Evaluating elemental balance…','Interpreting karmic nodes…','Mapping shadow integration…','Synthesising spiritual path…','Your celestial blueprint is being prepared…']
+};
+var _loadingFunFacts = {
+  ka: ['თევზები ზოდიაქოს ბოლო ნიშანია — ყველა წინა ნიშნის სიბრძნეს ატარებს.','სატურნის დაბრუნება ~29 წელიწადში ხდება და სიმწიფის ახალ ციკლს იწყებს.','მთვარის კვანძები 18.6 წელიწადში ასრულებენ სრულ ციკლს.','პლუტონი მერწყულში 2024-დან 2044-მდე დარჩება — თაობრივი ტრანსფორმაცია.','ვენერა ციურ სხეულებს შორის ყველაზე სრულყოფილ წრეს ხაზავს — ვარდის ნიმუშს.'],
+  en: ['Pisces is the last sign of the zodiac — it carries the wisdom of all preceding signs.','Saturn return happens every ~29 years and begins a new cycle of maturity.','The lunar nodes complete a full cycle in 18.6 years.','Pluto stays in Aquarius from 2024 to 2044 — a generational transformation.','Venus traces the most perfect circle among celestial bodies — the rose pattern.']
+};
+var _loadingTitles = { ka: 'ვარსკვლავები ლაპარაკობენ…', en: 'The stars are speaking…' };
+var _loadingFactLabels = { ka: '✦ იცოდი?', en: '✦ Did you know?' };
 
-function startLoading() {
+// Section picker labels for free tier
+var _sectionPickerLabels = {
+  ka: { title: 'აირჩიე შენი ბონუს თავი', subtitle: 'უფასო ანგარიშზე მიმოხილვისა და მისიის გარდა, ერთ დამატებით თავს იღებ საჩუქრად' },
+  en: { title: 'Choose your bonus chapter', subtitle: 'On a free account, besides Overview and Mission, you get one extra chapter as a gift' }
+};
+var _sectionPickerSections = {
+  ka: { characteristics: 'მახასიათებლები', relationships: 'ურთიერთობები', work: 'საქმე', shadow: 'ჩრდილი', spiritual: 'სამშვინველი', potential: 'სრულყოფილება' },
+  en: { characteristics: 'Characteristics', relationships: 'Relationships', work: 'Work', shadow: 'Shadow', spiritual: 'Spiritual', potential: 'Potential' }
+};
+var _sectionPickerIcons = { characteristics: 'gl-diamond', relationships: 'gl-venus', work: 'gl-mars', shadow: 'gl-moon', spiritual: 'gl-sparkle', potential: 'gl-diamond' };
+var _selectedFreePick = 'shadow'; // default
+
+function startLoading(lang) {
+  _loadingLang = lang || 'ka';
+  var loadMsgs = _loadingMsgs[_loadingLang] || _loadingMsgs.ka;
+  var funFacts = _loadingFunFacts[_loadingLang] || _loadingFunFacts.ka;
+
   // If the app is doing real server-side generation, keep the loading overlay
   // active until `window.finishLoading()` is called by the React layer.
   const liveMode = !!window.__ASTROLO_LIVE_LOADING;
@@ -1409,6 +1485,16 @@ function startLoading() {
   document.getElementById('authWrap').style.display = 'none';
   const overlay = document.getElementById('loadingScreen');
   overlay.classList.add('active');
+
+  // Set language-aware static text
+  var titleEl = document.querySelector('.loading-title');
+  if (titleEl) titleEl.textContent = _loadingTitles[_loadingLang] || _loadingTitles.ka;
+  var factLabel = document.querySelector('.fun-fact-label');
+  if (factLabel) factLabel.textContent = _loadingFactLabels[_loadingLang] || _loadingFactLabels.ka;
+
+  // Build section picker UI (only in live mode — real generation)
+  _buildSectionPicker(liveMode);
+
   // Constellation particles
   const con = document.getElementById('constellation'); con.innerHTML = '';
   for (let i = 0; i < 30; i++) {
@@ -1430,45 +1516,61 @@ function startLoading() {
   });
   const zSigns = ring.querySelectorAll('.z-sign'); let zIdx = 0;
   const zInt = setInterval(() => { zSigns.forEach(z => z.classList.remove('lit')); if (zIdx < zSigns.length) { zSigns[zIdx].classList.add('lit'); zIdx++; } else zIdx = 0; }, 800);
-  // Messages
+
+  // Messages + progress bar — time-based over 4.2 minutes (252s)
+  const TOTAL_DURATION = 252000; // 4.2 min in ms
+  const MSG_INTERVAL = TOTAL_DURATION / loadMsgs.length; // ~28s per message
   const msgEl = document.getElementById('loadingMsg');
   const fillEl = document.getElementById('loadingFill');
-  let msgIdx = 0;
+  const startTime = Date.now();
+  let lastMsgIdx = -1;
+
   document.getElementById('funFactText').textContent = funFacts[Math.floor(Math.random() * funFacts.length)];
   const factInt = setInterval(() => {
     const ff = document.getElementById('funFact'); ff.style.opacity = '0';
     setTimeout(() => { document.getElementById('funFactText').textContent = funFacts[Math.floor(Math.random() * funFacts.length)]; ff.style.opacity = '1'; }, 400);
-  }, 5000);
-  function advance() {
-    if (msgIdx < loadMsgs.length) {
-      msgEl.style.opacity = '0';
-      setTimeout(() => { msgEl.textContent = loadMsgs[msgIdx]; msgEl.style.opacity = '1'; fillEl.style.width = ((msgIdx + 1) / loadMsgs.length * 100) + '%'; msgIdx++; }, 300);
+  }, 8000);
+
+  function tick() {
+    var elapsed = Date.now() - startTime;
+    var pct = Math.min(100, elapsed / TOTAL_DURATION * 100);
+    fillEl.style.width = pct + '%';
+
+    // Advance message based on elapsed time
+    var targetIdx = Math.min(loadMsgs.length - 1, Math.floor(elapsed / MSG_INTERVAL));
+    if (liveMode && elapsed > TOTAL_DURATION) {
+      // In live mode, loop messages after full duration
+      targetIdx = Math.floor((elapsed % TOTAL_DURATION) / MSG_INTERVAL);
+      targetIdx = Math.min(loadMsgs.length - 1, targetIdx);
     }
-    if (!liveMode && msgIdx >= loadMsgs.length) {
-      clearInterval(msgInt); clearInterval(zInt); clearInterval(factInt);
+    if (targetIdx !== lastMsgIdx) {
+      lastMsgIdx = targetIdx;
+      msgEl.style.opacity = '0';
+      setTimeout(function() { msgEl.textContent = loadMsgs[targetIdx]; msgEl.style.opacity = '1'; }, 300);
+    }
+
+    if (!liveMode && elapsed >= TOTAL_DURATION) {
+      clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
       setTimeout(() => {
         overlay.style.opacity = '0';
         setTimeout(() => {
           overlay.classList.remove('active'); overlay.style.opacity = '';
           document.getElementById('authWrap').style.display = 'flex';
-          // Transition to natal reading view
           switchView('natal', document.getElementById('devNatal'));
           goAuthStep(1); showAuthPage('page-login');
         }, 600);
       }, 1500);
     }
-    if (liveMode && msgIdx >= loadMsgs.length) {
-      // Loop messages smoothly while real generation runs.
-      msgIdx = 0;
-    }
   }
-  advance();
-  const msgInt = setInterval(advance, 2200);
+  tick();
+  const tickInt = setInterval(tick, 1000);
 
   // Expose a completion hook for the React layer.
   window.finishLoading = function finishLoading() {
     try {
-      clearInterval(msgInt); clearInterval(zInt); clearInterval(factInt);
+      clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
+      // Snap progress bar to 100%
+      fillEl.style.width = '100%';
       overlay.style.opacity = '0';
       setTimeout(() => {
         overlay.classList.remove('active'); overlay.style.opacity = '';
@@ -1481,6 +1583,42 @@ function startLoading() {
       window.__ASTROLO_LIVE_LOADING = false;
     }
   };
+}
+
+// Build section picker inside loading overlay
+function _buildSectionPicker(liveMode) {
+  var container = document.getElementById('sectionPicker');
+  if (!container) return;
+  if (!liveMode) { container.style.display = 'none'; return; }
+
+  var lang = _loadingLang;
+  var labels = _sectionPickerLabels[lang] || _sectionPickerLabels.ka;
+  var sections = _sectionPickerSections[lang] || _sectionPickerSections.ka;
+  var keys = ['characteristics','relationships','work','shadow','spiritual','potential'];
+
+  var html = '<div class="sp-title">' + labels.title + '</div>';
+  html += '<div class="sp-subtitle">' + labels.subtitle + '</div>';
+  html += '<div class="sp-options">';
+  keys.forEach(function(key) {
+    var iconId = _sectionPickerIcons[key] || 'gl-sparkle';
+    var isSelected = key === _selectedFreePick;
+    html += '<button class="sp-btn' + (isSelected ? ' selected' : '') + '" data-pick="' + key + '">';
+    html += '<svg class="sp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><use href="#' + iconId + '"/></svg>';
+    html += '<span>' + sections[key] + '</span>';
+    html += '</button>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+  container.style.display = '';
+
+  // Bind click handlers
+  container.querySelectorAll('.sp-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      _selectedFreePick = btn.getAttribute('data-pick');
+      container.querySelectorAll('.sp-btn').forEach(function(b) { b.classList.remove('selected'); });
+      btn.classList.add('selected');
+    });
+  });
 }
 
 // Auth panel mouse glow
@@ -1569,10 +1707,10 @@ function _renderRichText(text) {
   // Convert _italic_ or *italic* to <em>
   escaped = escaped.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em class="hl">$1</em>');
   // Highlight chart points: ASC, MC, IC → gold styled span with tooltip
-  var ptTipsEn = { ASC: 'Ascendant — outer mask & first impression', MC: 'Midheaven — career & public role', IC: 'Imum Coeli — roots & private self' };
-  var ptTipsKa = { ASC: 'ასცენდენტი — გარეგანი ნიღაბი და პირველი შთაბეჭდილება', MC: 'მედიუმ ცოელი — კარიერა და საჯარო როლი', IC: 'იმუმ ცოელი — ფესვები და შინაგანი სამყარო' };
+  var ptTipsEn = { ASC: 'Ascendant — outer mask & first impression', MC: 'Midheaven — career & public role', IC: 'Imum Coeli — roots & private self', DSC: 'Descendant — the mirror & partnerships' };
+  var ptTipsKa = { ASC: 'ასცენდენტი — გარეგანი ნიღაბი და პირველი შთაბეჭდილება', MC: 'ცის შუაწერტილი — კარიერა და საჯარო როლი', IC: 'ცის ფსკერი — ფესვები და შინაგანი სამყარო', DSC: 'დესცენდენტი — სარკე და პარტნიორობა' };
   var ptTips = _hydrateLang === 'ka' ? ptTipsKa : ptTipsEn;
-  escaped = escaped.replace(/\b(ASC|MC|IC)\b/g, function(m) { return '<span class="pt tip" data-tip="' + ptTips[m] + '">' + m + '</span>'; });
+  escaped = escaped.replace(/\b(ASC|MC|IC|DSC)\b/g, function(m) { return '<span class="pt tip" data-tip="' + ptTips[m] + '">' + m + '</span>'; });
   // Retrograde symbol → tooltip
   var retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
   escaped = escaped.replace(/℞/g, '<span class="tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');
@@ -1598,13 +1736,15 @@ function _renderRichText(text) {
   return result;
 }
 
+// Detect numbered lists in a paragraph and render as <ol>
+// Pattern: "1. text\n2. text" or "1. text 2. text" within a single body string
 // Like _renderRichText but without tooltips on ASC/MC/IC/℞ (for use inside popups)
 function _renderRichTextNoTip(text) {
   if (!text) return '';
   var escaped = _esc(text);
   escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   escaped = escaped.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em class="hl">$1</em>');
-  escaped = escaped.replace(/\b(ASC|MC|IC)\b/g, '<span class="pt">$1</span>');
+  escaped = escaped.replace(/\b(ASC|MC|IC|DSC)\b/g, '<span class="pt">$1</span>');
   var chars = Array.from(escaped);
   var result = '';
   for (var i = 0; i < chars.length; i++) {
@@ -1713,13 +1853,14 @@ function _buildPlanetRow(row) {
   const planetKa = _tr(PLANET_KA, planet);
   const signKa = _tr(SIGN_KA, row.sign);
   const retro = row.retrograde ? ' class="retro"' : '';
-  const retroBadge = row.retrograde ? ' &#8478;' : '';
+  const retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
+  const retroBadge = row.retrograde ? ' <span class="tip" data-tip="' + retroTip + '" style="cursor:help">&#8478;</span>' : '';
   const elLower = (row.element || '').toLowerCase();
   const elClass = ELEMENT_LABEL_CLASS[elLower] || '';
   const elLabel = { fire: 'ცეცხლი', earth: 'მიწა', air: 'ჰაერი', water: 'წყალი' };
   const elKa = _hydrateLang === 'ka' ? (elLabel[elLower] || row.element) : row.element;
   return '<tr>' +
-    '<td class="pl-btn" data-pl="' + planetKey + '">' +
+    '<td class="pl-btn pl-' + planetKey + '" data-pl="' + planetKey + '">' +
       _planetGlyph(planet) + ' ' + _esc(planetKa) + '</td>' +
     '<td>' + _esc(signKa) + ' ' + _signGlyph(row.sign, row.element) + '</td>' +
     '<td' + retro + '>' + _esc(row.degree) + retroBadge + '</td>' +
@@ -1764,12 +1905,14 @@ function _buildCard(card) {
   html += '<div class="b' + (hasCrossRefs ? ' has-popup' : '') + '">' + _buildBadgeHtml(card.label) + (hasCrossRefs ? '<span class="label-popup">' + crossRefPopup + '</span>' : '') + '</div>';
   html += '<h3>' + _esc(card.title) + '</h3>';
   if (card.body && card.body.length) {
-    card.body.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
+    var bodyArr = Array.isArray(card.body) ? card.body : [card.body];
+    bodyArr.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
   }
   if (card.expandedContent && card.expandedContent.length) {
     html += '<button class="tb2" onclick="toggleExp(this)">' + (_hydrateLang === 'ka' ? 'დეტალური ანალიზი ↓' : 'Detailed Analysis ↓') + '</button>';
     html += '<div class="ce">';
-    card.expandedContent.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
+    var ecArr = Array.isArray(card.expandedContent) ? card.expandedContent : [card.expandedContent];
+    ecArr.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
     html += '</div>';
   }
   if (card.hint) {
@@ -1777,7 +1920,8 @@ function _buildCard(card) {
     html += '<p>' + _renderRichText(card.hint.content) + '</p>';
     if (card.hint.bullets && card.hint.bullets.length) {
       html += '<ul>';
-      card.hint.bullets.forEach(function(b) { html += '<li>' + _renderRichText(b) + '</li>'; });
+      var bullArr = Array.isArray(card.hint.bullets) ? card.hint.bullets : [card.hint.bullets];
+      bullArr.forEach(function(p) { html += '<li>' + _renderRichText(p) + '</li>'; });
       html += '</ul>';
     }
     html += '</div>';
@@ -1899,6 +2043,7 @@ function _buildSectionContent(sectionKey, section) {
 function hydrateReading(reading, user) {
   if (!reading || !user) return;
   _currentUser = user; // store for lang switch re-hydration
+  _currentReading = reading; // store for tier switch re-hydration
   _hydrateLang = (reading.meta && reading.meta.language) || 'ka';
   console.log('[HYDRATE] Starting reading hydration', { user: user.full_name, lang: _hydrateLang });
 
@@ -1927,16 +2072,18 @@ function hydrateReading(reading, user) {
     var pName = function(r) { return (r.planet || r.name || '').toLowerCase(); };
     var sun = reading.overview?.planetTable?.find(function(r) { return pName(r) === 'sun'; });
     var moon = reading.overview?.planetTable?.find(function(r) { return pName(r) === 'moon'; });
-    var asc = reading.overview?.planetTable?.find(function(r) { return pName(r) === 'asc' || pName(r) === 'ascendant'; });
-    var mc = reading.overview?.planetTable?.find(function(r) { return pName(r) === 'mc' || pName(r) === 'midheaven'; });
+    var pts = reading.overview?.points || {};
 
+    var _signDeg = function(sign, degree) {
+      return _tr(SIGN_KA, sign) + (degree ? ' ' + degree : '');
+    };
     var chips = '';
-    chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-sun"/></svg></span> ' + _esc(meta.sunSign || (sun ? sun.sign + ' ' + sun.degree : '')) + '</span>';
-    chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-moon"/></svg></span> ' + _esc(meta.moonSign || (moon ? moon.sign + ' ' + moon.degree : '')) + '</span>';
-    chips += '<span><span class="chip-label">ASC</span> ' + _esc(meta.risingSign || (asc ? asc.sign + ' ' + asc.degree : '')) + '</span>';
-    if (mc) {
-      chips += '<span><span class="chip-label">MC</span> ' + _esc(mc.sign + ' ' + mc.degree) + '</span>';
-    }
+    chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-sun"/></svg></span> ' + _esc(_signDeg(meta.sunSign || (sun ? sun.sign : ''), sun ? sun.degree : '')) + '</span>';
+    chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-moon"/></svg></span> ' + _esc(_signDeg(meta.moonSign || (moon ? moon.sign : ''), moon ? moon.degree : '')) + '</span>';
+    if (pts.ascendant) chips += '<span><span class="chip-label">ASC</span> ' + _esc(_signDeg(pts.ascendant.sign, pts.ascendant.degree)) + '</span>';
+    if (pts.midheaven) chips += '<span><span class="chip-label">MC</span> ' + _esc(_signDeg(pts.midheaven.sign, pts.midheaven.degree)) + '</span>';
+    if (pts.ic) chips += '<span><span class="chip-label">IC</span> ' + _esc(_signDeg(pts.ic.sign, pts.ic.degree)) + '</span>';
+    if (pts.descendant) chips += '<span><span class="chip-label">DSC</span> ' + _esc(_signDeg(pts.descendant.sign, pts.descendant.degree)) + '</span>';
     heroChips.innerHTML = chips;
   }
 

@@ -23,7 +23,6 @@ const baseUser: User = {
   invite_slots_purchased: 0,
   free_section_pick: null,
   language: 'ka',
-  prompt_version: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };

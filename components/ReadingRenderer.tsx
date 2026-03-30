@@ -57,17 +57,19 @@ const SIGN_ELEMENT: Record<string, string> = {
   libra:'air',scorpio:'water',sagittarius:'fire',capricorn:'earth',aquarius:'air',pisces:'water',
 };
 // Tokenizer: bold, italic, chart points (ASC/MC/IC), retrograde ℞, astro Unicode symbols
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓])/gu;
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓])/gu;
 
 const PT_TIPS_EN: Record<string, string> = {
   ASC: 'Ascendant — outer mask & first impression',
   MC: 'Midheaven — career & public role',
   IC: 'Imum Coeli — roots & private self',
+  DSC: 'Descendant — the mirror & partnerships',
 };
 const PT_TIPS_KA: Record<string, string> = {
   ASC: 'ასცენდენტი — გარეგანი ნიღაბი და პირველი შთაბეჭდილება',
-  MC: 'მედიუმ ცოელი — კარიერა და საჯარო როლი',
-  IC: 'იმუმ ცოელი — ფესვები და შინაგანი სამყარო',
+  MC: 'ცის შუაწერტილი — კარიერა და საჯარო როლი',
+  IC: 'ცის ფსკერი — ფესვები და შინაგანი სამყარო',
+  DSC: 'დესცენდენტი — სარკე და პარტნიორობა',
 };
 
 // Module-level language for renderText (set by ReadingRenderer on mount)

@@ -48,13 +48,14 @@ export async function GET(req: NextRequest) {
     // Fetch user profile for display (name, account_type)
     const { data: profile } = await admin
       .from('users')
-      .select('full_name, email, account_type, free_section_pick')
+      .select('id, full_name, email, account_type, free_section_pick')
       .eq('id', row.user_id)
       .single();
 
     return NextResponse.json({
       reading,
       user: profile ? {
+        id: profile.id,
         full_name: profile.full_name,
         email: profile.email,
         account_type: 'premium', // Public view shows full reading
