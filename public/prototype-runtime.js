@@ -493,8 +493,8 @@ const TR = {
   'compat': { ka: 'თავსებადობა', en: 'Compatibility' },
   // Auth
   'auth': {
-    ka: { login: 'შესვლა', loginSub: 'შენი ციური ნახაზი გელოდება', signup: 'რეგისტრაცია', signupSub: 'დაიწყე შენი ციური მოგზაურობა', forgot: 'პაროლის აღდგენა', google: 'Google-ით შესვლა', googleSignup: 'Google-ით რეგისტრაცია', orEmail: 'ან ელ-ფოსტით', email: 'ელ-ფოსტა', password: 'პაროლი', name: 'სახელი', forgotLink: 'დაგავიწყდა?', createAccount: 'რეგისტრაცია', haveAccount: 'უკვე გაქვს ანგარიში?', sendReset: 'ბმულის გაგზავნა', resetSent: 'ბმული გაგზავნილია', backToLogin: 'შესვლაზე დაბრუნება', birthData: 'დაბადების მონაცემები', birthSub: 'ნატალური რუკის აგებისთვის', birthHint: 'რატომ გვჭირდება?', birthHintText: 'ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.', day: 'დღე', month: 'თვე', year: 'წელი', hour: 'საათი', minute: 'წუთი', timeUnknown: 'დაბადების დრო უცნობია', place: 'დაბადების ადგილი', gender: 'სქესი', female: 'ქალი', male: 'კაცი', generateChart: 'რუკის აგება ✦', back: '← უკან', showPw: 'ჩვენება' },
-    en: { login: 'Sign In', loginSub: 'Your celestial blueprint awaits', signup: 'Create Account', signupSub: 'Begin your celestial journey', forgot: 'Reset Password', google: 'Continue with Google', googleSignup: 'Continue with Google', orEmail: 'or with email', email: 'EMAIL', password: 'PASSWORD', name: 'NAME', forgotLink: 'Forgot password?', createAccount: 'Create Account', haveAccount: 'Already have an account?', sendReset: 'Send Reset Link', resetSent: 'Check your email', backToLogin: 'Back to Sign In', birthData: 'Birth Data', birthSub: 'Required for your natal chart', birthHint: 'Why do we need this?', birthHintText: 'Your natal chart maps exact planetary positions at birth. More precision means a deeper reading.', day: 'DAY', month: 'MONTH', year: 'YEAR', hour: 'HOUR', minute: 'MINUTE', timeUnknown: 'Birth time unknown', place: 'PLACE OF BIRTH', gender: 'GENDER', female: 'Female', male: 'Male', generateChart: 'Generate Chart ✦', back: '← Back', showPw: 'Show' }
+    ka: { login: 'შესვლა', loginSub: 'შენი ციური ნახაზი გელოდება', signup: 'რეგისტრაცია', signupSub: 'დაიწყე შენი ციური მოგზაურობა', forgot: 'პაროლის აღდგენა', forgotSub: 'შეიყვანე ელ-ფოსტა', google: 'Google-ით შესვლა', googleSignup: 'Google-ით რეგისტრაცია', orEmail: 'ან ელ-ფოსტით', email: 'ელ-ფოსტა', password: 'პაროლი', passwordMinPlaceholder: 'მინ. 8 სიმბოლო', name: 'სახელი', forgotLink: 'დაგავიწყდა?', createAccount: 'რეგისტრაცია', haveAccount: 'უკვე გაქვს ანგარიში?', sendReset: 'ბმულის გაგზავნა', resetSent: 'ბმული გაგზავნილია', resetInfo: 'თუ ანგარიში არსებობს, მალე მიიღებ აღდგენის ბმულს.', backToLogin: 'შესვლაზე დაბრუნება', backBtn: 'დაბრუნება', inviteBadge: 'მოწვევა: სინასტრია', termsPrefix: 'რეგისტრაციით ეთანხმები', termsLabel: 'პირობებს', privacyLabel: 'კონფიდენციალობას', birthData: 'დაბადების მონაცემები', birthSub: 'ნატალური რუკის აგებისთვის', birthHint: 'რატომ გვჭირდება?', birthHintText: 'ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.', day: 'დღე', month: 'თვე', year: 'წელი', hour: 'საათი', minute: 'წუთი', timeUnknown: 'დაბადების დრო უცნობია', place: 'დაბადების ადგილი', placePlaceholder: 'ქალაქი, ქვეყანა', gender: 'სქესი', female: 'ქალი', male: 'კაცი', generateChart: 'რუკის აგება ✦', back: '← უკან', showPw: 'ჩვენება' },
+    en: { login: 'Sign In', loginSub: 'Your celestial blueprint awaits', signup: 'Create Account', signupSub: 'Begin your celestial journey', forgot: 'Reset Password', forgotSub: 'Enter your email', google: 'Continue with Google', googleSignup: 'Continue with Google', orEmail: 'or with email', email: 'EMAIL', password: 'PASSWORD', passwordMinPlaceholder: 'Min. 8 characters', name: 'NAME', forgotLink: 'Forgot password?', createAccount: 'Create Account', haveAccount: 'Already have an account?', sendReset: 'Send Reset Link', resetSent: 'Check your email', resetInfo: 'If an account exists, you will receive a reset link shortly.', backToLogin: 'Back to Sign In', backBtn: 'Back', inviteBadge: 'Invite: Synastry', termsPrefix: 'By signing up, you agree to the', termsLabel: 'Terms', privacyLabel: 'Privacy Policy', birthData: 'Birth Data', birthSub: 'Required for your natal chart', birthHint: 'Why do we need this?', birthHintText: 'Your natal chart maps exact planetary positions at birth. More precision means a deeper reading.', day: 'DAY', month: 'MONTH', year: 'YEAR', hour: 'HOUR', minute: 'MINUTE', timeUnknown: 'Birth time unknown', place: 'Place of Birth', placePlaceholder: 'City, Country', gender: 'GENDER', female: 'Female', male: 'Male', generateChart: 'Generate Chart ✦', back: '← Back', showPw: 'Show' }
   }
 };
 
@@ -599,17 +599,34 @@ function applyTranslations(l) {
     setGoogleBtn(ps.querySelector('.google-btn'), a.googleSignup);
     var ds2 = ps.querySelector('.auth-divider span'); if (ds2) ds2.textContent = a.orEmail;
     var sfl = ps.querySelectorAll('.field label'); if (sfl[0]) sfl[0].textContent = a.name; if (sfl[1]) sfl[1].textContent = a.email; if (sfl[2]) sfl[2].textContent = a.password;
+    var spw = ps.querySelector('#signup-pw'); if (spw) spw.setAttribute('placeholder', a.passwordMinPlaceholder || '');
     var sbt = ps.querySelector('.auth-btn .btn-text'); if (sbt) sbt.textContent = a.createAccount;
     var af = ps.querySelector('.auth-footer'); if (af) { var afl = af.querySelector('a'); if (afl) { af.childNodes[0].textContent = a.haveAccount + ' '; afl.textContent = a.login; } }
+    var ib = ps.querySelector('#invite-badge'); if (ib) { var dot = ib.querySelector('.inv-dot'); ib.textContent = ' ' + a.inviteBadge; if (dot) ib.insertBefore(dot, ib.firstChild); }
+    var terms = ps.querySelector('.terms');
+    if (terms) {
+      var links = terms.querySelectorAll('a');
+      var t1 = links[0] || null;
+      var t2 = links[1] || null;
+      terms.textContent = a.termsPrefix + ' ';
+      if (t1) { t1.textContent = a.termsLabel; terms.appendChild(t1); }
+      terms.appendChild(document.createTextNode(' ' + (l === 'en' ? 'and' : 'და') + ' '));
+      if (t2) { t2.textContent = a.privacyLabel; terms.appendChild(t2); }
+      if (l === 'en') terms.appendChild(document.createTextNode('.'));
+    }
     ps.querySelectorAll('.pw-toggle').forEach(function(b) { b.textContent = a.showPw; });
   }
   // Forgot
   var pf = document.getElementById('page-forgot');
   if (pf) {
     var h3 = pf.querySelector('.auth-header h1'); if (h3) h3.textContent = a.forgot;
+    var fs = pf.querySelector('.auth-header .sub'); if (fs) fs.textContent = a.forgotSub;
     var bl = pf.querySelector('.back-link'); if (bl) { var sp = bl.querySelector('span'); bl.textContent = ' ' + a.backToLogin; if (sp) bl.insertBefore(sp, bl.firstChild); }
+    var fLabel = pf.querySelector('#forgot-form .field label'); if (fLabel) fLabel.textContent = a.email;
     var fbt = pf.querySelector('#forgot-form .auth-btn .btn-text'); if (fbt) fbt.textContent = a.sendReset;
     var rsh = pf.querySelector('.reset-success h3'); if (rsh) rsh.textContent = a.resetSent;
+    var rsp = pf.querySelector('.reset-success p'); if (rsp) rsp.textContent = a.resetInfo;
+    var rb = pf.querySelector('#forgot-success .auth-btn .btn-text'); if (rb) rb.textContent = a.backBtn;
   }
   // Birth
   var pb = document.getElementById('page-birth');
@@ -621,7 +638,7 @@ function applyTranslations(l) {
     var r3 = pb.querySelectorAll('.field-row-3 .field label'); if (r3[0]) r3[0].textContent = a.day; if (r3[1]) r3[1].textContent = a.month; if (r3[2]) r3[2].textContent = a.year;
     var tr2 = pb.querySelectorAll('.field-row .field label'); if (tr2[0]) tr2[0].textContent = a.hour; if (tr2[1]) tr2[1].textContent = a.minute;
     var cl = pb.querySelector('.check-label'); if (cl) cl.textContent = a.timeUnknown;
-    var plEl = pb.querySelector('#birth-place'); if (plEl) { var plL = plEl.closest ? plEl.closest('.field').querySelector('label') : null; if (plL) plL.textContent = a.place; }
+    var plEl = pb.querySelector('#birth-place'); if (plEl) { var plL = plEl.closest ? plEl.closest('.field').querySelector('label') : null; if (plL) plL.textContent = a.place; plEl.setAttribute('placeholder', a.placePlaceholder || ''); }
     var gl = pb.querySelector('label[style]'); if (gl) gl.textContent = a.gender;
     var gopts = pb.querySelectorAll('.gender-opt'); gopts.forEach(function(opt, i) { var ic = opt.querySelector('.g-icon'); opt.textContent = ''; if (ic) opt.appendChild(ic); opt.appendChild(document.createTextNode(i === 0 ? a.female : a.male)); });
     var gbt = pb.querySelector('.auth-btn .btn-text'); if (gbt) gbt.textContent = a.generateChart;

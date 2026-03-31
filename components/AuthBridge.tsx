@@ -23,6 +23,38 @@ export default function AuthBridge() {
     const debugLog = (...args: unknown[]) => {
       if (AUTH_DEBUG) console.log("[AUTH_DEBUG]", ...args);
     };
+    const isEn = () => document.body.classList.contains("lang-en");
+    const t = (key: string) => {
+      const ka: Record<string, string> = {
+        loginEmailRequired: "შეიყვანე ელ-ფოსტა",
+        loginPasswordRequired: "შეიყვანე პაროლი",
+        loginInvalidCredentials: "არასწორი ელ-ფოსტა ან პაროლი",
+        signupNameRequired: "შეიყვანე სახელი",
+        signupPasswordShort: "პაროლი მინ. 8 სიმბოლო",
+        birthDateRequired: "შეავსე დაბადების თარიღი",
+        birthPlaceRequired: "მიუთითე დაბადების ადგილი",
+        birthGenderRequired: "აირჩიე სქესი",
+        birthPlacePickRequired: "აირჩიე ადგილი სიიდან (კოორდინატებისთვის)",
+        unauthorized: "ავტორიზაცია საჭიროა",
+        generationFailed: "გენერაცია ვერ შესრულდა",
+        testUserFailed: "ტესტ მომხმარებლის შექმნა ვერ მოხერხდა",
+      };
+      const en: Record<string, string> = {
+        loginEmailRequired: "Enter your email",
+        loginPasswordRequired: "Enter your password",
+        loginInvalidCredentials: "Invalid email or password",
+        signupNameRequired: "Enter your name",
+        signupPasswordShort: "Password must be at least 8 characters",
+        birthDateRequired: "Please fill in your birth date",
+        birthPlaceRequired: "Please enter your birth place",
+        birthGenderRequired: "Please select your gender",
+        birthPlacePickRequired: "Select a place from the list (for coordinates)",
+        unauthorized: "Unauthorized",
+        generationFailed: "Generation failed",
+        testUserFailed: "Test user failed",
+      };
+      return (isEn() ? en : ka)[key] ?? key;
+    };
 
     // Install/refresh runtime auth overrides.
     // We re-run this during boot because prototype-runtime.js can assign
@@ -101,8 +133,8 @@ export default function AuthBridge() {
         const email = (document.getElementById("login-email") as HTMLInputElement)?.value.trim();
         const pw = (document.getElementById("login-pw") as HTMLInputElement)?.value;
 
-        if (!email) return showError("login-error", "შეიყვანე ელ-ფოსტა");
-        if (!pw) return showError("login-error", "შეიყვანე პაროლი");
+        if (!email) return showError("login-error", t("loginEmailRequired"));
+        if (!pw) return showError("login-error", t("loginPasswordRequired"));
 
         const btn = document.querySelector("#page-login .auth-btn") as HTMLElement;
         if (btn) btn.classList.add("loading");
@@ -113,7 +145,7 @@ export default function AuthBridge() {
 
         if (error) {
           showError("login-error", error.message === "Invalid login credentials"
-            ? "არასწორი ელ-ფოსტა ან პაროლი"
+            ? t("loginInvalidCredentials")
             : error.message);
           return;
         }
@@ -128,9 +160,9 @@ export default function AuthBridge() {
         const email = (document.getElementById("signup-email") as HTMLInputElement)?.value.trim();
         const pw = (document.getElementById("signup-pw") as HTMLInputElement)?.value;
 
-        if (!name) return showError("signup-error", "შეიყვანე სახელი");
-        if (!email) return showError("signup-error", "შეიყვანე ელ-ფოსტა");
-        if (pw.length < 8) return showError("signup-error", "პაროლი მინ. 8 სიმბოლო");
+        if (!name) return showError("signup-error", t("signupNameRequired"));
+        if (!email) return showError("signup-error", t("loginEmailRequired"));
+        if (pw.length < 8) return showError("signup-error", t("signupPasswordShort"));
 
         const btn = document.querySelector("#page-signup .auth-btn") as HTMLElement;
         if (btn) btn.classList.add("loading");
@@ -172,7 +204,7 @@ export default function AuthBridge() {
       // ─── Forgot Password ───
       w.handleForgot = async () => {
         const email = (document.getElementById("forgot-email") as HTMLInputElement)?.value.trim();
-        if (!email) return showError("forgot-error", "შეიყვანე ელ-ფოსტა");
+        if (!email) return showError("forgot-error", t("loginEmailRequired"));
 
         const btn = document.querySelector("#page-forgot .auth-btn") as HTMLElement;
         if (btn) btn.classList.add("loading");
@@ -219,15 +251,15 @@ export default function AuthBridge() {
 
         if (!day || !month || !year) {
           console.warn("❌ [AB] Validation failed: missing date", { day, month, year });
-          return showError("birth-error", "შეავსე დაბადების თარიღი");
+          return showError("birth-error", t("birthDateRequired"));
         }
         if (!place) {
           console.warn("❌ [AB] Validation failed: missing place");
-          return showError("birth-error", "მიუთითე დაბადების ადგილი");
+          return showError("birth-error", t("birthPlaceRequired"));
         }
         if (!gender) {
           console.warn("❌ [AB] Validation failed: missing gender");
-          return showError("birth-error", "აირჩიე სქესი");
+          return showError("birth-error", t("birthGenderRequired"));
         }
 
         const latStr = placeInput?.dataset?.lat;
@@ -239,14 +271,14 @@ export default function AuthBridge() {
 
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
           console.warn("❌ [AB] Validation failed: no coordinates on place input — user must select from dropdown");
-          return showError("birth-error", "აირჩიე ადგილი სიიდან (კოორდინატებისთვის)");
+          return showError("birth-error", t("birthPlacePickRequired"));
         }
 
         console.log("✅ [AB] All validation passed — reading local session (no network)");
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user ?? null;
         console.log("👤 [AB] Session user:", user ? `${user.email} (${user.id})` : "null — will show Unauthorized");
-        if (!user) return showError("birth-error", "Unauthorized");
+        if (!user) return showError("birth-error", t("unauthorized"));
 
         // Build payload and hand off to /loading page.
         // LoadingRouteClient reads from localStorage, calls /api/chart/generate,
@@ -319,13 +351,13 @@ export default function AuthBridge() {
               window.location.href = inviteCode ? `/loading?invite=${inviteCode}` : "/loading";
               return;
             } catch {
-              showError("birth-error", queueErr instanceof Error ? queueErr.message : "Generation failed");
+              showError("birth-error", queueErr instanceof Error ? queueErr.message : t("generationFailed"));
               return;
             }
           }
         } catch (err) {
           console.error("💥 [AB] Pre-navigation error:", err);
-          showError("birth-error", err instanceof Error ? err.message : "Generation failed");
+          showError("birth-error", err instanceof Error ? err.message : t("generationFailed"));
         }
       };
       // Assign to both: window.handleBirthData (for backward compat) and
@@ -361,7 +393,7 @@ export default function AuthBridge() {
           window.location.href = '/loading';
         } catch (err) {
           console.error('[AB] Test user creation failed:', err);
-          showError('login-error', err instanceof Error ? err.message : 'Test user failed');
+          showError('login-error', err instanceof Error ? err.message : t("testUserFailed"));
         }
       };
 
