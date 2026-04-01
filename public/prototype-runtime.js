@@ -493,10 +493,26 @@ const TR = {
   'compat': { ka: 'თავსებადობა', en: 'Compatibility' },
   // Auth
   'auth': {
-    ka: { login: 'შესვლა', loginSub: 'შენი ციური ნახაზი გელოდება', signup: 'რეგისტრაცია', signupSub: 'დაიწყე შენი ციური მოგზაურობა', forgot: 'პაროლის აღდგენა', forgotSub: 'შეიყვანე ელ-ფოსტა', google: 'Google-ით შესვლა', googleSignup: 'Google-ით რეგისტრაცია', orEmail: 'ან ელ-ფოსტით', email: 'ელ-ფოსტა', password: 'პაროლი', passwordMinPlaceholder: 'მინ. 8 სიმბოლო', name: 'სახელი', forgotLink: 'დაგავიწყდა?', createAccount: 'რეგისტრაცია', haveAccount: 'უკვე გაქვს ანგარიში?', sendReset: 'ბმულის გაგზავნა', resetSent: 'ბმული გაგზავნილია', resetInfo: 'თუ ანგარიში არსებობს, მალე მიიღებ აღდგენის ბმულს.', backToLogin: 'შესვლაზე დაბრუნება', backBtn: 'დაბრუნება', inviteBadge: 'მოწვევა: სინასტრია', termsPrefix: 'რეგისტრაციით ეთანხმები', termsLabel: 'პირობებს', privacyLabel: 'კონფიდენციალობას', birthData: 'დაბადების მონაცემები', birthSub: 'ნატალური რუკის აგებისთვის', birthHint: 'რატომ გვჭირდება?', birthHintText: 'ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.', day: 'დღე', month: 'თვე', year: 'წელი', hour: 'საათი', minute: 'წუთი', timeUnknown: 'დაბადების დრო უცნობია', place: 'დაბადების ადგილი', placePlaceholder: 'ქალაქი, ქვეყანა', gender: 'სქესი', female: 'ქალი', male: 'კაცი', generateChart: 'რუკის აგება ✦', back: '← უკან', showPw: 'ჩვენება' },
-    en: { login: 'Sign In', loginSub: 'Your celestial blueprint awaits', signup: 'Create Account', signupSub: 'Begin your celestial journey', forgot: 'Reset Password', forgotSub: 'Enter your email', google: 'Continue with Google', googleSignup: 'Continue with Google', orEmail: 'or with email', email: 'EMAIL', password: 'PASSWORD', passwordMinPlaceholder: 'Min. 8 characters', name: 'NAME', forgotLink: 'Forgot password?', createAccount: 'Create Account', haveAccount: 'Already have an account?', sendReset: 'Send Reset Link', resetSent: 'Check your email', resetInfo: 'If an account exists, you will receive a reset link shortly.', backToLogin: 'Back to Sign In', backBtn: 'Back', inviteBadge: 'Invite: Synastry', termsPrefix: 'By signing up, you agree to the', termsLabel: 'Terms', privacyLabel: 'Privacy Policy', birthData: 'Birth Data', birthSub: 'Required for your natal chart', birthHint: 'Why do we need this?', birthHintText: 'Your natal chart maps exact planetary positions at birth. More precision means a deeper reading.', day: 'DAY', month: 'MONTH', year: 'YEAR', hour: 'HOUR', minute: 'MINUTE', timeUnknown: 'Birth time unknown', place: 'Place of Birth', placePlaceholder: 'City, Country', gender: 'GENDER', female: 'Female', male: 'Male', generateChart: 'Generate Chart ✦', back: '← Back', showPw: 'Show' }
+    ka: { login: 'შესვლა', loginSub: 'შენი ციური ნახაზი გელოდება', signup: 'რეგისტრაცია', signupSub: 'დაიწყე შენი ციური მოგზაურობა', forgot: 'პაროლის აღდგენა', forgotSub: 'შეიყვანე ელ-ფოსტა', google: 'Google-ით შესვლა', googleSignup: 'Google-ით რეგისტრაცია', orEmail: 'ან ელ-ფოსტით', email: 'ელ-ფოსტა', password: 'პაროლი', passwordMinPlaceholder: 'მინ. 8 სიმბოლო', name: 'სახელი', forgotLink: 'დაგავიწყდა?', createAccount: 'რეგისტრაცია', haveAccount: 'უკვე გაქვს ანგარიში?', sendReset: 'ბმულის გაგზავნა', resetSent: 'ბმული გაგზავნილია', resetInfo: 'თუ ანგარიში არსებობს, მალე მიიღებ აღდგენის ბმულს.', backToLogin: 'შესვლაზე დაბრუნება', backBtn: 'დაბრუნება', inviteBadge: 'მოწვევა: სინასტრია', termsPrefix: 'რეგისტრაციით ეთანხმები', termsLabel: 'პირობებს', privacyLabel: 'კონფიდენციალობას', birthData: 'დაბადების მონაცემები', birthSub: 'ნატალური რუკის აგებისთვის', birthHint: 'რატომ გვჭირდება?', birthHintText: 'ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.', day: 'დღე', month: 'თვე', year: 'წელი', hour: 'საათი', minute: 'წუთი', timeUnknown: 'დაბადების დრო უცნობია', place: 'დაბადების ადგილი', placePlaceholder: 'ქალაქი, ქვეყანა', gender: 'სქესი', female: 'ქალი', male: 'კაცი', generateChart: 'რუკის აგება ✦', back: '← უკან', showPw: 'ჩვენება', hidePw: 'დამალვა' },
+    en: { login: 'Sign In', loginSub: 'Your celestial blueprint awaits', signup: 'Create Account', signupSub: 'Begin your celestial journey', forgot: 'Reset Password', forgotSub: 'Enter your email', google: 'Continue with Google', googleSignup: 'Continue with Google', orEmail: 'or with email', email: 'EMAIL', password: 'PASSWORD', passwordMinPlaceholder: 'Min. 8 characters', name: 'NAME', forgotLink: 'Forgot password?', createAccount: 'Create Account', haveAccount: 'Already have an account?', sendReset: 'Send Reset Link', resetSent: 'Check your email', resetInfo: 'If an account exists, you will receive a reset link shortly.', backToLogin: 'Back to Sign In', backBtn: 'Back', inviteBadge: 'Invite: Synastry', termsPrefix: 'By signing up, you agree to the', termsLabel: 'Terms', privacyLabel: 'Privacy Policy', birthData: 'Birth Data', birthSub: 'Required for your natal chart', birthHint: 'Why do we need this?', birthHintText: 'Your natal chart maps exact planetary positions at birth. More precision means a deeper reading.', day: 'DAY', month: 'MONTH', year: 'YEAR', hour: 'HOUR', minute: 'MINUTE', timeUnknown: 'Birth time unknown', place: 'Place of Birth', placePlaceholder: 'City, Country', gender: 'GENDER', female: 'Female', male: 'Male', generateChart: 'Generate Chart ✦', back: '← Back', showPw: 'Show', hidePw: 'Hide' }
   }
 };
+
+function authMonthsForLang(l) {
+  const ka = ['იანვარი','თებერვალი','მარტი','აპრილი','მაისი','ივნისი','ივლისი','აგვისტო','სექტემბერი','ოქტომბერი','ნოემბერი','დეკემბერი'];
+  const en = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return l === 'en' ? en : ka;
+}
+
+function relabelBirthMonthOptions(l) {
+  const m = document.getElementById('birth-month');
+  if (!m) return;
+  const months = authMonthsForLang(l);
+  // option[0] is placeholder "—"
+  for (let i = 1; i < m.options.length && i <= 12; i++) {
+    m.options[i].textContent = months[i - 1] || m.options[i].textContent;
+  }
+}
 
 function applyTranslations(l) {
   // Natal nav buttons
@@ -643,6 +659,7 @@ function applyTranslations(l) {
     var gopts = pb.querySelectorAll('.gender-opt'); gopts.forEach(function(opt, i) { var ic = opt.querySelector('.g-icon'); opt.textContent = ''; if (ic) opt.appendChild(ic); opt.appendChild(document.createTextNode(i === 0 ? a.female : a.male)); });
     var gbt = pb.querySelector('.auth-btn .btn-text'); if (gbt) gbt.textContent = a.generateChart;
     var bkg = pb.querySelector('.auth-btn-ghost'); if (bkg) bkg.textContent = a.back;
+    relabelBirthMonthOptions(l);
   }
 }
 
@@ -1330,7 +1347,9 @@ function togglePw(btn) {
   const input = btn.previousElementSibling;
   const show = input.type === 'password';
   input.type = show ? 'text' : 'password';
-  btn.textContent = show ? 'დამალვა' : 'ჩვენება';
+  const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+  const a = TR.auth[lang];
+  btn.textContent = show ? (a.hidePw || 'Hide') : (a.showPw || 'Show');
 }
 
 function showAuthError(id, msg) {
@@ -1390,7 +1409,8 @@ function handleBirthData() {
 
 // Populate birth selects
 (function populateBirthSelects() {
-  const months = ['იანვარი','თებერვალი','მარტი','აპრილი','მაისი','ივნისი','ივლისი','აგვისტო','სექტემბერი','ოქტომბერი','ნოემბერი','დეკემბერი'];
+  const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+  const months = authMonthsForLang(lang);
   const d = document.getElementById('birth-day'); if (!d) return;
   for (let i = 1; i <= 31; i++) { const o = document.createElement('option'); o.value = i; o.textContent = i; d.appendChild(o); }
   const m = document.getElementById('birth-month');
@@ -1445,12 +1465,14 @@ function handleBirthData() {
     if (q.length < 2) { sugBox.classList.remove('open'); return; }
     const matches = cities.filter(c => c.name.toLowerCase().includes(q) || c.ka.includes(q));
     if (!matches.length) { sugBox.classList.remove('open'); return; }
+    const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
     sugBox.innerHTML = '';
     matches.slice(0, 5).forEach(c => {
       const d = document.createElement('div'); d.className = 'place-item';
-      d.innerHTML = c.ka + '<small>' + c.country + ' · ' + c.lat.toFixed(2) + '°N, ' + c.lng.toFixed(2) + '°E</small>';
+      const cityLabel = lang === 'en' ? c.name : c.ka;
+      d.innerHTML = cityLabel + '<small>' + c.country + ' · ' + c.lat.toFixed(2) + '°N, ' + c.lng.toFixed(2) + '°E</small>';
       d.onclick = () => {
-        placeInput.value = c.ka;
+        placeInput.value = cityLabel;
         // Store minimal geo context for server-side chart generation.
         // This is a dev fallback when Google Places isn't wired yet.
         placeInput.dataset.lat = String(c.lat);
