@@ -23,8 +23,11 @@ function generateShareSlug(): string {
 
 export const maxDuration = 300; // 5 min timeout for AI generation
 
+// Allow local dev OR Vercel preview deployments; block production domain only
+const isDevAllowed = process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV === 'preview';
+
 export async function POST() {
-  if (process.env.NODE_ENV === 'production') {
+  if (!isDevAllowed) {
     return NextResponse.json({ error: 'Dev-only endpoint' }, { status: 403 });
   }
 

@@ -7,9 +7,12 @@
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 
+// Allow local dev OR Vercel preview deployments; block production domain only
+const isDevAllowed = process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV === 'preview';
+
 // GET /api/dev/test-user — Return the account whose chart was most recently generated
 export async function GET() {
-  if (process.env.NODE_ENV === 'production') {
+  if (!isDevAllowed) {
     return NextResponse.json({ error: 'Dev only' }, { status: 403 });
   }
 
@@ -49,7 +52,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV === 'production') {
+  if (!isDevAllowed) {
     return NextResponse.json({ error: 'Dev only' }, { status: 403 });
   }
 
@@ -154,7 +157,7 @@ export async function POST(request: Request) {
 
 // PATCH /api/dev/test-user — Update account_type for the current user (dev only)
 export async function PATCH(req: Request) {
-  if (process.env.NODE_ENV === 'production') {
+  if (!isDevAllowed) {
     return NextResponse.json({ error: 'Dev only' }, { status: 403 });
   }
 

@@ -2,8 +2,11 @@
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 
+// Allow local dev OR Vercel preview deployments; block production domain only
+const isDevAllowed = process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV === 'preview';
+
 export async function POST() {
-  if (process.env.NODE_ENV === 'production') {
+  if (!isDevAllowed) {
     return NextResponse.json({ error: 'Dev only' }, { status: 403 });
   }
 

@@ -2108,10 +2108,10 @@ function hydrateReading(reading, user) {
   if (reading.overview && reading.overview.planetTable) {
     var _pt = reading.overview.planetTable;
     var _chartPs = _readingToChartPlanets(_pt);
-    var _ascRow = _pt.find(function(r) { var n = (r.planet || r.name || '').toLowerCase(); return n === 'asc' || n === 'ascendant'; });
-    var _mcRow  = _pt.find(function(r) { var n = (r.planet || r.name || '').toLowerCase(); return n === 'mc' || n === 'midheaven'; });
-    var _ascEcl = _ascRow ? _signDegToEcl(_ascRow.sign, _ascRow.degree) : null;
-    var _mcEcl  = _mcRow  ? _signDegToEcl(_mcRow.sign,  _mcRow.degree)  : null;
+    // Always read ASC/MC from reading.overview.points (canonical source)
+    var _pts = reading.overview.points || {};
+    var _ascEcl = _pts.ascendant ? _signDegToEcl(_pts.ascendant.sign, _pts.ascendant.degree) : null;
+    var _mcEcl  = _pts.midheaven ? _signDegToEcl(_pts.midheaven.sign, _pts.midheaven.degree) : null;
     if (_chartPs.length > 0) renderMiniChart(_chartPs, _ascEcl, _mcEcl);
   }
 
