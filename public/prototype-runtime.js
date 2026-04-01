@@ -1736,9 +1736,25 @@ const SYMBOL_TO_GLYPH = {
 const SIGN_SYMBOLS = new Set(['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓']);
 const PLANET_SYMBOLS = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋']);
 
+// Collapse LLM <b>/<strong> in prose to ** before escape + markdown pass
+function _normalizeLlmHtmlEmphasisToMarkdown(s) {
+  if (s == null || typeof s !== 'string') return s;
+  var t = s;
+  var prev;
+  var reStrong = /<\s*strong\b[^>]*>([\s\S]*?)<\s*\/\s*strong\s*>/gi;
+  var reB = /<\s*b\b[^>]*>([\s\S]*?)<\s*\/\s*b\s*>/gi;
+  do {
+    prev = t;
+    t = t.replace(reStrong, '**$1**');
+    t = t.replace(reB, '**$1**');
+  } while (t !== prev);
+  return t;
+}
+
 // Render rich text: converts Unicode astro symbols to SVG glyphs + basic markdown (bold/italic)
 function _renderRichText(text) {
   if (!text) return '';
+  text = _normalizeLlmHtmlEmphasisToMarkdown(String(text));
   // First, escape HTML but preserve our markers
   var escaped = _esc(text);
   // Convert **bold** to <strong>
@@ -1780,6 +1796,7 @@ function _renderRichText(text) {
 // Like _renderRichText but without tooltips on ASC/MC/IC/℞ (for use inside popups)
 function _renderRichTextNoTip(text) {
   if (!text) return '';
+  text = _normalizeLlmHtmlEmphasisToMarkdown(String(text));
   var escaped = _esc(text);
   escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   escaped = escaped.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em class="hl">$1</em>');
@@ -2186,37 +2203,21 @@ function hydrateReading(reading, user) {
   });
   contentHtml += '</div>';
 
-  // Remove everything after nb, then insert new content
-  var children = Array.from(viewNatal.children);
-  var pastNb = false;
-  children.forEach(function(child) {
-    if (child === hero || child === nb) { pastNb = (child === nb); return; }
-    if (pastNb || (!hero && !nb)) {
-      // Remove old content (sections, dividers, etc.)
-      if (child.classList && (child.classList.contains('ct') || child.tagName === 'SECTION' || child.classList.contains('sec-div') || child.classList.contains('lock-wrap'))) {
-        child.remove();
-      } else if (child !== hero && child !== nb) {
-        child.remove();
-      }
-    }
+  // Batch DOM updates: one removal pass + one insert (avoids per-node reflow from insertBefore/remove loops)
+  var footerEl = viewNatal.querySelector(':scope > footer');
+  Array.from(viewNatal.children).forEach(function(el) {
+    if (el !== hero && el !== nb && el !== footerEl) el.remove();
   });
-  // Remove any remaining .ct from view-natal that's not the nb's .ct
-  viewNatal.querySelectorAll(':scope > .ct').forEach(function(el) { el.remove(); });
-  viewNatal.querySelectorAll(':scope > section').forEach(function(el) { el.remove(); });
-  viewNatal.querySelectorAll(':scope > .sec-div').forEach(function(el) { el.remove(); });
-  viewNatal.querySelectorAll(':scope > .lock-wrap').forEach(function(el) { el.remove(); });
 
-  // Insert after nb (or at end if no nb)
-  var insertAfter = nb || hero || null;
-  if (insertAfter && insertAfter.nextSibling) {
-    var temp = document.createElement('div');
-    temp.innerHTML = contentHtml;
-    while (temp.firstChild) {
-      viewNatal.insertBefore(temp.firstChild, insertAfter.nextSibling);
-      insertAfter = insertAfter.nextSibling;
-    }
+  var fragment = document.createDocumentFragment();
+  var temp = document.createElement('div');
+  temp.innerHTML = contentHtml;
+  while (temp.firstChild) fragment.appendChild(temp.firstChild);
+
+  if (footerEl) {
+    viewNatal.insertBefore(fragment, footerEl);
   } else {
-    viewNatal.insertAdjacentHTML('beforeend', contentHtml);
+    viewNatal.appendChild(fragment);
   }
 
   // 5. Switch to natal view if not already there
