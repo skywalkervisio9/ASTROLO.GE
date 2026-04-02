@@ -2169,37 +2169,21 @@ function hydrateReading(reading, user) {
   });
   contentHtml += '</div>';
 
-  // Remove everything after nb, then insert new content
-  var children = Array.from(viewNatal.children);
-  var pastNb = false;
-  children.forEach(function(child) {
-    if (child === hero || child === nb) { pastNb = (child === nb); return; }
-    if (pastNb || (!hero && !nb)) {
-      // Remove old content (sections, dividers, etc.)
-      if (child.classList && (child.classList.contains('ct') || child.tagName === 'SECTION' || child.classList.contains('sec-div') || child.classList.contains('lock-wrap'))) {
-        child.remove();
-      } else if (child !== hero && child !== nb) {
-        child.remove();
-      }
-    }
-  });
-  // Remove any remaining .ct from view-natal that's not the nb's .ct
-  viewNatal.querySelectorAll(':scope > .ct').forEach(function(el) { el.remove(); });
-  viewNatal.querySelectorAll(':scope > section').forEach(function(el) { el.remove(); });
-  viewNatal.querySelectorAll(':scope > .sec-div').forEach(function(el) { el.remove(); });
-  viewNatal.querySelectorAll(':scope > .lock-wrap').forEach(function(el) { el.remove(); });
+  // ONE pass: remove all stale content (hero + nb are preserved — not matched by these selectors)
+  viewNatal.querySelectorAll(':scope > .ct, :scope > section, :scope > .sec-div, :scope > .lock-wrap')
+    .forEach(function(el) { el.remove(); });
 
-  // Insert after nb (or at end if no nb)
-  var insertAfter = nb || hero || null;
+  // DocumentFragment: build off-DOM, then single reflow on insert
+  var frag = document.createDocumentFragment();
+  var temp = document.createElement('div');
+  temp.innerHTML = contentHtml;
+  while (temp.firstChild) frag.appendChild(temp.firstChild);
+
+  var insertAfter = nb || hero;
   if (insertAfter && insertAfter.nextSibling) {
-    var temp = document.createElement('div');
-    temp.innerHTML = contentHtml;
-    while (temp.firstChild) {
-      viewNatal.insertBefore(temp.firstChild, insertAfter.nextSibling);
-      insertAfter = insertAfter.nextSibling;
-    }
+    viewNatal.insertBefore(frag, insertAfter.nextSibling);
   } else {
-    viewNatal.insertAdjacentHTML('beforeend', contentHtml);
+    viewNatal.appendChild(frag);
   }
 
   // 5. Switch to natal view if not already there

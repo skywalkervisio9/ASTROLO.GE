@@ -137,9 +137,9 @@ export default function LoadingRouteClient() {
         }
       }
 
-      // Poll until reading appears
+      // Poll until reading appears — adaptive: start slow, speed up as generation nears completion
       let attempts = 0;
-      const maxAttempts = 120; // ~5 min at 2.5s interval
+      const maxAttempts = 80; // ~5 min across adaptive intervals
       for (;;) {
         attempts += 1;
         if (attempts > maxAttempts) {
@@ -147,7 +147,9 @@ export default function LoadingRouteClient() {
           setCanReturnToBirth(true);
           return;
         }
-        await sleep(2500);
+        // 1-5: 5s (AI just started, no point hammering) → 6-10: 3s → 11+: 1.5s (nearly done)
+        const interval = attempts <= 5 ? 5000 : attempts <= 10 ? 3000 : 1500;
+        await sleep(interval);
         const statusRes = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (!statusRes.ok) continue;
         const status = await statusRes.json() as { status: 'queued' | 'generating' | 'complete'; readingId: string | null; shareSlug?: string };
