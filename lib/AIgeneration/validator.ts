@@ -49,11 +49,10 @@ function normalizeCards(cards: unknown[]): unknown[] {
     // Coerce expandedContent to string array
     if (typeof c.expandedContent === 'string') c.expandedContent = [c.expandedContent];
     else if (c.expandedContent && !Array.isArray(c.expandedContent)) c.expandedContent = [];
-    // Coerce hint.bullets to string array
+    // Drop legacy bullets from hint (removed in i10 — content is prose now)
     if (c.hint && typeof c.hint === 'object') {
       const h = c.hint as Record<string, unknown>;
-      if (typeof h.bullets === 'string') h.bullets = [h.bullets];
-      else if (h.bullets && !Array.isArray(h.bullets)) h.bullets = [];
+      delete h.bullets;
     }
     // Coerce crossReferences to string array
     if (!Array.isArray(c.crossReferences)) c.crossReferences = [];
@@ -67,14 +66,9 @@ function normalizeCards(cards: unknown[]): unknown[] {
 
 export function normalizeNatalReadingShape(input: Record<string, unknown>): Record<string, unknown> {
   const json: Record<string, unknown> = { ...input };
+  // Drop meta — all that data lives in Supabase (i10+)
+  delete json.meta;
   const sections = Array.isArray(json.sections) ? (json.sections as Array<Record<string, unknown>>) : [];
-
-  // Normalize meta.language
-  const meta = json.meta as Record<string, unknown> | undefined;
-  if (meta) {
-    const lang = String(meta.language || '').toLowerCase().trim();
-    meta.language = lang === 'en' ? 'en' : 'ka';
-  }
 
   // Normalize accentElement on top-level sections that already exist
   for (const key of SECTION_KEYS) {
@@ -119,8 +113,7 @@ export function normalizeNatalReadingShape(input: Record<string, unknown>): Reco
       json.overview = {
         sectionTitle: section.sectionTitle ?? section.title ?? '',
         sectionTagline: section.sectionTagline ?? section.tagline ?? '',
-        planetTable: Array.isArray(section.planetTable) ? section.planetTable : [],
-        aspects: Array.isArray(section.aspects) ? section.aspects : [],
+        // planetTable + aspects injected by route from chart_data — not from AI output
         coreCards: normalizeCards(overviewCards as unknown[]),
         pullQuote: section.pullQuote ?? null,
       };
@@ -197,12 +190,6 @@ export function validateNatalReading(json: Record<string, unknown>): {
   // Check all 8 sections present
   for (const key of SECTION_KEYS) {
     if (!normalized[key]) errors.push(`Missing section: ${key}`);
-  }
-
-  // Check meta
-  const meta = normalized.meta as Record<string, unknown> | undefined;
-  if (meta && !['ka', 'en'].includes(meta.language as string)) {
-    errors.push('Invalid language in meta');
   }
 
   // Check minimum card counts

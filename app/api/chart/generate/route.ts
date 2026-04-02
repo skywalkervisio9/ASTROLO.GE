@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { getChartData } from '@/lib/astrology/api';
-import { generateNatalReading } from '@/lib/AIgeneration/pipeline';
+import { generateNatalReading, type AspectInterpretation } from '@/lib/AIgeneration/pipeline';
 import { PROMPT_VERSION } from '@/lib/AIgeneration/prompts/natal';
 import { LUKA_CHART_CONTEXT, LUKA_CHART_DATA } from '@/lib/dev/test-charts';
 import type { GenerateChartRequest } from '@/types/api';
@@ -110,12 +110,17 @@ function normalizeChartData(raw: unknown): {
   }
 
   // Build house cusps array for planet house assignment
-  // Houses data from API might be array of objects with abs_pos or degree
+  // API may return houses as { abs_pos } or { sign, degree } — convert both to absolute ecliptic
   const houseCusps: number[] = [];
   if (Array.isArray(data.houses)) {
     for (const h of data.houses as Record<string, unknown>[]) {
-      const pos = (h.abs_pos ?? h.degree ?? h.position) as number | undefined;
-      if (typeof pos === 'number') houseCusps.push(pos);
+      if (typeof h.abs_pos === 'number') {
+        houseCusps.push(h.abs_pos);
+      } else if (h.sign && h.degree != null) {
+        // sign+degree format (0-30 within sign) → absolute ecliptic (0-360)
+        const signIdx = ZODIAC_SIGNS.indexOf(h.sign as string);
+        if (signIdx !== -1) houseCusps.push(signIdx * 30 + Number(h.degree));
+      }
     }
   }
 
@@ -183,6 +188,112 @@ function normalizeChartData(raw: unknown): {
     points: Object.keys(points).length > 0 ? points : null,
     houses: normalizedHouses,
   };
+}
+
+// ── Chart-data → reading helpers ──
+
+const PLANET_SYMBOLS: Record<string, string> = {
+  Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂',
+  Jupiter: '♃', Saturn: '♄', Uranus: '♅', Neptune: '♆', Pluto: '♇',
+  'North Node': '☊', 'South Node': '☋', Lilith: '⚸', Chiron: '⚷',
+};
+
+const ASPECT_SYMBOLS: Record<string, string> = {
+  conjunction: '☌', trine: '△', square: '□', opposition: '☍', sextile: '⚹',
+};
+
+/** Convert sign name + "14°36'" degree string to absolute ecliptic (0-360) */
+function signDegToEcl(sign: string, degree: string): number {
+  const idx = ZODIAC_SIGNS.indexOf(sign);
+  if (idx === -1) return 0;
+  const match = degree.match(/(\d+)[°](\d+)['']?/);
+  const d = match ? parseInt(match[1]) : parseFloat(degree) || 0;
+  const m = match ? parseInt(match[2]) : 0;
+  return idx * 30 + d + m / 60;
+}
+
+/** Equal House: house index from planet ecliptic + ASC ecliptic */
+function equalHouseRoman(planetEcl: number, ascEcl: number): string {
+  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+  const idx = Math.floor(((planetEcl - ascEcl + 360) % 360) / 30);
+  return ROMAN[idx] ?? 'I';
+}
+
+interface StoredPlanet {
+  name: string; sign: string; degree: string; house: string; element: string; retrograde: boolean;
+}
+interface StoredPoints {
+  ascendant?: { sign: string; degree: string };
+  [key: string]: unknown;
+}
+
+/**
+ * Build planetTable for reading.overview from chart_data.
+ * - Adds Unicode symbol per planet
+ * - Computes Equal House if house column is empty (old API format rows)
+ * - Lowercases element to match schema (fire/earth/air/water)
+ */
+function buildPlanetTableForReading(
+  planets: StoredPlanet[] | null,
+  points: StoredPoints | null
+): unknown[] {
+  if (!planets || planets.length === 0) return [];
+
+  const needsHouse = planets.some(p => !p.house);
+  let ascEcl = 0;
+  if (needsHouse && points?.ascendant) {
+    ascEcl = signDegToEcl(points.ascendant.sign, points.ascendant.degree);
+  }
+
+  return planets.map(p => ({
+    planet: p.name,
+    symbol: PLANET_SYMBOLS[p.name] ?? '',
+    sign: p.sign,
+    degree: p.degree,
+    house: p.house || (needsHouse ? equalHouseRoman(signDegToEcl(p.sign, p.degree), ascEcl) : ''),
+    element: (p.element || '').toLowerCase() as 'fire' | 'earth' | 'air' | 'water',
+    retrograde: p.retrograde ?? false,
+  }));
+}
+
+interface StoredAspect {
+  planet1: string; planet2: string; aspect: string; orb: number;
+}
+
+/**
+ * Merge chart_data aspects with AI-generated interpretations.
+ * Adds symbol fields, matches interpretation by planet1+planet2+aspect key.
+ */
+function mergeAspectsForReading(
+  aspects: StoredAspect[] | null,
+  interpretations: AspectInterpretation[],
+  lang: 'ka' | 'en'
+): unknown[] {
+  if (!aspects || aspects.length === 0) return [];
+
+  const interpMap = new Map<string, AspectInterpretation>();
+  for (const interp of interpretations) {
+    const key = `${interp.planet1}+${interp.planet2}+${interp.aspect}`;
+    interpMap.set(key, interp);
+    // Also try reverse planet order
+    interpMap.set(`${interp.planet2}+${interp.planet1}+${interp.aspect}`, interp);
+  }
+
+  return aspects.map(a => {
+    const key = `${a.planet1}+${a.planet2}+${a.aspect}`;
+    const interp = interpMap.get(key);
+    return {
+      planet1: a.planet1,
+      symbol1: PLANET_SYMBOLS[a.planet1] ?? '',
+      planet2: a.planet2,
+      symbol2: PLANET_SYMBOLS[a.planet2] ?? '',
+      aspectType: a.aspect,
+      aspectSymbol: ASPECT_SYMBOLS[a.aspect] ?? '',
+      orb: a.orb,
+      interpretation: interp ? (lang === 'ka' ? interp.interpretation_ka : interp.interpretation_en) : '',
+      significance: interp?.significance ?? 'normal',
+    };
+  });
 }
 
 export const maxDuration = 300; // Claude + external APIs can take 1-2 minutes
@@ -297,6 +408,9 @@ export async function POST(req: NextRequest) {
     // 2. Get or create chart_data (idempotent)
     let context: string | null = null;
     let chartData: unknown | null = null;
+    let storedPlanets: StoredPlanet[] | null = null;
+    let storedPoints: StoredPoints | null = null;
+    let storedAspects: StoredAspect[] | null = null;
 
     const { data: existingChart } = await supabase
       .from('chart_data')
@@ -307,6 +421,9 @@ export async function POST(req: NextRequest) {
     if (existingChart?.chart_context) {
       context = existingChart.chart_context;
       chartData = existingChart.api_response;
+      storedPlanets = (typeof existingChart.planets === 'string' ? JSON.parse(existingChart.planets) : existingChart.planets) as StoredPlanet[] | null;
+      storedPoints = (typeof existingChart.points === 'string' ? JSON.parse(existingChart.points) : existingChart.points) as StoredPoints | null;
+      storedAspects = (typeof existingChart.aspects === 'string' ? JSON.parse(existingChart.aspects) : existingChart.aspects) as StoredAspect[] | null;
     } else {
       const birthData: BirthData = {
         name: body.name,
@@ -330,6 +447,9 @@ export async function POST(req: NextRequest) {
 
       // Normalize raw Astrologer API data to the format the frontend expects
       const normalized = normalizeChartData(chartData);
+      storedPlanets = normalized.planets as StoredPlanet[] | null;
+      storedPoints = normalized.points as StoredPoints | null;
+      storedAspects = normalized.aspects as StoredAspect[] | null;
 
       // Store chart data (unique on user_id)
       await supabase.from('chart_data').insert({
@@ -347,8 +467,25 @@ export async function POST(req: NextRequest) {
       throw new Error('Missing chart context');
     }
 
-    // 3. Run Claude pipeline (KA + EN in parallel)
-    const result = await generateNatalReading(context);
+    // 3. Run AI pipeline: Call 1 + Call 2 (KA+EN) + Call 3 (aspect interpretations)
+    const result = await generateNatalReading(context, storedAspects ?? undefined);
+
+    // Inject chart_data into readings (planetTable + aspects) and strip meta
+    const planetTable = buildPlanetTableForReading(storedPlanets, storedPoints);
+    const aspectsKa = mergeAspectsForReading(storedAspects, result.aspectInterpretations, 'ka');
+    const aspectsEn = mergeAspectsForReading(storedAspects, result.aspectInterpretations, 'en');
+
+    function injectAndClean(reading: Record<string, unknown>, aspects: unknown[]): Record<string, unknown> {
+      const r = { ...reading };
+      delete r.meta; // meta lives in Supabase — not needed in reading JSON
+      if (r.overview && typeof r.overview === 'object') {
+        r.overview = { ...(r.overview as Record<string, unknown>), planetTable, aspects };
+      }
+      return r;
+    }
+
+    const finalReadingKa = injectAndClean(result.readingKa, aspectsKa);
+    const finalReadingEn = injectAndClean(result.readingEn, aspectsEn);
 
     // Store reading with public share slug
     const shareSlug = generateShareSlug();
@@ -358,8 +495,8 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         share_slug: shareSlug,
         analysis_en: result.analysis,
-        reading_ka: result.readingKa,
-        reading_en: result.readingEn,
+        reading_ka: finalReadingKa,
+        reading_en: finalReadingEn,
         prompt_version: PROMPT_VERSION,
         model_call1: result.meta.modelCall1,
         model_call2: result.meta.modelCall2,

@@ -14,6 +14,7 @@ import {
 import {
   getNatalCall1Prompt,
   getNatalCall2Prompt,
+  getNatalCall3Prompt,
 } from './prompts/natal';
 import {
   getSynastryCall1Prompt,
@@ -27,22 +28,35 @@ const JSON_REPAIR_MAX_CHARS = 120000;
 
 // ── Natal reading pipeline ──
 
+export interface AspectInterpretation {
+  planet1: string;
+  planet2: string;
+  aspect: string;
+  interpretation_ka: string;
+  interpretation_en: string;
+  significance: 'high' | 'normal';
+}
+
 export interface NatalPipelineResult {
   analysis: string;
   readingKa: Record<string, unknown>;
   readingEn: Record<string, unknown>;
+  aspectInterpretations: AspectInterpretation[];
   meta: {
     modelCall1: string;
     modelCall2: string;
+    modelCall3: string;
     tokensCall1: number;
     tokensCall2Ka: number;
     tokensCall2En: number;
+    tokensCall3: number;
     validationWarnings: string[];
   };
 }
 
 export async function generateNatalReading(
-  chartContext: string
+  chartContext: string,
+  chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
 ): Promise<NatalPipelineResult> {
   // Call 1: Chart Analysis (always English) — plain text output, not JSON
   const call1 = await callClaude(
@@ -58,18 +72,83 @@ export async function generateNatalReading(
   const readingKa = await generateSingleReading(userMsg, 'ka');
   const readingEn = await generateSingleReading(userMsg, 'en');
 
+  // Call 3: Aspect interpretations (bilingual, single call) — runs in parallel with nothing
+  let aspectInterpretations: AspectInterpretation[] = [];
+  let call3Model = 'skipped';
+  let call3Tokens = 0;
+  if (chartAspects && chartAspects.length > 0) {
+    try {
+      const call3 = await generateAspectInterpretations(chartAspects, call1.text);
+      aspectInterpretations = call3.interpretations;
+      call3Model = call3.model;
+      call3Tokens = call3.tokens;
+    } catch (err) {
+      console.warn('[pipeline] Call 3 (aspects) failed, proceeding without interpretations:', err);
+    }
+  }
+
   return {
     analysis: call1.text,
     readingKa: readingKa.parsed,
     readingEn: readingEn.parsed,
+    aspectInterpretations,
     meta: {
       modelCall1: call1.model,
       modelCall2: readingKa.model,
+      modelCall3: call3Model,
       tokensCall1: call1.inputTokens + call1.outputTokens,
       tokensCall2Ka: readingKa.inputTokens + readingKa.outputTokens,
       tokensCall2En: readingEn.inputTokens + readingEn.outputTokens,
+      tokensCall3: call3Tokens,
       validationWarnings: [...readingKa.warnings, ...readingEn.warnings],
     },
+  };
+}
+
+async function generateAspectInterpretations(
+  aspects: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>,
+  chartAnalysis: string
+): Promise<{ interpretations: AspectInterpretation[]; model: string; tokens: number }> {
+  const aspectList = aspects
+    .map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`)
+    .join('\n');
+
+  const userMessage = `Aspects to interpret:\n${aspectList}\n\nChart Analysis:\n${chartAnalysis.slice(0, 8000)}`;
+
+  const response = await callClaude(getNatalCall3Prompt(), userMessage, 4000);
+
+  let parsed: unknown;
+  try {
+    const cleaned = response.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    parsed = JSON.parse(cleaned);
+  } catch {
+    // Try extracting array
+    const start = response.text.indexOf('[');
+    const end = response.text.lastIndexOf(']');
+    if (start !== -1 && end > start) {
+      parsed = JSON.parse(response.text.slice(start, end + 1));
+    } else {
+      throw new Error('Call 3 response did not contain parseable JSON array');
+    }
+  }
+
+  if (!Array.isArray(parsed)) throw new Error('Call 3 response is not an array');
+
+  const interpretations = (parsed as Record<string, unknown>[])
+    .filter(item => item.planet1 && item.planet2 && item.aspect)
+    .map(item => ({
+      planet1: String(item.planet1),
+      planet2: String(item.planet2),
+      aspect: String(item.aspect),
+      interpretation_ka: String(item.interpretation_ka || ''),
+      interpretation_en: String(item.interpretation_en || ''),
+      significance: (item.significance === 'high' ? 'high' : 'normal') as 'high' | 'normal',
+    }));
+
+  return {
+    interpretations,
+    model: response.model,
+    tokens: response.inputTokens + response.outputTokens,
   };
 }
 

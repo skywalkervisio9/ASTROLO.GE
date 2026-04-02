@@ -10,7 +10,7 @@ import type { Language } from '@/types/user';
 
 // Load the full prompt spec (server-side only)
 // In dev mode, always re-read so prompt edits take effect without restart
-const PROMPT_FILENAME = 'SYSTEM-PROMPT-8SEC_i9.md';
+const PROMPT_FILENAME = 'SYSTEM-PROMPT-i10.md';
 export const PROMPT_VERSION = PROMPT_FILENAME.replace('.md', '');
 
 let _promptSpec: string | null = null;
@@ -106,11 +106,29 @@ ${langInstruction}
 Output a single JSON object with these 8 sections: overview, mission, characteristics, relationships, work, shadow, spiritual, potential.
 
 Each section has: sectionTitle, sectionTagline, cards (array), pullQuote.
-Each card has: id, label, title, body (array of paragraphs), crossReferences (array), expandedContent (array or null), hint (object with title, content, bullets), accentElement.
+Each card has: id, label, title, body (array of paragraphs), crossReferences (array), expandedContent (array or null), hint (object with title and content string — no bullets), accentElement.
 
-Include a meta object with: name, birthData, sunSign, moonSign, risingSign, language ("${language}"), generatedAt, promptVersion.
+Overview section has only coreCards (3 cards) — no planetTable or aspects fields.
 
-Word count target: 5,000-7,000 words total.
-Minimum cards per section: overview 3, mission 4, characteristics 4, relationships 4, work 4, shadow 4, spiritual 4, potential 2.
-Every card must cross-reference at least 2 other placements showing 3+ step chains.`;
+Word count target: 5,000-6,000 words total.
+Minimum cards per section: overview 3, mission 4, characteristics 4, relationships 4, work 4, shadow 4, spiritual 4, potential 2.`;
+}
+
+/**
+ * Call 3 system prompt — Aspect Interpretations (bilingual, single call)
+ * Extracts PART E from the prompt specification
+ */
+export function getNatalCall3Prompt(): string {
+  const spec = loadPromptSpec();
+  const partE = extractSection(spec, '# PART E', '# PART F');
+  if (partE) return partE;
+
+  // Fallback
+  return `You are a natal chart astrologer. Given a list of planetary aspects and chart analysis, write brief psychological interpretations.
+
+Output a single JSON array only. No code fences. No text outside the array.
+
+Each element: { "planet1": "string", "planet2": "string", "aspect": "string", "interpretation_ka": "Georgian 1-2 sentences", "interpretation_en": "English 1-2 sentences", "significance": "high|normal" }
+
+Mark top 3 most important aspects as "high". Each interpretation: 1-2 sentences, specific to this chart. Use "შენ"/"you" perspective.`;
 }

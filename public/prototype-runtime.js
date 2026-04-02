@@ -1906,16 +1906,21 @@ function _buildAspect(asp) {
   var p2Name = asp.planet2 || asp.planet_2 || asp.body2 || '';
   var p1 = _tr(PLANET_KA, p1Name);
   var p2 = _tr(PLANET_KA, p2Name);
-  var orbStr = asp.orb != null ? ' (' + asp.orb + '°)' : '';
-  var desc = asp.description ? ' — ' + _esc(asp.description) : orbStr;
+  var orbStr = asp.orb != null ? ' · ' + asp.orb + '°' : '';
   var typeLbl = _hydrateLang === 'ka' ? (typeLabel[aspectType] || aspectType) : aspectType;
-  return '<div class="al">' +
+  var isHigh = asp.significance === 'high';
+  var interp = asp.interpretation || '';
+  return '<div class="al' + (isHigh ? ' al-hi' : '') + '">' +
+    '<div class="al-row">' +
     '<span class="asy">' + _esc(symbol) + '</span>' +
     _planetGlyph(p1Name) + ' ' + _esc(p1) + ' ' +
     _esc(symbol) + ' ' +
     _planetGlyph(p2Name) + ' ' + _esc(p2) +
-    desc +
     '<span class="alb">' + _esc(typeLbl) + '</span>' +
+    (orbStr ? '<span class="al-orb">' + _esc(orbStr) + '</span>' : '') +
+    (isHigh ? '<span class="al-star">★</span>' : '') +
+    '</div>' +
+    (interp ? '<p class="al-it">' + _renderRichText(interp) + '</p>' : '') +
     '</div>';
 }
 
@@ -1940,12 +1945,7 @@ function _buildCard(card) {
   if (card.hint) {
     html += '<div class="h"><div class="ht"><svg><use href="#gl-sparkle"/></svg> ' + _esc(card.hint.title) + '</div>';
     html += '<p>' + _renderRichText(card.hint.content) + '</p>';
-    if (card.hint.bullets && card.hint.bullets.length) {
-      html += '<ul>';
-      var bullArr = Array.isArray(card.hint.bullets) ? card.hint.bullets : [card.hint.bullets];
-      bullArr.forEach(function(p) { html += '<li>' + _renderRichText(p) + '</li>'; });
-      html += '</ul>';
-    }
+    // bullets removed in i10 — hint.content is full prose
     html += '</div>';
   }
   html += '</div>';
