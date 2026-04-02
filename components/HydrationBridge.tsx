@@ -10,6 +10,7 @@
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useReading } from "@/hooks/useReading";
+import { whenRuntimeReady } from "@/lib/runtime-ready";
 
 export default function HydrationBridge() {
   const { user, authUser } = useAuth();
@@ -20,29 +21,28 @@ export default function HydrationBridge() {
   useEffect(() => {
     if (!user || !reading || initialHydrated.current) return;
 
-    const attempt = () => {
+    let cancelled = false;
+    whenRuntimeReady().then(() => {
+      if (cancelled) return;
       const w = window as unknown as Record<string, unknown>;
       if (typeof w.hydrateReading === "function") {
         (w.hydrateReading as (r: unknown, u: unknown) => void)(reading, user);
         initialHydrated.current = true;
-        return true;
       }
-      return false;
-    };
+    });
 
-    if (attempt()) return;
-
-    const timer = setInterval(() => {
-      if (attempt()) clearInterval(timer);
-    }, 200);
-
-    return () => clearInterval(timer);
+    return () => { cancelled = true; };
   }, [user, reading]);
 
   // Language switching: fetch the correct reading directly and re-hydrate
   useEffect(() => {
     console.log("[HB] lang-switch effect, user=", user?.email ?? null);
     if (!user) return;
+    // Signal to prototype-runtime that HydrationBridge owns lang-switch fetches
+    (window as unknown as Record<string, unknown>).__hydrationBridgeActive = true;
+    return () => {
+      (window as unknown as Record<string, unknown>).__hydrationBridgeActive = false;
+    };
 
     const handler = async (e: Event) => {
       const detail = (e as CustomEvent<{ lang: string }>).detail;

@@ -1,11 +1,11 @@
 // ============================================================
-// Claude output validation — parse JSON + validate structure
+// AI output validation — parse JSON + validate structure
 // ============================================================
 
 import { SECTION_KEYS } from '@/types/reading';
 
 /**
- * Strip markdown code fences and parse JSON from Claude's response
+ * Strip markdown code fences and parse JSON from AI response
  */
 export function parseClaudeJSON(raw: string): unknown {
   const cleaned = raw

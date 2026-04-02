@@ -447,14 +447,19 @@ function setLang(l, b) {
   if (b) b.classList.add('active');
   document.body.classList.toggle('lang-en', l === 'en');
   applyTranslations(l);
-  // If we already have a user, fetch and re-hydrate directly without React
-  if (_currentUser && (l === 'ka' || l === 'en')) {
-    fetch('/api/reading/natal?lang=' + l, { credentials: 'include' })
-      .then(function(r) { return r.ok ? r.json() : null; })
-      .then(function(data) {
-        if (data && data.reading) hydrateReading(data.reading, _currentUser);
-      })
-      .catch(function() {});
+  if (l === 'ka' || l === 'en') {
+    // Let HydrationBridge handle it on authenticated pages (it sets this flag)
+    if (window.__hydrationBridgeActive) {
+      window.dispatchEvent(new CustomEvent('astrolo:lang-change', { detail: { lang: l } }));
+    } else if (_currentUser) {
+      // Fallback for public pages — fetch directly using _currentUser
+      fetch('/api/reading/natal?lang=' + l, { credentials: 'include' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+          if (data && data.reading) hydrateReading(data.reading, _currentUser);
+        })
+        .catch(function() {});
+    }
   }
 }
 window.setLang = setLang;
@@ -2215,3 +2220,9 @@ window.hydrateReading = hydrateReading;
 
 // ═══ INIT ═══
 initObservers();
+
+// ═══ RUNTIME READY SIGNAL ═══
+// Signals to React components (HydrationBridge, LoadingRouteClient) that
+// all window functions (hydrateReading, startLoading, etc.) are available.
+window.__runtimeReady = true;
+window.dispatchEvent(new Event('astrolo:runtime-ready'));

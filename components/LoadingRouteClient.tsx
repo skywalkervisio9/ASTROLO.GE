@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { withCsrfHeaders } from '@/lib/auth/client';
+import { whenRuntimeReady } from '@/lib/runtime-ready';
 import type { GenerateChartRequest } from '@/types/api';
 import type { Gender } from '@/types/user';
 
@@ -40,15 +41,10 @@ export default function LoadingRouteClient() {
       } catch { /* default to ka */ }
 
       // Wait for prototype-runtime.js to load, then start the animation
-      const waitForStart = () => new Promise<void>((resolve) => {
-        const attempt = () => {
-          const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string) => void) | undefined;
-          if (fn) { fn(userLang); resolve(); }
-          else setTimeout(attempt, 100);
-        };
-        attempt();
+      whenRuntimeReady().then(() => {
+        const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string) => void) | undefined;
+        if (fn) fn(userLang);
       });
-      waitForStart();
 
       const { data: auth } = await supabase.auth.getUser();
       const user = auth.user;

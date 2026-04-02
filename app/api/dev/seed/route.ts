@@ -5,8 +5,8 @@
 
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
-import { generateNatalReading } from '@/lib/claude/pipeline';
-import { generateSynastryReading } from '@/lib/claude/pipeline';
+import { generateNatalReading } from '@/lib/AIgeneration/pipeline';
+import { generateSynastryReading } from '@/lib/AIgeneration/pipeline';
 import {
   TEST_USERS,
   LUKA_CHART_CONTEXT,

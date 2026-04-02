@@ -9,8 +9,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { getChartData } from '@/lib/astrology/api';
-import { generateNatalReading } from '@/lib/claude/pipeline';
-import { PROMPT_VERSION } from '@/lib/claude/prompts/natal';
+import { generateNatalReading } from '@/lib/AIgeneration/pipeline';
+import { PROMPT_VERSION } from '@/lib/AIgeneration/prompts/natal';
 import { LUKA_CHART_CONTEXT, LUKA_CHART_DATA } from '@/lib/dev/test-charts';
 import type { GenerateChartRequest } from '@/types/api';
 import type { BirthData } from '@/types/chart';

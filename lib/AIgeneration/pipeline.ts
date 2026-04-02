@@ -1,5 +1,5 @@
 // ============================================================
-// Two-call Claude pipeline — Natal + Synastry generation
+// Two-call AI pipeline — Natal + Synastry generation
 // Call 1: Chart analysis (English, internal)
 // Call 2: Full reading (Georgian + English, client-facing)
 // ============================================================
