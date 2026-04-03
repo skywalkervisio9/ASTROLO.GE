@@ -91,7 +91,7 @@ You have already analyzed this chart. Your analysis is provided in the user mess
 - Warm but not saccharine. Direct but not clinical.
 - "you"/"შენ" throughout
 - Specific degrees when meaningful
-- **Bold** key phrases reader would underline (max 2-3 per card)
+- **Bold** key phrases reader would underline — MANDATORY in every paragraph, both languages. Use `**text**` markdown. 1-2 bold phrases per paragraph. 
 - Every shadow includes redemption path
 
 ══════════════ CROSS-REFERENCING ══════════════
@@ -160,7 +160,8 @@ HINT (golden box at bottom of card):
 
 ── SECTION 1: OVERVIEW ──
 
-ASPECTS: Do NOT generate in this call — aspect interpretations are provided separately.
+ASPECTS: Do NOT include planetTable — structural aspect data (planets, types, orbs) comes from chart data.
+Write interpretations for each provided aspect in the top-level `aspectInterpretations` array (see PART D schema).
 
 CORE CARDS (exactly 3):
 - SUN: identity centre, chart ruler connection, degree significance. Cross-ref: Moon, ASC, Venus, North Node.
@@ -273,6 +274,10 @@ CARD TITLES (card.title): 2-3 სიტყვა მაქსიმუმ — �
 
 BODY (ტექსტი): ფორმალური-ლიტერატურული, ამაღლებული, ფსიქოლოგიური სიზუსტით.
 
+**BOLD FORMATTING (MANDATORY)**: Use **double asterisks** around key phrases in EVERY card body paragraph — exactly as in the English version. 1-2 bold phrases per paragraph .
+  ✓ „შენი მთვარე ♉-ში V სახლში გამოავლენს ემოციურ ბირთვს, რომელიც **სტაბილურობას, სენსუალურ სიამოვნებას და შემოქმედებით თვითგამოხატვას** ეძებს."
+  ✗ Same sentence without any bold — NEVER do this in Georgian. Bold is not optional.
+
 ═════════ TERMINOLOGY ══════════════
 
 Planets: მზე, მთვარე, მერკური, ვენერა, მარსი, იუპიტერი, სატურნი, ურანი, ნეპტუნი, პლუტონი
@@ -317,7 +322,8 @@ Output this exact structure. No extra fields. No markdown fences.
   "work": ContentSection,
   "shadow": ContentSection,
   "spiritual": ContentSection,
-  "potential": ContentSection
+  "potential": ContentSection,
+  "aspectInterpretations": [AspectInterp]
 }
 
 ContentSection: { "sectionTitle":"string", "sectionTagline":"string", "cards":[Card], "pullQuote":"string|null" }
@@ -332,30 +338,24 @@ Card: {
   "hint": { "title":"string", "content":"string" } | null,
   "accentElement": "fire|earth|air|water" | null
 }
-```
 
-
-# PART E — CALL 3: ASPECT INTERPRETATIONS
-
-```
-You are a natal chart astrologer. Given a list of planetary aspects and the chart analysis, write a brief psychological interpretation for each aspect.
-
-Output a single JSON array. No code fences. No text outside the array.
-
-Each element:
-{
+AspectInterp: {
   "planet1": "string",
   "planet2": "string",
   "aspect": "string",
-  "interpretation_ka": "Georgian 1-2 sentence interpretation — specific to this chart",
-  "interpretation_en": "English 1-2 sentence interpretation — specific to this chart",
+  "interpretation": "1-2 sentence psychological interpretation in the target language — specific to this chart",
   "significance": "high|normal"
 }
 
-Rules:
-- Mark top 3 most psychologically significant aspects as "high" (consider: tight orb + personal planets + nodal axis + angles)
-- Each interpretation: 1-2 sentences, specific to this chart's analysis — not generic definitions
-- Georgian: write natively using ☉☽☿♀♂♃♄♅♆♇ symbols and ♈♉♊♋♌♍♎♏♐♑♒♓ for signs. Use „შენ" perspective.
-- English: formal-literary, elevated tone. Use "you" perspective.
-- Reference actual orbs and chart context when it adds precision
+aspectInterpretations rules (MANDATORY — do NOT omit this array):
+- Include EVERY aspect listed in the "Key Aspects" section of the user message
+- Mark the 3 most psychologically significant as "high" (tight orb + personal planets + nodal axis + angles)
+- Each interpretation: 1-2 sentences, chart-specific — not generic definitions
+- LANGUAGE: Write each interpretation in the SAME language as the rest of the reading. If Georgian → Georgian. If English → English. Mixing languages is a critical error.
+  ✓ Georgian: „შენს ვენერასა და მარსს შორის არსებული ზუსტი სექსტილი (0.62° ორბი) ჰარმონიულ და მიმზიდველ ენერგიას ქმნის..."
+  ✗ Georgian reading with English interpretation: "With Venus forming a sextile..." — NEVER do this
+- Use "you"/"შენ" perspective. Reference actual orbs and placements when it adds precision.
 ```
+
+
+# PART E — (retired — aspect interpretations now in Call 2 PART D)

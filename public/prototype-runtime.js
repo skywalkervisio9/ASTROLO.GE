@@ -1839,12 +1839,23 @@ function _stripPrefix(title) {
   return idx !== -1 ? title.slice(idx + 2) : (title || '');
 }
 
+var _GLYPH_IDS = { sun:1, moon:1, venus:1, mars:1, mercury:1, jupiter:1, saturn:1, uranus:1, neptune:1, pluto:1, lilith:1, node:1, asc:1 };
+var _GLYPH_ALIAS = { 'north node':'node', 'south node':'node' };
+// Text acronyms rendered as styled text badges; symbol fallbacks rendered as glyphs
+var _GLYPH_ACRONYM = { ascendant:'ASC', midheaven:'MC', mc:'MC', ic:'IC', descendant:'DSC' };
+var _GLYPH_SYMBOL = { chiron:'⚷' };
 function _planetGlyph(name) {
   if (!name) return '';
-  // Resolve Georgian names to English keys, handle 'north node' → 'node'
   var key = (PLANET_KA_REV[name] || name).toLowerCase().replace('north node','node').replace('south node','node');
-  var id = 'gl-' + key;
-  return '<span class="gi gi-pl"><svg><use href="#' + id + '"/></svg></span>';
+  var resolved = _GLYPH_ALIAS[key] || key;
+  if (_GLYPH_IDS[resolved]) {
+    return '<span class="gi gi-pl"><svg><use href="#gl-' + resolved + '"/></svg></span>';
+  }
+  var acr = _GLYPH_ACRONYM[key] || _GLYPH_ACRONYM[resolved];
+  if (acr) return '<span class="gi-acr">' + acr + '</span>';
+  var sym = _GLYPH_SYMBOL[key] || _GLYPH_SYMBOL[resolved];
+  if (sym) return '<span class="gi gi-pl">' + sym + '</span>';
+  return '';
 }
 
 function _signGlyph(signName, element) {
@@ -1893,34 +1904,40 @@ function _buildPlanetRow(row) {
 
 function _buildAspect(asp) {
   if (!asp || typeof asp !== 'object') return '';
-  const typeLabel = {
+  var aspectSymbols = {
+    conjunction: '☌', trine: '△', square: '□', opposition: '☍', sextile: '⚹'
+  };
+  var typeLabel = {
     conjunction: 'კონიუნქცია', trine: 'ტრინი', square: 'კვადრატი',
     opposition: 'ოპოზიცია', sextile: 'სექსტილი'
   };
-  const aspectSymbols = {
-    conjunction: '☌', trine: '△', square: '□', opposition: '☍', sextile: '⚹'
-  };
+  // Aspect nature for color-coded left border
+  var natureClass = { conjunction: 'al-conj', trine: 'al-harm', sextile: 'al-harm', square: 'al-tens', opposition: 'al-tens' };
   var aspectType = asp.aspectType || asp.aspect || asp.type || '';
   var symbol = asp.aspectSymbol || aspectSymbols[aspectType] || '';
   var p1Name = asp.planet1 || asp.planet_1 || asp.body1 || '';
   var p2Name = asp.planet2 || asp.planet_2 || asp.body2 || '';
   var p1 = _tr(PLANET_KA, p1Name);
   var p2 = _tr(PLANET_KA, p2Name);
-  var orbStr = asp.orb != null ? ' · ' + asp.orb + '°' : '';
+  var orbStr = asp.orb != null ? asp.orb + '°' : '';
   var typeLbl = _hydrateLang === 'ka' ? (typeLabel[aspectType] || aspectType) : aspectType;
-  var isHigh = asp.significance === 'high';
-  var interp = asp.interpretation || '';
-  return '<div class="al' + (isHigh ? ' al-hi' : '') + '">' +
-    '<div class="al-row">' +
+  var hasInterp = Boolean(asp.interpretation);
+  // al-hi = has interpretation in expanded section (brighter bg + ★)
+  var cls = 'al ' + (natureClass[aspectType] || '') + (hasInterp ? ' al-hi' : '');
+  // Acronym glyphs (MC, IC, DSC, ASC) ARE the label — don't repeat. Symbol glyphs (⚷) keep the name.
+  var g1 = _planetGlyph(p1Name);
+  var g2 = _planetGlyph(p2Name);
+  var isAcr1 = g1.indexOf('gi-acr') !== -1;
+  var isAcr2 = g2.indexOf('gi-acr') !== -1;
+  return '<div class="' + cls + '">' +
     '<span class="asy">' + _esc(symbol) + '</span>' +
-    _planetGlyph(p1Name) + ' ' + _esc(p1) + ' ' +
-    _esc(symbol) + ' ' +
-    _planetGlyph(p2Name) + ' ' + _esc(p2) +
-    '<span class="alb">' + _esc(typeLbl) + '</span>' +
-    (orbStr ? '<span class="al-orb">' + _esc(orbStr) + '</span>' : '') +
-    (isHigh ? '<span class="al-star">★</span>' : '') +
-    '</div>' +
-    (interp ? '<p class="al-it">' + _renderRichText(interp) + '</p>' : '') +
+    '<span class="al-p">' + g1 + (isAcr1 ? '' : ' ' + _esc(p1)) + '</span>' +
+    '<span class="al-p">' + g2 + (isAcr2 ? '' : ' ' + _esc(p2)) + '</span>' +
+    '<span class="alb">' +
+    '<span class="al-type">' + _esc(typeLbl) + '</span>' +
+    '<span class="al-orb">' + _esc(orbStr) + '</span>' +
+    (hasInterp ? '<span class="al-star">★</span>' : '') +
+    '</span>' +
     '</div>';
 }
 
@@ -2066,7 +2083,9 @@ function hydrateReading(reading, user) {
   if (!reading || !user) return;
   _currentUser = user; // store for lang switch re-hydration
   _currentReading = reading; // store for tier switch re-hydration
-  _hydrateLang = (reading.meta && reading.meta.language) || 'ka';
+  // Derive language from body class (set by setLang before hydrateReading is called).
+  // Do NOT rely on reading.meta.language — meta is stripped from new readings (i10+).
+  _hydrateLang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
   console.log('[HYDRATE] Starting reading hydration', { user: user.full_name, lang: _hydrateLang });
 
   // 1. Sidebar user info
@@ -2087,26 +2106,25 @@ function hydrateReading(reading, user) {
   if (user.natal_chart_unlocked && user.account_type === 'invited') mappedTier = 'invited-plus';
   setTier(mappedTier, null);
 
-  // 3. Hero chips
+  // 3. Hero chips — sourced from overview.planetTable + overview.points (no meta dependency)
   var heroChips = document.querySelector('.hero-chips');
-  if (heroChips && reading.meta) {
-    var meta = reading.meta;
+  if (heroChips) {
     var pName = function(r) { return (r.planet || r.name || '').toLowerCase(); };
-    var sun = reading.overview?.planetTable?.find(function(r) { return pName(r) === 'sun'; });
-    var moon = reading.overview?.planetTable?.find(function(r) { return pName(r) === 'moon'; });
+    var sun = (reading.overview?.planetTable || []).find(function(r) { return pName(r) === 'sun'; });
+    var moon = (reading.overview?.planetTable || []).find(function(r) { return pName(r) === 'moon'; });
     var pts = reading.overview?.points || {};
 
     var _signDeg = function(sign, degree) {
       return _tr(SIGN_KA, sign) + (degree ? ' ' + degree : '');
     };
     var chips = '';
-    chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-sun"/></svg></span> ' + _esc(_signDeg(meta.sunSign || (sun ? sun.sign : ''), sun ? sun.degree : '')) + '</span>';
-    chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-moon"/></svg></span> ' + _esc(_signDeg(meta.moonSign || (moon ? moon.sign : ''), moon ? moon.degree : '')) + '</span>';
+    if (sun) chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-sun"/></svg></span> ' + _esc(_signDeg(sun.sign, sun.degree)) + '</span>';
+    if (moon) chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-moon"/></svg></span> ' + _esc(_signDeg(moon.sign, moon.degree)) + '</span>';
     if (pts.ascendant) chips += '<span><span class="chip-label">ASC</span> ' + _esc(_signDeg(pts.ascendant.sign, pts.ascendant.degree)) + '</span>';
     if (pts.midheaven) chips += '<span><span class="chip-label">MC</span> ' + _esc(_signDeg(pts.midheaven.sign, pts.midheaven.degree)) + '</span>';
     if (pts.ic) chips += '<span><span class="chip-label">IC</span> ' + _esc(_signDeg(pts.ic.sign, pts.ic.degree)) + '</span>';
     if (pts.descendant) chips += '<span><span class="chip-label">DSC</span> ' + _esc(_signDeg(pts.descendant.sign, pts.descendant.degree)) + '</span>';
-    heroChips.innerHTML = chips;
+    if (chips) heroChips.innerHTML = chips;
   }
 
   // 4. Update mini-chart with real planet positions
@@ -2137,7 +2155,7 @@ function hydrateReading(reading, user) {
       SECTION_KEYS.forEach(function(key, i) {
         var sec = reading[key];
         var accessible = _canAccess(user, key);
-        var lang = (reading.meta && reading.meta.language) || 'ka';
+        var lang = _hydrateLang;
         var navLabels = SECTION_NAV_LABELS[lang] || SECTION_NAV_LABELS.ka;
         var label = navLabels[key] || key;
         nbHtml += '<button class="nbtn' + (i === 0 ? ' active' : '') + (!accessible ? ' locked' : '') + '" onclick="go(\'s' + (i + 1) + '\')">';

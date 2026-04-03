@@ -114,21 +114,3 @@ Word count target: 5,000-6,000 words total.
 Minimum cards per section: overview 3, mission 4, characteristics 4, relationships 4, work 4, shadow 4, spiritual 4, potential 2.`;
 }
 
-/**
- * Call 3 system prompt — Aspect Interpretations (bilingual, single call)
- * Extracts PART E from the prompt specification
- */
-export function getNatalCall3Prompt(): string {
-  const spec = loadPromptSpec();
-  const partE = extractSection(spec, '# PART E', '# PART F');
-  if (partE) return partE;
-
-  // Fallback
-  return `You are a natal chart astrologer. Given a list of planetary aspects and chart analysis, write brief psychological interpretations.
-
-Output a single JSON array only. No code fences. No text outside the array.
-
-Each element: { "planet1": "string", "planet2": "string", "aspect": "string", "interpretation_ka": "Georgian 1-2 sentences", "interpretation_en": "English 1-2 sentences", "significance": "high|normal" }
-
-Mark top 3 most important aspects as "high". Each interpretation: 1-2 sentences, specific to this chart. Use "შენ"/"you" perspective.`;
-}

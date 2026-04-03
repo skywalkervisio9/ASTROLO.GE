@@ -14,7 +14,6 @@ import {
 import {
   getNatalCall1Prompt,
   getNatalCall2Prompt,
-  getNatalCall3Prompt,
 } from './prompts/natal';
 import {
   getSynastryCall1Prompt,
@@ -32,8 +31,7 @@ export interface AspectInterpretation {
   planet1: string;
   planet2: string;
   aspect: string;
-  interpretation_ka: string;
-  interpretation_en: string;
+  interpretation: string; // single language — matches the Call 2 language
   significance: 'high' | 'normal';
 }
 
@@ -41,15 +39,14 @@ export interface NatalPipelineResult {
   analysis: string;
   readingKa: Record<string, unknown>;
   readingEn: Record<string, unknown>;
-  aspectInterpretations: AspectInterpretation[];
+  aspectInterpretationsKa: AspectInterpretation[];
+  aspectInterpretationsEn: AspectInterpretation[];
   meta: {
     modelCall1: string;
     modelCall2: string;
-    modelCall3: string;
     tokensCall1: number;
     tokensCall2Ka: number;
     tokensCall2En: number;
-    tokensCall3: number;
     validationWarnings: string[];
   };
 }
@@ -66,90 +63,55 @@ export async function generateNatalReading(
     false
   );
 
-  // Call 2: Full reading — run KA then EN sequentially to avoid Gemini throttling
-  const userMsg = `Chart Analysis:\n${call1.text}\n\nOriginal Chart Data:\n${chartContext}`;
+  // Build Call 2 user message — include aspects list so AI writes aspectInterpretations
+  const aspectsSection = chartAspects && chartAspects.length > 0
+    ? `\n\nKey Aspects (write interpretations for each in aspectInterpretations):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
+    : '';
+  const userMsg = `Chart Analysis:\n${call1.text}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
 
+  // Call 2: Full reading — run KA then EN sequentially to avoid Gemini throttling
+  // Each call returns per-language aspectInterpretations extracted from the JSON
   const readingKa = await generateSingleReading(userMsg, 'ka');
   const readingEn = await generateSingleReading(userMsg, 'en');
 
-  // Call 3: Aspect interpretations (bilingual, single call) — runs in parallel with nothing
-  let aspectInterpretations: AspectInterpretation[] = [];
-  let call3Model = 'skipped';
-  let call3Tokens = 0;
-  if (chartAspects && chartAspects.length > 0) {
-    try {
-      const call3 = await generateAspectInterpretations(chartAspects, call1.text);
-      aspectInterpretations = call3.interpretations;
-      call3Model = call3.model;
-      call3Tokens = call3.tokens;
-    } catch (err) {
-      console.warn('[pipeline] Call 3 (aspects) failed, proceeding without interpretations:', err);
-    }
-  }
+  // Fallback: if KA has no interpretations but EN does, use EN (better than nothing)
+  const interpKa = readingKa.aspectInterpretations.length > 0
+    ? readingKa.aspectInterpretations
+    : readingEn.aspectInterpretations;
+  const interpEn = readingEn.aspectInterpretations.length > 0
+    ? readingEn.aspectInterpretations
+    : readingKa.aspectInterpretations;
 
   return {
     analysis: call1.text,
     readingKa: readingKa.parsed,
     readingEn: readingEn.parsed,
-    aspectInterpretations,
+    aspectInterpretationsKa: interpKa,
+    aspectInterpretationsEn: interpEn,
     meta: {
       modelCall1: call1.model,
       modelCall2: readingKa.model,
-      modelCall3: call3Model,
       tokensCall1: call1.inputTokens + call1.outputTokens,
       tokensCall2Ka: readingKa.inputTokens + readingKa.outputTokens,
       tokensCall2En: readingEn.inputTokens + readingEn.outputTokens,
-      tokensCall3: call3Tokens,
       validationWarnings: [...readingKa.warnings, ...readingEn.warnings],
     },
   };
 }
 
-async function generateAspectInterpretations(
-  aspects: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>,
-  chartAnalysis: string
-): Promise<{ interpretations: AspectInterpretation[]; model: string; tokens: number }> {
-  const aspectList = aspects
-    .map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`)
-    .join('\n');
-
-  const userMessage = `Aspects to interpret:\n${aspectList}\n\nChart Analysis:\n${chartAnalysis.slice(0, 8000)}`;
-
-  const response = await callClaude(getNatalCall3Prompt(), userMessage, 4000);
-
-  let parsed: unknown;
-  try {
-    const cleaned = response.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
-    parsed = JSON.parse(cleaned);
-  } catch {
-    // Try extracting array
-    const start = response.text.indexOf('[');
-    const end = response.text.lastIndexOf(']');
-    if (start !== -1 && end > start) {
-      parsed = JSON.parse(response.text.slice(start, end + 1));
-    } else {
-      throw new Error('Call 3 response did not contain parseable JSON array');
-    }
-  }
-
-  if (!Array.isArray(parsed)) throw new Error('Call 3 response is not an array');
-
-  const interpretations = (parsed as Record<string, unknown>[])
+/** Extract and normalize aspectInterpretations from raw Call 2 JSON */
+function extractAspectInterpretations(raw: Record<string, unknown>): AspectInterpretation[] {
+  const arr = raw.aspectInterpretations;
+  if (!Array.isArray(arr)) return [];
+  return (arr as Record<string, unknown>[])
     .filter(item => item.planet1 && item.planet2 && item.aspect)
     .map(item => ({
       planet1: String(item.planet1),
       planet2: String(item.planet2),
       aspect: String(item.aspect),
-      interpretation_ka: String(item.interpretation_ka || ''),
-      interpretation_en: String(item.interpretation_en || ''),
+      interpretation: String(item.interpretation || ''),
       significance: (item.significance === 'high' ? 'high' : 'normal') as 'high' | 'normal',
     }));
-
-  return {
-    interpretations,
-    model: response.model,
-    tokens: response.inputTokens + response.outputTokens,
-  };
 }
 
 async function generateSingleReading(
@@ -157,6 +119,7 @@ async function generateSingleReading(
   language: Language
 ): Promise<{
   parsed: Record<string, unknown>;
+  aspectInterpretations: AspectInterpretation[];
   warnings: string[];
   model: string;
   inputTokens: number;
@@ -168,9 +131,11 @@ async function generateSingleReading(
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await callClaude(prompt, userMessage, 38000);
-      let parsed = normalizeNatalReadingShape(
-        await parseOrRepairJSON(response.text) as Record<string, unknown>
-      );
+      const raw = await parseOrRepairJSON(response.text) as Record<string, unknown>;
+      // Extract aspect interpretations before normalization (normalizer would drop unknown keys)
+      const aspectInterpretations = extractAspectInterpretations(raw);
+      delete raw.aspectInterpretations;
+      let parsed = normalizeNatalReadingShape(raw);
       let validation = validateNatalReading(parsed);
 
       if (!validation.valid) {
@@ -188,6 +153,7 @@ async function generateSingleReading(
 
       return {
         parsed,
+        aspectInterpretations,
         warnings: validation.warnings.map((w) => `[${language}] ${w}`),
         model: response.model,
         inputTokens: response.inputTokens,

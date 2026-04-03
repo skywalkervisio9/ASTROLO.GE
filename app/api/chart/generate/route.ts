@@ -10,6 +10,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { getChartData } from '@/lib/astrology/api';
 import { generateNatalReading, type AspectInterpretation } from '@/lib/AIgeneration/pipeline';
+
+type SingleLangInterp = Pick<AspectInterpretation, 'planet1' | 'planet2' | 'aspect' | 'interpretation' | 'significance'>;
 import { PROMPT_VERSION } from '@/lib/AIgeneration/prompts/natal';
 import { LUKA_CHART_CONTEXT, LUKA_CHART_DATA } from '@/lib/dev/test-charts';
 import type { GenerateChartRequest } from '@/types/api';
@@ -261,17 +263,16 @@ interface StoredAspect {
 }
 
 /**
- * Merge chart_data aspects with AI-generated interpretations.
+ * Merge chart_data aspects with AI-generated interpretations (single language).
  * Adds symbol fields, matches interpretation by planet1+planet2+aspect key.
  */
 function mergeAspectsForReading(
   aspects: StoredAspect[] | null,
-  interpretations: AspectInterpretation[],
-  lang: 'ka' | 'en'
+  interpretations: SingleLangInterp[]
 ): unknown[] {
   if (!aspects || aspects.length === 0) return [];
 
-  const interpMap = new Map<string, AspectInterpretation>();
+  const interpMap = new Map<string, SingleLangInterp>();
   for (const interp of interpretations) {
     const key = `${interp.planet1}+${interp.planet2}+${interp.aspect}`;
     interpMap.set(key, interp);
@@ -290,7 +291,7 @@ function mergeAspectsForReading(
       aspectType: a.aspect,
       aspectSymbol: ASPECT_SYMBOLS[a.aspect] ?? '',
       orb: a.orb,
-      interpretation: interp ? (lang === 'ka' ? interp.interpretation_ka : interp.interpretation_en) : '',
+      interpretation: interp?.interpretation ?? '',
       significance: interp?.significance ?? 'normal',
     };
   });
@@ -472,8 +473,8 @@ export async function POST(req: NextRequest) {
 
     // Inject chart_data into readings (planetTable + aspects) and strip meta
     const planetTable = buildPlanetTableForReading(storedPlanets, storedPoints);
-    const aspectsKa = mergeAspectsForReading(storedAspects, result.aspectInterpretations, 'ka');
-    const aspectsEn = mergeAspectsForReading(storedAspects, result.aspectInterpretations, 'en');
+    const aspectsKa = mergeAspectsForReading(storedAspects, result.aspectInterpretationsKa);
+    const aspectsEn = mergeAspectsForReading(storedAspects, result.aspectInterpretationsEn);
 
     function injectAndClean(reading: Record<string, unknown>, aspects: unknown[]): Record<string, unknown> {
       const r = { ...reading };

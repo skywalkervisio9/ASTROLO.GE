@@ -5,7 +5,7 @@
 
 import type { BirthData } from '@/types/chart';
 
-const RAPIDAPI_HOST = 'astrologer.p.rapidapi.com';
+const RAPIDAPI_HOST = process.env.RAPIDAPI_HOST ?? 'astrologer.p.rapidapi.com';
 
 interface AstrologerResponse {
   context: string;         // Text description for Claude
