@@ -69,10 +69,11 @@ export async function generateNatalReading(
     : '';
   const userMsg = `Chart Analysis:\n${call1.text}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
 
-  // Call 2: Full reading — run KA then EN sequentially to avoid Gemini throttling
-  // Each call returns per-language aspectInterpretations extracted from the JSON
-  const readingKa = await generateSingleReading(userMsg, 'ka');
-  const readingEn = await generateSingleReading(userMsg, 'en');
+  // Call 2: Full reading — KA + EN in parallel (both depend on Call 1, not each other)
+  const [readingKa, readingEn] = await Promise.all([
+    generateSingleReading(userMsg, 'ka'),
+    generateSingleReading(userMsg, 'en'),
+  ]);
 
   // Fallback: if KA has no interpretations but EN does, use EN (better than nothing)
   const interpKa = readingKa.aspectInterpretations.length > 0
