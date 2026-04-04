@@ -687,6 +687,28 @@ function toggleExp(btn) {
   btn.textContent = open ? 'ნაკლები ↑' : btn._origText;
 }
 
+function openAspInterp(row) {
+  var key = row.getAttribute('data-asp-key');
+  var parent = row.parentElement;
+  var btn = parent.querySelector('.tb2');
+  var ce = btn && btn.nextElementSibling;
+  if (!ce) return;
+  if (!ce.classList.contains('open')) {
+    if (!btn._origText) btn._origText = btn.textContent;
+    ce.classList.add('open');
+    btn.textContent = 'ნაკლები ↑';
+  }
+  var entry = ce.querySelector('[data-asp-key="' + key + '"]');
+  if (!entry) return;
+  setTimeout(function() {
+    entry.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    entry.classList.remove('ai-pulse');
+    void entry.offsetWidth; // reflow to restart animation
+    entry.classList.add('ai-pulse');
+    setTimeout(function() { entry.classList.remove('ai-pulse'); }, 1800);
+  }, 320);
+}
+
 
 // ═══ STARS ═══
 (function() {
@@ -1902,6 +1924,18 @@ function _buildPlanetRow(row) {
     '</tr>';
 }
 
+var _aspTypeLabel = {
+  ka: { conjunction: 'კონიუნქცია', trine: 'ტრინი', square: 'კვადრატი', opposition: 'ოპოზიცია', sextile: 'სექსტილი' },
+  en: { conjunction: 'conjunction', trine: 'trine', square: 'square', opposition: 'opposition', sextile: 'sextile' }
+};
+
+function _aspectGlyph(type) {
+  var ids = { conjunction: 'gl-conjunction', trine: 'gl-trine', square: 'gl-square', sextile: 'gl-sextile', opposition: 'gl-opposition' };
+  var id = ids[type];
+  if (!id) return '';
+  return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-1px"><use href="#' + id + '"/></svg>';
+}
+
 function _buildAspect(asp) {
   if (!asp || typeof asp !== 'object') return '';
   var aspectSymbols = {
@@ -1922,15 +1956,17 @@ function _buildAspect(asp) {
   var orbStr = asp.orb != null ? asp.orb + '°' : '';
   var typeLbl = _hydrateLang === 'ka' ? (typeLabel[aspectType] || aspectType) : aspectType;
   var hasInterp = Boolean(asp.interpretation);
+  var aspKey = (p1Name + '__' + p2Name).replace(/\s+/g, '').toLowerCase();
   // al-hi = has interpretation in expanded section (brighter bg + ★)
   var cls = 'al ' + (natureClass[aspectType] || '') + (hasInterp ? ' al-hi' : '');
+  var clickAttr = hasInterp ? ' data-asp-key="' + aspKey + '" onclick="openAspInterp(this)"' : '';
   // Acronym glyphs (MC, IC, DSC, ASC) ARE the label — don't repeat. Symbol glyphs (⚷) keep the name.
   var g1 = _planetGlyph(p1Name);
   var g2 = _planetGlyph(p2Name);
   var isAcr1 = g1.indexOf('gi-acr') !== -1;
   var isAcr2 = g2.indexOf('gi-acr') !== -1;
-  return '<div class="' + cls + '">' +
-    '<span class="asy">' + _esc(symbol) + '</span>' +
+  return '<div class="' + cls + '"' + clickAttr + '>' +
+    '<span class="asy">' + (_aspectGlyph(aspectType) || _esc(symbol)) + '</span>' +
     '<span class="al-p">' + g1 + (isAcr1 ? '' : ' ' + _esc(p1)) + '</span>' +
     '<span class="al-p">' + g2 + (isAcr2 ? '' : ' ' + _esc(p2)) + '</span>' +
     '<span class="alb">' +
@@ -2054,8 +2090,33 @@ function _buildSectionContent(sectionKey, section) {
       if (interps.length) {
         html += '<button class="tb2" onclick="toggleExp(this)">' + (_hydrateLang === 'ka' ? 'ასპექტების ინტერპრეტაცია ↓' : 'Aspect Interpretations ↓') + '</button>';
         html += '<div class="ce">';
+        var _aiNature = { trine: 'al-harm', sextile: 'al-harm', square: 'al-tens', opposition: 'al-tens', conjunction: 'al-conj' };
         interps.forEach(function(a) {
-          html += '<p><strong>' + _esc(_tr(PLANET_KA, a.planet1)) + ' ' + _esc(a.aspectSymbol || '') + ' ' + _esc(_tr(PLANET_KA, a.planet2)) + ':</strong> ' + _esc(a.interpretation) + '</p>';
+          var _aType = a.aspectType || a.aspect || a.type || '';
+          var _nc = _aiNature[_aType] || '';
+          var _p1Name = a.planet1 || '';
+          var _p2Name = a.planet2 || '';
+          var _aspKey = (_p1Name + '__' + _p2Name).replace(/\s+/g, '').toLowerCase();
+          var _g1 = _planetGlyph(_p1Name);
+          var _g2 = _planetGlyph(_p2Name);
+          var _isAcr1 = _g1.indexOf('gi-acr') !== -1;
+          var _isAcr2 = _g2.indexOf('gi-acr') !== -1;
+          var _p1 = _tr(PLANET_KA, _p1Name);
+          var _p2 = _tr(PLANET_KA, _p2Name);
+          var _orbStr = a.orb != null ? a.orb + '°' : '';
+          var _typeLbl = (_aspTypeLabel[_hydrateLang] || _aspTypeLabel.ka)[_aType] || _aType;
+          html += '<div class="ai-entry ' + _nc + '" data-asp-key="' + _aspKey + '">' +
+            '<div class="al ' + _nc + '">' +
+              '<span class="asy">' + (_aspectGlyph(_aType) || _esc(a.aspectSymbol || '')) + '</span>' +
+              '<span class="al-p">' + _g1 + (_isAcr1 ? '' : ' ' + _esc(_p1)) + '</span>' +
+              '<span class="al-p">' + _g2 + (_isAcr2 ? '' : ' ' + _esc(_p2)) + '</span>' +
+              '<span class="alb">' +
+                '<span class="al-type">' + _esc(_typeLbl) + '</span>' +
+                '<span class="al-orb">' + _esc(_orbStr) + '</span>' +
+              '</span>' +
+            '</div>' +
+            '<div class="ai-body"><p>' + _renderRichText(a.interpretation) + '</p></div>' +
+          '</div>';
         });
         html += '</div>';
       }
