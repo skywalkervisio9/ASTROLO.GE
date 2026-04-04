@@ -735,11 +735,6 @@ window.addEventListener('scroll', () => {
   }
   document.getElementById('scrollTop').classList.toggle('show', window.scrollY > 600);
 
-  // Reading progress (natal)
-  const progFill = document.getElementById('progFill');
-  if (progFill) {
-    // Updated in observer
-  }
 });
 
 // ═══ OBSERVERS ═══
@@ -1780,8 +1775,59 @@ function _renderRichText(text) {
   return result;
 }
 
-// Detect numbered lists in a paragraph and render as <ol>
-// Pattern: "1. text\n2. text" or "1. text 2. text" within a single body string
+// Render a body string array; consecutive "N. Title: desc" items become a two-column definition layout
+function _buildBodyHtml(arr, richFn) {
+  var fn = richFn || _renderRichText;
+  // Flatten embedded newlines so each line is a separate entry
+  var flat = [];
+  (arr || []).forEach(function(s) {
+    if (!s) return;
+    if (s.indexOf('\n') !== -1) {
+      s.split('\n').forEach(function(l) { if (l.trim()) flat.push(l.trim()); });
+    } else {
+      flat.push(s);
+    }
+  });
+  var html = '';
+  var i = 0;
+  while (i < flat.length) {
+    var s = flat[i];
+    if (/^\d+\.\s/.test(s)) {
+      html += '<div class="cl">';
+      while (i < flat.length && /^\d+\.\s/.test(flat[i])) {
+        var content = flat[i].replace(/^\d+\.\s+/, '');
+        var title = '', body = content;
+        var boldMatch = content.match(/^\*\*(.+?)\*\*:?\s*([\s\S]*)/);
+        if (boldMatch) {
+          title = boldMatch[1]; body = boldMatch[2];
+        } else {
+          var colonMatch = content.match(/^([^:.\n]{3,55}):\s+([\s\S]*)/);
+          if (colonMatch) { title = colonMatch[1]; body = colonMatch[2]; }
+        }
+        if (title) {
+          html += '<div class="cl-row"><span class="cl-t">' + fn(title) + '</span><span class="cl-b">' + fn(body) + '</span></div>';
+        } else {
+          html += '<div class="cl-row"><span class="cl-b cl-b-full">' + fn(content) + '</span></div>';
+        }
+        i++;
+      }
+      html += '</div>';
+    } else {
+      // Detect section intro: short line ending with ':' (with or without **bold** wrapping)
+      var _bare = s.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
+      if (/^[^.\n]{4,90}:\s*$/.test(_bare)) {
+        var _dl = '<span class="cl-dl"><i></i><i></i><i></i></span>';
+        var _dr = '<span class="cl-dr"><i></i><i></i><i></i></span>';
+        html += '<p class="cl-intro">' + _dl + fn(_bare.replace(/:\s*$/, '')) + _dr + '</p>';
+      } else {
+        html += '<p>' + fn(s) + '</p>';
+      }
+      i++;
+    }
+  }
+  return html;
+}
+
 // Like _renderRichText but without tooltips on ASC/MC/IC/℞ (for use inside popups)
 function _renderRichTextNoTip(text) {
   if (!text) return '';
@@ -1938,23 +1984,15 @@ function _aspectGlyph(type) {
 
 function _buildAspect(asp) {
   if (!asp || typeof asp !== 'object') return '';
-  var aspectSymbols = {
-    conjunction: '☌', trine: '△', square: '□', opposition: '☍', sextile: '⚹'
-  };
-  var typeLabel = {
-    conjunction: 'კონიუნქცია', trine: 'ტრინი', square: 'კვადრატი',
-    opposition: 'ოპოზიცია', sextile: 'სექსტილი'
-  };
   // Aspect nature for color-coded left border
   var natureClass = { conjunction: 'al-conj', trine: 'al-harm', sextile: 'al-harm', square: 'al-tens', opposition: 'al-tens' };
   var aspectType = asp.aspectType || asp.aspect || asp.type || '';
-  var symbol = asp.aspectSymbol || aspectSymbols[aspectType] || '';
   var p1Name = asp.planet1 || asp.planet_1 || asp.body1 || '';
   var p2Name = asp.planet2 || asp.planet_2 || asp.body2 || '';
   var p1 = _tr(PLANET_KA, p1Name);
   var p2 = _tr(PLANET_KA, p2Name);
   var orbStr = asp.orb != null ? asp.orb + '°' : '';
-  var typeLbl = _hydrateLang === 'ka' ? (typeLabel[aspectType] || aspectType) : aspectType;
+  var typeLbl = (_aspTypeLabel[_hydrateLang] || _aspTypeLabel.ka)[aspectType] || aspectType;
   var hasInterp = Boolean(asp.interpretation);
   var aspKey = (p1Name + '__' + p2Name).replace(/\s+/g, '').toLowerCase();
   // al-hi = has interpretation in expanded section (brighter bg + ★)
@@ -1966,7 +2004,7 @@ function _buildAspect(asp) {
   var isAcr1 = g1.indexOf('gi-acr') !== -1;
   var isAcr2 = g2.indexOf('gi-acr') !== -1;
   return '<div class="' + cls + '"' + clickAttr + '>' +
-    '<span class="asy">' + (_aspectGlyph(aspectType) || _esc(symbol)) + '</span>' +
+    '<span class="asy">' + (_aspectGlyph(aspectType) || _esc(asp.aspectSymbol || '')) + '</span>' +
     '<span class="al-p">' + g1 + (isAcr1 ? '' : ' ' + _esc(p1)) + '</span>' +
     '<span class="al-p">' + g2 + (isAcr2 ? '' : ' ' + _esc(p2)) + '</span>' +
     '<span class="alb">' +
@@ -1986,13 +2024,13 @@ function _buildCard(card) {
   html += '<h3>' + _esc(card.title) + '</h3>';
   if (card.body && card.body.length) {
     var bodyArr = Array.isArray(card.body) ? card.body : [card.body];
-    bodyArr.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
+    html += _buildBodyHtml(bodyArr);
   }
   if (card.expandedContent && card.expandedContent.length) {
     html += '<button class="tb2" onclick="toggleExp(this)">' + (_hydrateLang === 'ka' ? 'დეტალური ანალიზი ↓' : 'Detailed Analysis ↓') + '</button>';
     html += '<div class="ce">';
     var ecArr = Array.isArray(card.expandedContent) ? card.expandedContent : [card.expandedContent];
-    ecArr.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
+    html += _buildBodyHtml(ecArr);
     html += '</div>';
   }
   if (card.hint) {
@@ -2094,8 +2132,8 @@ function _buildSectionContent(sectionKey, section) {
         interps.forEach(function(a) {
           var _aType = a.aspectType || a.aspect || a.type || '';
           var _nc = _aiNature[_aType] || '';
-          var _p1Name = a.planet1 || '';
-          var _p2Name = a.planet2 || '';
+          var _p1Name = a.planet1 || a.planet_1 || a.body1 || '';
+          var _p2Name = a.planet2 || a.planet_2 || a.body2 || '';
           var _aspKey = (_p1Name + '__' + _p2Name).replace(/\s+/g, '').toLowerCase();
           var _g1 = _planetGlyph(_p1Name);
           var _g2 = _planetGlyph(_p2Name);
