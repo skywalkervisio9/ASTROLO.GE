@@ -22,6 +22,10 @@ import { requireCsrfOrThrow } from '@/lib/auth/csrf';
 import { clearOnboardingToken } from '@/lib/auth/onboarding';
 import crypto from 'crypto';
 
+// This handler performs long-running network work (external astrology API + LLM calls),
+// so it must run on the Node.js runtime on Vercel (Edge functions time out quickly).
+export const runtime = 'nodejs';
+
 function generateShareSlug(): string {
   // 8-char URL-safe slug (base36 = lowercase alphanumeric)
   return crypto.randomBytes(6).toString('base64url').slice(0, 8).toLowerCase();
