@@ -924,13 +924,13 @@ const plData = {
     sun: { t: '☉ მზე', b: 'იდენტობა, ეგო და ცხოვრების ძირითადი ენერგია. მზე აჩვენებს ვინ ხარ შენს ბირთვში.' },
     moon: { t: '☽ მთვარე', b: 'ემოციები, ინსტინქტები და შინაგანი სამყარო. მთვარე აჩვენებს როგორ გრძნობ, რა გჭირდება უსაფრთხოებისთვის.' },
     mercury: { t: '☿ მერკური', b: 'გონება, კომუნიკაცია და აღქმის სტილი. მერკური აჩვენებს როგორ ფიქრობ, სწავლობ და გადმოსცემ ინფორმაციას.' },
-    venus: { t: '♀ ვენერა', b: 'სიყვარული, სილამაზე და ღირებულებები. ვენერა აჩვენებს რას იზიდავ, როგორ უყვარხარ და რა არის შენთვის ლამაზი.' },
-    mars: { t: '♂ მარსი', b: 'ნება, მოქმედება და სურვილი. მარსი აჩვენებს როგორ იბრძვი, რა გაღიზიანებს და სად მიმართავ ენერგიას.' },
-    jupiter: { t: '♃ იუპიტერი', b: 'გაფართოება, სიბრძნე და კეთილდღეობა. იუპიტერი აჩვენებს სად იზრდები, სად გემართლება.' },
+    venus: { t: '♀ ვენერა', b: 'სიყვარული, ესთეტიკა და ღირებულებები. ვენერა გვიჩვენებს, სად ეძებ ჰარმონიას, რა გიტაცებს სილამაზით და როგორ ეკიდები სიახლოვეს.' },
+    mars: { t: '♂ მარსი', b: 'სურვილი, ძალა და ქმედება. მარსი გვიჩვენებს, სად მიაქვს ენერგია, როგორ იბრძვი შენი მიზნებისთვის და სად ვლინდება შენი ნება.' },
+    jupiter: { t: '♃ იუპიტერი', b: 'ზრდა, სიუხვე და ოპტიმიზმი. იუპიტერი გვიჩვენებს, სად ვიზრდებით ბუნებრივად, სად გვიმართლებს ბედი და რა ფილოსოფია გვმართავს.' },
     saturn: { t: '♄ სატურნი', b: 'სტრუქტურა, დისციპლინა და კარმული გაკვეთილები. სატურნი აჩვენებს სად არის შენი უდიდესი გამოწვევა.' },
-    uranus: { t: '♅ ურანი', b: 'თავისუფლება, ინოვაცია და გარღვევა. ურანი აჩვენებს სად ხარ ამბოხებელი, სად ეძებ ორიგინალურობას.' },
-    neptune: { t: '♆ ნეპტუნი', b: 'ოცნება, სულიერება და ტრანსცენდენცია. ნეპტუნი აჩვენებს სად ეძებ საღვთოს, სად ილუზიონირებ.' },
-    pluto: { t: '♇ პლუტონი', b: 'ტრანსფორმაცია, ძალაუფლება და აღდგენა. პლუტონი აჩვენებს სად ხდება ფსიქიკური სიკვდილ-აღდგომა.' }
+    uranus: { t: '♅ ურანი', b: 'თავისუფლება, გამოღვიძება და ინოვაცია. ურანი გვიჩვენებს, სად სცდები ჩვეულ ნორმებს, სად ეძებ ინდივიდუალობას და საიდან მოდის მოულოდნელი ცვლილება.' },
+    neptune: { t: '♆ ნეპტუნი', b: 'ოცნება, ინსპირაცია და სულიერება. ნეპტუნი გვიჩვენებს, სად ეძებ ტრანსცენდენტულს, სად იბინდდება საზღვრები და საიდან მოდის შენი ხილვა.' },
+    pluto: { t: '♇ პლუტონი', b: 'ტრანსფორმაცია, სიღრმე და განახლება. პლუტონი გვიჩვენებს, სად ხდება ყველაზე ღრმა ცვლილება, სად ეთხოვება ძველს და სად იბადება ახალი ძალა.' }
   },
   en: {
     sun: { t: '☉ Sun', b: 'Identity, ego, and core life energy. The Sun reveals who you are at your essence.' },
@@ -1775,8 +1775,9 @@ function _renderRichText(text) {
   return result;
 }
 
-// Render a body string array; consecutive "N. Title: desc" items become a two-column definition layout
-function _buildBodyHtml(arr, richFn) {
+// Render a body string array; consecutive "N. Title: desc" items become a two-column definition layout.
+// Pass simple=true (card body) to skip list detection — just rich-text paragraphs.
+function _buildBodyHtml(arr, richFn, simple) {
   var fn = richFn || _renderRichText;
   // Flatten embedded newlines so each line is a separate entry
   var flat = [];
@@ -1792,14 +1793,38 @@ function _buildBodyHtml(arr, richFn) {
   var i = 0;
   while (i < flat.length) {
     var s = flat[i];
-    if (/^\d+\.\s/.test(s)) {
+    if (simple) {
+      if (/^\d+\.\s/.test(s)) {
+        // Numbered items → refined counter list
+        html += '<ol class="nb-list">';
+        while (i < flat.length && /^\d+\.\s/.test(flat[i])) {
+          var _nb = flat[i].replace(/^\d+\.\s+/, '');
+          var _nbBold = _nb.match(/^\*\*(.+?)\*\*:?\s*([\s\S]*)/);
+          if (_nbBold) {
+            html += '<li class="nb-item"><strong class="nb-t">' + fn(_nbBold[1]) + '</strong><span class="nb-b">' + fn(_nbBold[2]) + '</span></li>';
+          } else {
+            html += '<li class="nb-item"><span class="nb-b">' + fn(_nb) + '</span></li>';
+          }
+          i++;
+        }
+        html += '</ol>';
+      } else {
+        // Non-numbered: skip bare intro-only lines (end with ':'), render rest as plain <p>
+        var _s = s;
+        var _bare2 = _s.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
+        if (!/^[^.\n]{4,90}:\s*$/.test(_bare2)) {
+          html += '<p>' + fn(_s) + '</p>';
+        }
+        i++;
+      }
+    } else if (/^\d+\.\s/.test(s)) {
       html += '<div class="cl">';
       while (i < flat.length && /^\d+\.\s/.test(flat[i])) {
         var content = flat[i].replace(/^\d+\.\s+/, '');
         var title = '', body = content;
         var boldMatch = content.match(/^\*\*(.+?)\*\*:?\s*([\s\S]*)/);
         if (boldMatch) {
-          title = boldMatch[1]; body = boldMatch[2];
+          title = boldMatch[1].replace(/:$/, '').trim(); body = boldMatch[2];
         } else {
           var colonMatch = content.match(/^([^:.\n]{3,55}):\s+([\s\S]*)/);
           if (colonMatch) { title = colonMatch[1]; body = colonMatch[2]; }
@@ -2024,13 +2049,13 @@ function _buildCard(card) {
   html += '<h3>' + _esc(card.title) + '</h3>';
   if (card.body && card.body.length) {
     var bodyArr = Array.isArray(card.body) ? card.body : [card.body];
-    html += _buildBodyHtml(bodyArr);
+    html += _buildBodyHtml(bodyArr, null, true); // simple: no list detection in card body
   }
   if (card.expandedContent && card.expandedContent.length) {
     html += '<button class="tb2" onclick="toggleExp(this)">' + (_hydrateLang === 'ka' ? 'დეტალური ანალიზი ↓' : 'Detailed Analysis ↓') + '</button>';
     html += '<div class="ce">';
     var ecArr = Array.isArray(card.expandedContent) ? card.expandedContent : [card.expandedContent];
-    html += _buildBodyHtml(ecArr);
+    html += _buildBodyHtml(ecArr); // full list detection in expanded content
     html += '</div>';
   }
   if (card.hint) {

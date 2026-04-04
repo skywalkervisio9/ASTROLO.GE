@@ -82,6 +82,10 @@ export default function BodyContent() {
 <symbol id="gl-pluto" viewBox="0 0 24 24"><circle cx="12" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M12 7m-2 0a2 2 0 104 0 2 2 0 10-4 0" fill="none" stroke="currentColor" strokeWidth="1.2"/><line x1="12" y1="12" x2="12" y2="20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="17" x2="16" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
     <symbol id="gl-asc" viewBox="0 0 24 24"><path d="M12 3L6 21h2.5l1.5-5h8l1.5 5H22L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
     <symbol id="gl-conjunction" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="12" y1="5" x2="12" y2="2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+    <symbol id="gl-trine" viewBox="0 0 24 24"><path d="M12 3L22 20H2L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
+    <symbol id="gl-square" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
+    <symbol id="gl-sextile" viewBox="0 0 24 24"><path d="M12 2l2.6 4.5H22l-3.7 6L22 17.5h-7.4L12 22l-2.6-4.5H2l3.7-5.5L2 7.5h7.4z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></symbol>
+    <symbol id="gl-opposition" viewBox="0 0 24 24"><circle cx="5" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="19" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="8.5" y1="12" x2="15.5" y2="12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></symbol>
     <symbol id="gl-numbers" viewBox="0 0 24 24"><text x="4" y="14" fontFamily="Cormorant Garamond,serif" fontSize="12" fill="currentColor" fontWeight="400">1</text><text x="12" y="20" fontFamily="Cormorant Garamond,serif" fontSize="10" fill="currentColor" fontWeight="300" opacity=".7">9</text><text x="14" y="10" fontFamily="Cormorant Garamond,serif" fontSize="9" fill="currentColor" fontWeight="300" opacity=".5">7</text></symbol>
     <symbol id="gl-yinyang" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.3"/><path d="M12 2a10 10 0 000 20c0-5.5-2.5-10 0-10s0 4.5 0 10" fill="none" stroke="currentColor" strokeWidth="1.2"/><circle cx="12" cy="7" r="1.5" fill="currentColor"/><circle cx="12" cy="17" r="1.5" fill="none" stroke="currentColor" strokeWidth="1"/></symbol>
 </defs></svg>
@@ -909,6 +913,7 @@ export default function BodyContent() {
         const res = await fetch('/api/dev/test-user');
         if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
         const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
+        if (!data.email || !data.password) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
         const { createClient } = await import('@/lib/supabase/client');
         const sb = createClient();
         await sb.auth.signOut();
