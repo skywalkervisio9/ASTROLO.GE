@@ -91,7 +91,7 @@ You have already analyzed this chart. Your analysis is provided in the user mess
 - Warm but not saccharine. Direct but not clinical.
 - "you"/"შენ" throughout
 - Specific degrees when meaningful
-- **Bold** key phrases reader would underline — MANDATORY in every paragraph, both languages. Use `**text**` markdown. 1-2 bold phrases per paragraph. 
+- **Bold** key phrases reader would underline — MANDATORY in every paragraph, both languages. Use `**text**` markdown. 0-2 bold phrases per paragraph. 
 - Every shadow includes redemption path
 
 ══════════════ CROSS-REFERENCING ══════════════
@@ -274,7 +274,7 @@ CARD TITLES (card.title): 2-3 სიტყვა მაქსიმუმ — �
 
 BODY (ტექსტი): ფორმალური-ლიტერატურული, ამაღლებული, ფსიქოლოგიური სიზუსტით.
 
-**BOLD FORMATTING (MANDATORY)**: Use **double asterisks** around key phrases in EVERY card body paragraph — exactly as in the English version. 1-2 bold phrases per paragraph .
+**BOLD FORMATTING (MANDATORY)**: Use **double asterisks** around key phrases in EVERY card body paragraph — exactly as in the English version. 0-2 bold phrases per paragraph .
   ✓ „შენი მთვარე ♉-ში V სახლში გამოავლენს ემოციურ ბირთვს, რომელიც **სტაბილურობას, სენსუალურ სიამოვნებას და შემოქმედებით თვითგამოხატვას** ეძებს."
   ✗ Same sentence without any bold — NEVER do this in Georgian. Bold is not optional.
 
