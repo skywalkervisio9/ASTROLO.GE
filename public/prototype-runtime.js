@@ -704,6 +704,28 @@ function toggleExp(btn) {
   btn.textContent = open ? 'ნაკლები ↑' : btn._origText;
 }
 
+function openAspInterp(row) {
+  var key = row.getAttribute('data-asp-key');
+  var parent = row.parentElement;
+  var btn = parent.querySelector('.tb2');
+  var ce = btn && btn.nextElementSibling;
+  if (!ce) return;
+  if (!ce.classList.contains('open')) {
+    if (!btn._origText) btn._origText = btn.textContent;
+    ce.classList.add('open');
+    btn.textContent = 'ნაკლები ↑';
+  }
+  var entry = ce.querySelector('[data-asp-key="' + key + '"]');
+  if (!entry) return;
+  setTimeout(function() {
+    entry.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    entry.classList.remove('ai-pulse');
+    void entry.offsetWidth; // reflow to restart animation
+    entry.classList.add('ai-pulse');
+    setTimeout(function() { entry.classList.remove('ai-pulse'); }, 1800);
+  }, 320);
+}
+
 
 // ═══ STARS ═══
 (function() {
@@ -730,11 +752,6 @@ window.addEventListener('scroll', () => {
   }
   document.getElementById('scrollTop').classList.toggle('show', window.scrollY > 600);
 
-  // Reading progress (natal)
-  const progFill = document.getElementById('progFill');
-  if (progFill) {
-    // Updated in observer
-  }
 });
 
 // ═══ OBSERVERS ═══
@@ -924,13 +941,13 @@ const plData = {
     sun: { t: '☉ მზე', b: 'იდენტობა, ეგო და ცხოვრების ძირითადი ენერგია. მზე აჩვენებს ვინ ხარ შენს ბირთვში.' },
     moon: { t: '☽ მთვარე', b: 'ემოციები, ინსტინქტები და შინაგანი სამყარო. მთვარე აჩვენებს როგორ გრძნობ, რა გჭირდება უსაფრთხოებისთვის.' },
     mercury: { t: '☿ მერკური', b: 'გონება, კომუნიკაცია და აღქმის სტილი. მერკური აჩვენებს როგორ ფიქრობ, სწავლობ და გადმოსცემ ინფორმაციას.' },
-    venus: { t: '♀ ვენერა', b: 'სიყვარული, სილამაზე და ღირებულებები. ვენერა აჩვენებს რას იზიდავ, როგორ უყვარხარ და რა არის შენთვის ლამაზი.' },
-    mars: { t: '♂ მარსი', b: 'ნება, მოქმედება და სურვილი. მარსი აჩვენებს როგორ იბრძვი, რა გაღიზიანებს და სად მიმართავ ენერგიას.' },
-    jupiter: { t: '♃ იუპიტერი', b: 'გაფართოება, სიბრძნე და კეთილდღეობა. იუპიტერი აჩვენებს სად იზრდები, სად გემართლება.' },
+    venus: { t: '♀ ვენერა', b: 'სიყვარული, ესთეტიკა და ღირებულებები. ვენერა გვიჩვენებს, სად ეძებ ჰარმონიას, რა გიტაცებს სილამაზით და როგორ ეკიდები სიახლოვეს.' },
+    mars: { t: '♂ მარსი', b: 'სურვილი, ძალა და ქმედება. მარსი გვიჩვენებს, სად მიაქვს ენერგია, როგორ იბრძვი შენი მიზნებისთვის და სად ვლინდება შენი ნება.' },
+    jupiter: { t: '♃ იუპიტერი', b: 'ზრდა, სიუხვე და ოპტიმიზმი. იუპიტერი გვიჩვენებს, სად ვიზრდებით ბუნებრივად, სად გვიმართლებს ბედი და რა ფილოსოფია გვმართავს.' },
     saturn: { t: '♄ სატურნი', b: 'სტრუქტურა, დისციპლინა და კარმული გაკვეთილები. სატურნი აჩვენებს სად არის შენი უდიდესი გამოწვევა.' },
-    uranus: { t: '♅ ურანი', b: 'თავისუფლება, ინოვაცია და გარღვევა. ურანი აჩვენებს სად ხარ ამბოხებელი, სად ეძებ ორიგინალურობას.' },
-    neptune: { t: '♆ ნეპტუნი', b: 'ოცნება, სულიერება და ტრანსცენდენცია. ნეპტუნი აჩვენებს სად ეძებ საღვთოს, სად ილუზიონირებ.' },
-    pluto: { t: '♇ პლუტონი', b: 'ტრანსფორმაცია, ძალაუფლება და აღდგენა. პლუტონი აჩვენებს სად ხდება ფსიქიკური სიკვდილ-აღდგომა.' }
+    uranus: { t: '♅ ურანი', b: 'თავისუფლება, გამოღვიძება და ინოვაცია. ურანი გვიჩვენებს, სად სცდები ჩვეულ ნორმებს, სად ეძებ ინდივიდუალობას და საიდან მოდის მოულოდნელი ცვლილება.' },
+    neptune: { t: '♆ ნეპტუნი', b: 'ოცნება, ინსპირაცია და სულიერება. ნეპტუნი გვიჩვენებს, სად ეძებ ტრანსცენდენტულს, სად იბინდდება საზღვრები და საიდან მოდის შენი ხილვა.' },
+    pluto: { t: '♇ პლუტონი', b: 'ტრანსფორმაცია, სიღრმე და განახლება. პლუტონი გვიჩვენებს, სად ხდება ყველაზე ღრმა ცვლილება, სად ეთხოვება ძველს და სად იბადება ახალი ძალა.' }
   },
   en: {
     sun: { t: '☉ Sun', b: 'Identity, ego, and core life energy. The Sun reveals who you are at your essence.' },
@@ -1796,8 +1813,84 @@ function _renderRichText(text) {
   return result;
 }
 
-// Detect numbered lists in a paragraph and render as <ol>
-// Pattern: "1. text\n2. text" or "1. text 2. text" within a single body string
+// Render a body string array; consecutive "N. Title: desc" items become a two-column definition layout.
+// Pass simple=true (card body) to skip list detection — just rich-text paragraphs.
+function _buildBodyHtml(arr, richFn, simple) {
+  var fn = richFn || _renderRichText;
+  // Flatten embedded newlines so each line is a separate entry
+  var flat = [];
+  (arr || []).forEach(function(s) {
+    if (!s) return;
+    if (s.indexOf('\n') !== -1) {
+      s.split('\n').forEach(function(l) { if (l.trim()) flat.push(l.trim()); });
+    } else {
+      flat.push(s);
+    }
+  });
+  var html = '';
+  var i = 0;
+  while (i < flat.length) {
+    var s = flat[i];
+    if (simple) {
+      if (/^\d+\.\s/.test(s)) {
+        // Numbered items → refined counter list
+        html += '<ol class="nb-list">';
+        while (i < flat.length && /^\d+\.\s/.test(flat[i])) {
+          var _nb = flat[i].replace(/^\d+\.\s+/, '');
+          var _nbBold = _nb.match(/^\*\*(.+?)\*\*:?\s*([\s\S]*)/);
+          if (_nbBold) {
+            html += '<li class="nb-item"><strong class="nb-t">' + fn(_nbBold[1]) + '</strong><span class="nb-b">' + fn(_nbBold[2]) + '</span></li>';
+          } else {
+            html += '<li class="nb-item"><span class="nb-b">' + fn(_nb) + '</span></li>';
+          }
+          i++;
+        }
+        html += '</ol>';
+      } else {
+        // Non-numbered: skip bare intro-only lines (end with ':'), render rest as plain <p>
+        var _s = s;
+        var _bare2 = _s.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
+        if (!/^[^.\n]{4,90}:\s*$/.test(_bare2)) {
+          html += '<p>' + fn(_s) + '</p>';
+        }
+        i++;
+      }
+    } else if (/^\d+\.\s/.test(s)) {
+      html += '<div class="cl">';
+      while (i < flat.length && /^\d+\.\s/.test(flat[i])) {
+        var content = flat[i].replace(/^\d+\.\s+/, '');
+        var title = '', body = content;
+        var boldMatch = content.match(/^\*\*(.+?)\*\*:?\s*([\s\S]*)/);
+        if (boldMatch) {
+          title = boldMatch[1].replace(/:$/, '').trim(); body = boldMatch[2];
+        } else {
+          var colonMatch = content.match(/^([^:.\n]{3,55}):\s+([\s\S]*)/);
+          if (colonMatch) { title = colonMatch[1]; body = colonMatch[2]; }
+        }
+        if (title) {
+          html += '<div class="cl-row"><span class="cl-t">' + fn(title) + '</span><span class="cl-b">' + fn(body) + '</span></div>';
+        } else {
+          html += '<div class="cl-row"><span class="cl-b cl-b-full">' + fn(content) + '</span></div>';
+        }
+        i++;
+      }
+      html += '</div>';
+    } else {
+      // Detect section intro: short line ending with ':' (with or without **bold** wrapping)
+      var _bare = s.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
+      if (/^[^.\n]{4,90}:\s*$/.test(_bare)) {
+        var _dl = '<span class="cl-dl"><i></i><i></i><i></i></span>';
+        var _dr = '<span class="cl-dr"><i></i><i></i><i></i></span>';
+        html += '<p class="cl-intro">' + _dl + fn(_bare.replace(/:\s*$/, '')) + _dr + '</p>';
+      } else {
+        html += '<p>' + fn(s) + '</p>';
+      }
+      i++;
+    }
+  }
+  return html;
+}
+
 // Like _renderRichText but without tooltips on ASC/MC/IC/℞ (for use inside popups)
 function _renderRichTextNoTip(text) {
   if (!text) return '';
@@ -1941,35 +2034,41 @@ function _buildPlanetRow(row) {
     '</tr>';
 }
 
+var _aspTypeLabel = {
+  ka: { conjunction: 'კონიუნქცია', trine: 'ტრინი', square: 'კვადრატი', opposition: 'ოპოზიცია', sextile: 'სექსტილი' },
+  en: { conjunction: 'conjunction', trine: 'trine', square: 'square', opposition: 'opposition', sextile: 'sextile' }
+};
+
+function _aspectGlyph(type) {
+  var ids = { conjunction: 'gl-conjunction', trine: 'gl-trine', square: 'gl-square', sextile: 'gl-sextile', opposition: 'gl-opposition' };
+  var id = ids[type];
+  if (!id) return '';
+  return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-1px"><use href="#' + id + '"/></svg>';
+}
+
 function _buildAspect(asp) {
   if (!asp || typeof asp !== 'object') return '';
-  var aspectSymbols = {
-    conjunction: '☌', trine: '△', square: '□', opposition: '☍', sextile: '⚹'
-  };
-  var typeLabel = {
-    conjunction: 'კონიუნქცია', trine: 'ტრინი', square: 'კვადრატი',
-    opposition: 'ოპოზიცია', sextile: 'სექსტილი'
-  };
   // Aspect nature for color-coded left border
   var natureClass = { conjunction: 'al-conj', trine: 'al-harm', sextile: 'al-harm', square: 'al-tens', opposition: 'al-tens' };
   var aspectType = asp.aspectType || asp.aspect || asp.type || '';
-  var symbol = asp.aspectSymbol || aspectSymbols[aspectType] || '';
   var p1Name = asp.planet1 || asp.planet_1 || asp.body1 || '';
   var p2Name = asp.planet2 || asp.planet_2 || asp.body2 || '';
   var p1 = _tr(PLANET_KA, p1Name);
   var p2 = _tr(PLANET_KA, p2Name);
   var orbStr = asp.orb != null ? asp.orb + '°' : '';
-  var typeLbl = _hydrateLang === 'ka' ? (typeLabel[aspectType] || aspectType) : aspectType;
+  var typeLbl = (_aspTypeLabel[_hydrateLang] || _aspTypeLabel.ka)[aspectType] || aspectType;
   var hasInterp = Boolean(asp.interpretation);
+  var aspKey = (p1Name + '__' + p2Name).replace(/\s+/g, '').toLowerCase();
   // al-hi = has interpretation in expanded section (brighter bg + ★)
   var cls = 'al ' + (natureClass[aspectType] || '') + (hasInterp ? ' al-hi' : '');
+  var clickAttr = hasInterp ? ' data-asp-key="' + aspKey + '" onclick="openAspInterp(this)"' : '';
   // Acronym glyphs (MC, IC, DSC, ASC) ARE the label — don't repeat. Symbol glyphs (⚷) keep the name.
   var g1 = _planetGlyph(p1Name);
   var g2 = _planetGlyph(p2Name);
   var isAcr1 = g1.indexOf('gi-acr') !== -1;
   var isAcr2 = g2.indexOf('gi-acr') !== -1;
-  return '<div class="' + cls + '">' +
-    '<span class="asy">' + _esc(symbol) + '</span>' +
+  return '<div class="' + cls + '"' + clickAttr + '>' +
+    '<span class="asy">' + (_aspectGlyph(aspectType) || _esc(asp.aspectSymbol || '')) + '</span>' +
     '<span class="al-p">' + g1 + (isAcr1 ? '' : ' ' + _esc(p1)) + '</span>' +
     '<span class="al-p">' + g2 + (isAcr2 ? '' : ' ' + _esc(p2)) + '</span>' +
     '<span class="alb">' +
@@ -1989,13 +2088,13 @@ function _buildCard(card) {
   html += '<h3>' + _esc(card.title) + '</h3>';
   if (card.body && card.body.length) {
     var bodyArr = Array.isArray(card.body) ? card.body : [card.body];
-    bodyArr.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
+    html += _buildBodyHtml(bodyArr, null, true); // simple: no list detection in card body
   }
   if (card.expandedContent && card.expandedContent.length) {
     html += '<button class="tb2" onclick="toggleExp(this)">' + (_hydrateLang === 'ka' ? 'დეტალური ანალიზი ↓' : 'Detailed Analysis ↓') + '</button>';
     html += '<div class="ce">';
     var ecArr = Array.isArray(card.expandedContent) ? card.expandedContent : [card.expandedContent];
-    ecArr.forEach(function(p) { html += '<p>' + _renderRichText(p) + '</p>'; });
+    html += _buildBodyHtml(ecArr); // full list detection in expanded content
     html += '</div>';
   }
   if (card.hint) {
@@ -2093,8 +2192,33 @@ function _buildSectionContent(sectionKey, section) {
       if (interps.length) {
         html += '<button class="tb2" onclick="toggleExp(this)">' + (_hydrateLang === 'ka' ? 'ასპექტების ინტერპრეტაცია ↓' : 'Aspect Interpretations ↓') + '</button>';
         html += '<div class="ce">';
+        var _aiNature = { trine: 'al-harm', sextile: 'al-harm', square: 'al-tens', opposition: 'al-tens', conjunction: 'al-conj' };
         interps.forEach(function(a) {
-          html += '<p><strong>' + _esc(_tr(PLANET_KA, a.planet1)) + ' ' + _esc(a.aspectSymbol || '') + ' ' + _esc(_tr(PLANET_KA, a.planet2)) + ':</strong> ' + _esc(a.interpretation) + '</p>';
+          var _aType = a.aspectType || a.aspect || a.type || '';
+          var _nc = _aiNature[_aType] || '';
+          var _p1Name = a.planet1 || a.planet_1 || a.body1 || '';
+          var _p2Name = a.planet2 || a.planet_2 || a.body2 || '';
+          var _aspKey = (_p1Name + '__' + _p2Name).replace(/\s+/g, '').toLowerCase();
+          var _g1 = _planetGlyph(_p1Name);
+          var _g2 = _planetGlyph(_p2Name);
+          var _isAcr1 = _g1.indexOf('gi-acr') !== -1;
+          var _isAcr2 = _g2.indexOf('gi-acr') !== -1;
+          var _p1 = _tr(PLANET_KA, _p1Name);
+          var _p2 = _tr(PLANET_KA, _p2Name);
+          var _orbStr = a.orb != null ? a.orb + '°' : '';
+          var _typeLbl = (_aspTypeLabel[_hydrateLang] || _aspTypeLabel.ka)[_aType] || _aType;
+          html += '<div class="ai-entry ' + _nc + '" data-asp-key="' + _aspKey + '">' +
+            '<div class="al ' + _nc + '">' +
+              '<span class="asy">' + (_aspectGlyph(_aType) || _esc(a.aspectSymbol || '')) + '</span>' +
+              '<span class="al-p">' + _g1 + (_isAcr1 ? '' : ' ' + _esc(_p1)) + '</span>' +
+              '<span class="al-p">' + _g2 + (_isAcr2 ? '' : ' ' + _esc(_p2)) + '</span>' +
+              '<span class="alb">' +
+                '<span class="al-type">' + _esc(_typeLbl) + '</span>' +
+                '<span class="al-orb">' + _esc(_orbStr) + '</span>' +
+              '</span>' +
+            '</div>' +
+            '<div class="ai-body"><p>' + _renderRichText(a.interpretation) + '</p></div>' +
+          '</div>';
         });
         html += '</div>';
       }
