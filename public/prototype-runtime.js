@@ -1044,9 +1044,9 @@ document.addEventListener('click', e => {
   if (activePopup && !_closest(e.target, '.el-popup') && !_closest(e.target, '.mc-sign-btn')) closePopup();
 });
 
-// Close popup on mouseleave from element tags (delegated)
+// Close popup on mouseleave from popup trigger tags (delegated)
 document.addEventListener('mouseleave', e => {
-  var tag = _closest(e.target, '.et');
+  var tag = _closest(e.target, '.et') || _closest(e.target, '.pl-btn') || _closest(e.target, '.aspect-tag');
   if (tag && activePopup) {
     setTimeout(() => { if (activePopup && !activePopup.matches(':hover')) closePopup(); }, 150);
   }
@@ -1832,29 +1832,11 @@ function _buildBodyHtml(arr, richFn, simple) {
   while (i < flat.length) {
     var s = flat[i];
     if (simple) {
-      if (/^\d+\.\s/.test(s)) {
-        // Numbered items → refined counter list
-        html += '<ol class="nb-list">';
-        while (i < flat.length && /^\d+\.\s/.test(flat[i])) {
-          var _nb = flat[i].replace(/^\d+\.\s+/, '');
-          var _nbBold = _nb.match(/^\*\*(.+?)\*\*:?\s*([\s\S]*)/);
-          if (_nbBold) {
-            html += '<li class="nb-item"><strong class="nb-t">' + fn(_nbBold[1]) + '</strong><span class="nb-b">' + fn(_nbBold[2]) + '</span></li>';
-          } else {
-            html += '<li class="nb-item"><span class="nb-b">' + fn(_nb) + '</span></li>';
-          }
-          i++;
-        }
-        html += '</ol>';
-      } else {
-        // Non-numbered: skip bare intro-only lines (end with ':'), render rest as plain <p>
-        var _s = s;
-        var _bare2 = _s.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
-        if (!/^[^.\n]{4,90}:\s*$/.test(_bare2)) {
-          html += '<p>' + fn(_s) + '</p>';
-        }
-        i++;
-      }
+      // Body = narrative prose only (i12). Render everything as <p>.
+      // Transform inline numbers (1. 2. 1) 2) etc.) and arrows into decorative bullet dots
+      var _ps = fn(s).replace(/\b\d+[.)]\s/g, '<span class="dn">●</span>').replace(/\s*→\s*/g, ' ');
+      html += '<p>' + _ps + '</p>';
+      i++;
     } else if (/^\d+\.\s/.test(s)) {
       html += '<div class="cl">';
       while (i < flat.length && /^\d+\.\s/.test(flat[i])) {
