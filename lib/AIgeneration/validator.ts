@@ -38,6 +38,113 @@ const ELEMENT_NORMALIZE: Record<string, string> = {
   'Fire': 'fire', 'Earth': 'earth', 'Air': 'air', 'Water': 'water',
 };
 
+/**
+ * Split inline numbered lists into separate array elements.
+ * Catches patterns like: "intro: 1) **Title**: body, 2) **Title**: body"
+ * and converts them to: ["intro:", "1. **Title**: body", "2. **Title**: body"]
+ */
+function splitInlineLists(paragraphs: string[]): string[] {
+  const result: string[] = [];
+  for (const p of paragraphs) {
+    if (typeof p !== 'string') { result.push(p); continue; }
+
+    // Detect inline numbered list with PARENTHESIS format: "1) ... 2) ..."
+    const hasParenList = /\b1\)\s/.test(p) && /\b2\)\s/.test(p);
+    // Detect inline numbered list with PERIOD format: "1. ... 2. ..." (both in ONE string)
+    const hasPeriodList = /\b1\.\s/.test(p) && /\b2\.\s/.test(p) && !/^\s*1\.\s/.test(p);
+
+    if (hasParenList) {
+      const parts = p.split(/\s*\b(\d+)\)\s+/);
+      const intro = parts[0].replace(/:\s*$/, '').trim();
+      if (intro) result.push(intro);
+      for (let i = 1; i < parts.length; i += 2) {
+        const num = parts[i];
+        let item = (parts[i + 1] || '').trim();
+        if (i + 2 < parts.length - 1) item = item.replace(/[,;]\s*$/, '').trim();
+        if (item) result.push(`${num}. ${item}`);
+      }
+    } else if (hasPeriodList) {
+      // Split on " 1. " " 2. " etc. — but only when mid-string (not at start)
+      const parts = p.split(/\s+(\d+)\.\s+/);
+      const intro = parts[0].replace(/:\s*$/, '').trim();
+      if (intro) result.push(intro);
+      for (let i = 1; i < parts.length; i += 2) {
+        const num = parts[i];
+        let item = (parts[i + 1] || '').trim();
+        if (i + 2 < parts.length - 1) item = item.replace(/[,;]\s*$/, '').trim();
+        if (item) result.push(`${num}. ${item}`);
+      }
+    } else {
+      result.push(p);
+    }
+  }
+  return result;
+}
+
+/**
+ * Number consecutive **Title:** body items that follow a section header.
+ * Catches patterns like: ["**Header:**", "**A:** body", "**B:** body"]
+ * and converts to: ["**Header:**", "1. **A:** body", "2. **B:** body"]
+ * Only triggers when 2+ consecutive bold-colon items appear after a standalone header.
+ */
+function numberBoldColonItems(paragraphs: string[]): string[] {
+  const result: string[] = [];
+  let i = 0;
+  while (i < paragraphs.length) {
+    const p = paragraphs[i];
+    // Detect standalone section header: "**Title:**" (bold, ends with colon, no body after colon)
+    const isHeader = typeof p === 'string' && /^\*\*[^*]+\*\*:?\s*$/.test(p.trim());
+    if (isHeader) {
+      // Look ahead for consecutive "**Title:** body" items (bold title with colon AND body text after)
+      const items: string[] = [];
+      let j = i + 1;
+      while (j < paragraphs.length) {
+        const next = paragraphs[j];
+        if (typeof next === 'string' && /^\*\*[^*]+:\*\*\s*.+/.test(next.trim())) {
+          items.push(next);
+          j++;
+        } else if (typeof next === 'string' && /^\*\*[^*]+\*\*:\s*.+/.test(next.trim())) {
+          items.push(next);
+          j++;
+        } else {
+          break;
+        }
+      }
+      if (items.length >= 2) {
+        // Header + 2+ items → number them
+        result.push(p);
+        items.forEach((item, idx) => {
+          // Skip if already numbered
+          if (/^\d+\.\s/.test(item.trim())) {
+            result.push(item);
+          } else {
+            result.push(`${idx + 1}. ${item}`);
+          }
+        });
+        i = j;
+      } else {
+        result.push(p);
+        i++;
+      }
+    } else {
+      result.push(p);
+      i++;
+    }
+  }
+  return result;
+}
+
+/** Replace verbose English terms with standard abbreviations (i12) */
+function sanitizeTerminology(p: string): string {
+  if (typeof p !== 'string') return p;
+  return p
+    .replace(/\bAscendant\b/gi, 'ASC')
+    .replace(/\bDescendant\b/gi, 'DSC')
+    .replace(/\bMidheaven\b/gi, 'MC')
+    .replace(/\bასცენდენტი/g, 'ASC')
+    .replace(/\bდესცენდენტი/g, 'DSC');
+}
+
 /** Normalize accentElement on all cards in a section */
 function normalizeCards(cards: unknown[]): unknown[] {
   return cards.map((card) => {
@@ -49,6 +156,14 @@ function normalizeCards(cards: unknown[]): unknown[] {
     // Coerce expandedContent to string array
     if (typeof c.expandedContent === 'string') c.expandedContent = [c.expandedContent];
     else if (c.expandedContent && !Array.isArray(c.expandedContent)) c.expandedContent = [];
+    // Normalize terminology: Ascendant/Descendant/Midheaven → ASC/DSC/MC (i12)
+    c.body = (c.body as string[]).map(sanitizeTerminology);
+    if (Array.isArray(c.expandedContent)) {
+      // expandedContent: sanitize terms + split inline lists + number bold-colon items
+      c.expandedContent = numberBoldColonItems(
+        splitInlineLists((c.expandedContent as string[]).map(sanitizeTerminology))
+      );
+    }
     // Drop legacy bullets from hint (removed in i10 — content is prose now)
     if (c.hint && typeof c.hint === 'object') {
       const h = c.hint as Record<string, unknown>;

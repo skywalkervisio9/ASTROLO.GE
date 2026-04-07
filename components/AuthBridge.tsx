@@ -453,12 +453,12 @@ export default function AuthBridge() {
 
       // Profile lookup can fail if the public.users row isn't created yet
       // (trigger delay) or RLS blocks the select. In those cases, treat as no birth data.
-      type ProfileRow = { birth_day: number | null; birth_year: number | null; full_name: string | null };
+      type ProfileRow = { birth_day: number | null; birth_month: number | null; birth_year: number | null; full_name: string | null };
       let profile: ProfileRow | null = null;
       try {
         const { data, error } = await supabase
           .from("users")
-          .select("birth_day, birth_year, full_name")
+          .select("birth_day, birth_month, birth_year, full_name")
           .eq("id", user.id)
           .maybeSingle();
         console.log("[AB] onAuthSuccess profile fetch:", { data, error });
@@ -476,6 +476,11 @@ export default function AuthBridge() {
       if (nameEl && profile?.full_name) nameEl.textContent = profile.full_name;
       if (emailEl) emailEl.textContent = user.email ?? "";
       if (avatarEl && profile?.full_name) avatarEl.textContent = profile.full_name.charAt(0).toUpperCase();
+      const dobEl = document.querySelector("#sbDob") as HTMLElement | null;
+      if (dobEl && profile?.birth_day && profile?.birth_month && profile?.birth_year) {
+        const kaMonths = ["","იანვარი","თებერვალი","მარტი","აპრილი","მაისი","ივნისი","ივლისი","აგვისტო","სექტემბერი","ოქტომბერი","ნოემბერი","დეკემბერი"];
+        dobEl.textContent = `${profile.birth_day} ${kaMonths[profile.birth_month]}, ${profile.birth_year}`;
+      }
       if (topName && profile?.full_name) {
         const parts = profile.full_name.split(" ");
         topName.textContent = parts[0] + (parts[1] ? " " + parts[1].charAt(0) + "." : "");

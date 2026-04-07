@@ -10,7 +10,7 @@ import type { Language } from '@/types/user';
 
 // Load the full prompt spec (server-side only)
 // In dev mode, always re-read so prompt edits take effect without restart
-const PROMPT_FILENAME = 'SYSTEM-PROMPT-i10.md';
+const PROMPT_FILENAME = 'SYSTEM-PROMPT-i12.md';
 export const PROMPT_VERSION = PROMPT_FILENAME.replace('.md', '');
 
 let _promptSpec: string | null = null;

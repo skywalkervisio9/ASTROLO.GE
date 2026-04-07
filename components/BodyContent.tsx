@@ -82,6 +82,10 @@ export default function BodyContent() {
 <symbol id="gl-pluto" viewBox="0 0 24 24"><circle cx="12" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M12 7m-2 0a2 2 0 104 0 2 2 0 10-4 0" fill="none" stroke="currentColor" strokeWidth="1.2"/><line x1="12" y1="12" x2="12" y2="20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="17" x2="16" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
     <symbol id="gl-asc" viewBox="0 0 24 24"><path d="M12 3L6 21h2.5l1.5-5h8l1.5 5H22L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
     <symbol id="gl-conjunction" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="12" y1="5" x2="12" y2="2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+    <symbol id="gl-trine" viewBox="0 0 24 24"><path d="M12 3L22 20H2L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
+    <symbol id="gl-square" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
+    <symbol id="gl-sextile" viewBox="0 0 24 24"><path d="M12 2l2.6 4.5H22l-3.7 6L22 17.5h-7.4L12 22l-2.6-4.5H2l3.7-5.5L2 7.5h7.4z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></symbol>
+    <symbol id="gl-opposition" viewBox="0 0 24 24"><circle cx="5" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="19" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="8.5" y1="12" x2="15.5" y2="12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></symbol>
     <symbol id="gl-numbers" viewBox="0 0 24 24"><text x="4" y="14" fontFamily="Cormorant Garamond,serif" fontSize="12" fill="currentColor" fontWeight="400">1</text><text x="12" y="20" fontFamily="Cormorant Garamond,serif" fontSize="10" fill="currentColor" fontWeight="300" opacity=".7">9</text><text x="14" y="10" fontFamily="Cormorant Garamond,serif" fontSize="9" fill="currentColor" fontWeight="300" opacity=".5">7</text></symbol>
     <symbol id="gl-yinyang" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.3"/><path d="M12 2a10 10 0 000 20c0-5.5-2.5-10 0-10s0 4.5 0 10" fill="none" stroke="currentColor" strokeWidth="1.2"/><circle cx="12" cy="7" r="1.5" fill="currentColor"/><circle cx="12" cy="17" r="1.5" fill="none" stroke="currentColor" strokeWidth="1"/></symbol>
 </defs></svg>
@@ -89,13 +93,13 @@ export default function BodyContent() {
 
 <div className="account-dd" id="accountDD" onClick={(e) => e.stopPropagation()}>
 <div className="sb-header">
+<span className="sb-tier premium" id="sbTier" style={{position:'absolute',top:'50px',right:'16px'}}><span className="dot"></span> PREMIUM</span>
 <div className="sb-avatar"></div>
-<div className="sb-info"><div className="sb-name"></div><div className="sb-email"></div>
-<span className="sb-tier premium" id="sbTier"><span className="dot"></span> PREMIUM</span></div></div>
+<div className="sb-info"><div className="sb-name"></div><div className="sb-email"></div></div></div>
 
 
 <div className="sb-section" id="navSection">
-<div className="sb-section-title">ჩემი რუკა</div>
+<div className="sb-section-title">ჩემი რუკა<span className="sb-dob" id="sbDob"></span></div>
 <div className="sb-nav-row" id="sbNavRow">
   <div className="sb-nav-item active" onClick={() => { alert("→ ნატალური რუკა"); }}><span className="sb-nav-icon"><svg><use href="#gl-sun"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">ნატალური რუკა</span></div></div>
   <div className="sb-nav-item has-partner" id="synNavItem" onClick={() => { alert("→ სინასტრია"); }}><span className="sb-nav-icon"><svg><use href="#gl-venus"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">სინასტრია</span><span className="sb-nav-partner" id="synPartnerName">(გიორგი მაისურაძე)</span></div><span className="mode-badge couple" id="modeBadge">მეწყვილე</span></div>
@@ -690,8 +694,8 @@ export default function BodyContent() {
         <div className="msg error" id="login-error"></div>
         <button className="google-btn" onClick={() => { (window as unknown as ProtoGlobals).handleGoogle?.(); }}><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> Google-ით შესვლა</button>
         <div className="auth-divider"><span>ან ელ-ფოსტით</span></div>
-        <div className="field"><label>ელ-ფოსტა</label><input type="email" id="login-email" placeholder="name@example.com" autoComplete="email"/></div>
-        <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="login-pw" placeholder="••••••••" autoComplete="current-password"/><button className="pw-toggle" onClick={(e) => { (window as unknown as ProtoGlobals).togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
+        <div className="field"><label>ელ-ფოსტა</label><input type="email" id="login-email" placeholder="name@example.com" autoComplete="email" onKeyDown={(e) => { if (e.key === 'Enter') (window as unknown as ProtoGlobals).handleLogin?.(); }}/></div>
+        <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="login-pw" placeholder="••••••••" autoComplete="current-password" onKeyDown={(e) => { if (e.key === 'Enter') (window as unknown as ProtoGlobals).handleLogin?.(); }}/><button className="pw-toggle" onClick={(e) => { (window as unknown as ProtoGlobals).togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
         <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '16px'}}><a href="#" onClick={(e) => { e.preventDefault(); (window as unknown as ProtoGlobals).showAuthPage?.("page-forgot"); }} style={{fontSize: '.72rem', color: 'var(--gd)', textDecoration: 'none', transition: 'color .3s'}}>დაგავიწყდა?</a></div>
         <button className="auth-btn" onClick={() => { (window as unknown as ProtoGlobals).handleLogin?.(); }}><span className="btn-text">შესვლა</span></button>
         <div className="nav-row" style={{marginTop: '10px'}}><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).showAuthPage?.("page-signup"); }} style={{width: '100%'}}>რეგისტრაცია →</button></div>
@@ -893,7 +897,6 @@ export default function BodyContent() {
         const data = await res.json() as { email: string; password: string; hasReading: boolean; shareSlug?: string };
         const { createClient } = await import('@/lib/supabase/client');
         const sb = createClient();
-        await sb.auth.signOut();
         await sb.auth.signInWithPassword({ email: data.email, password: data.password });
         if (data.hasReading && data.shareSlug) {
           window.location.href = `/r/${data.shareSlug}`;
@@ -909,9 +912,9 @@ export default function BodyContent() {
         const res = await fetch('/api/dev/test-user');
         if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
         const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
+        if (!data.email || !data.password) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
         const { createClient } = await import('@/lib/supabase/client');
         const sb = createClient();
-        await sb.auth.signOut();
         await sb.auth.signInWithPassword({ email: data.email, password: data.password });
         if (data.shareSlug) { window.location.href = `/r/${data.shareSlug}`; return; }
         window.location.reload();

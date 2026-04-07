@@ -59,7 +59,7 @@ export async function generateNatalReading(
   const call1 = await callClaude(
     getNatalCall1Prompt(),
     `Analyze this natal chart:\n\n${chartContext}`,
-    3000,
+    20000,
     false
   );
 
@@ -131,7 +131,7 @@ async function generateSingleReading(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await callClaude(prompt, userMessage, 38000);
+      const response = await callClaude(prompt, userMessage, 60000);
       const raw = await parseOrRepairJSON(response.text) as Record<string, unknown>;
       // Extract aspect interpretations before normalization (normalizer would drop unknown keys)
       const aspectInterpretations = extractAspectInterpretations(raw);
@@ -235,7 +235,7 @@ async function generateSingleSynastryReading(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await callClaude(prompt, userMessage, 38000);
+      const response = await callClaude(prompt, userMessage, 60000);
       const parsed = await parseOrRepairJSON(response.text) as Record<string, unknown>;
       const validation = validateSynastryReading(parsed, relationshipType);
 
