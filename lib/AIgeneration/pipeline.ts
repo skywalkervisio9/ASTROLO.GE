@@ -59,7 +59,7 @@ export async function generateNatalReading(
   const call1 = await callClaude(
     getNatalCall1Prompt(),
     `Analyze this natal chart:\n\n${chartContext}`,
-    3000,
+    20000,
     false
   );
 

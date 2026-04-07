@@ -453,12 +453,12 @@ export default function AuthBridge() {
 
       // Profile lookup can fail if the public.users row isn't created yet
       // (trigger delay) or RLS blocks the select. In those cases, treat as no birth data.
-      type ProfileRow = { birth_day: number | null; birth_year: number | null; full_name: string | null };
+      type ProfileRow = { birth_day: number | null; birth_month: number | null; birth_year: number | null; full_name: string | null };
       let profile: ProfileRow | null = null;
       try {
         const { data, error } = await supabase
           .from("users")
-          .select("birth_day, birth_year, full_name")
+          .select("birth_day, birth_month, birth_year, full_name")
           .eq("id", user.id)
           .maybeSingle();
         console.log("[AB] onAuthSuccess profile fetch:", { data, error });
