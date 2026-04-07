@@ -16,6 +16,8 @@ import {
   getNatalCall2Prompt,
 } from './prompts/natal';
 import {
+  getSynastryPrompt,
+  buildSynastryUserMessage,
   getSynastryCall1Prompt,
   getSynastryCall2Prompt,
 } from './prompts/synastry';
@@ -171,6 +173,16 @@ async function generateSingleReading(
 
 // ── Synastry reading pipeline ──
 
+export interface SynastryPipelineInput {
+  personAName: string;
+  personAAnalysis: string;
+  personAChartContext: string;
+  personBName: string;
+  personBAnalysis: string;
+  personBChartContext: string;
+  relationshipType: 'couple' | 'friend';
+}
+
 export interface SynastryPipelineResult {
   analysis: string;
   readingKa: Record<string, unknown>;
@@ -185,20 +197,59 @@ export interface SynastryPipelineResult {
   };
 }
 
+/**
+ * Generate synastry reading — s4 pipeline (no Call 1).
+ * Uses both users' existing natal analyses + chart contexts.
+ */
 export async function generateSynastryReading(
+  input: SynastryPipelineInput
+): Promise<SynastryPipelineResult> {
+  const userMsg = buildSynastryUserMessage(
+    input.personAName,
+    input.personAAnalysis,
+    input.personAChartContext,
+    input.personBName,
+    input.personBAnalysis,
+    input.personBChartContext,
+    input.relationshipType
+  );
+
+  // Direct to Call 2 — KA then EN sequentially to avoid Gemini throttling
+  const readingKa = await generateSingleSynastryReading(userMsg, 'ka', input.relationshipType);
+  const readingEn = await generateSingleSynastryReading(userMsg, 'en', input.relationshipType);
+
+  return {
+    analysis: `[s4: no Call 1 — used natal analyses for ${input.personAName} & ${input.personBName}]`,
+    readingKa: readingKa.parsed,
+    readingEn: readingEn.parsed,
+    meta: {
+      modelCall1: 'n/a',
+      modelCall2: readingKa.model,
+      tokensCall1: 0,
+      tokensCall2Ka: readingKa.inputTokens + readingKa.outputTokens,
+      tokensCall2En: readingEn.inputTokens + readingEn.outputTokens,
+      validationWarnings: [...readingKa.warnings, ...readingEn.warnings],
+    },
+  };
+}
+
+/**
+ * @deprecated Legacy wrapper — kept for seed route backward compatibility.
+ * Prefer generateSynastryReading(SynastryPipelineInput) instead.
+ */
+export async function generateSynastryReadingLegacy(
   chart1Context: string,
   chart2Context: string,
   relationshipType: 'couple' | 'friend'
 ): Promise<SynastryPipelineResult> {
-  // Call 1: Synastry Analysis (always English) — plain text output, not JSON
+  // Legacy: run a quick Call 1 then pipe to Call 2
   const call1 = await callClaude(
     getSynastryCall1Prompt(relationshipType),
     `Person 1 Chart:\n${chart1Context}\n\nPerson 2 Chart:\n${chart2Context}`,
-    4200,
+    20000,
     false
   );
 
-  // Call 2: Full reading — run KA then EN sequentially to avoid Gemini throttling
   const userMsg = `Synastry Analysis:\n${call1.text}\n\nPerson 1 Chart:\n${chart1Context}\n\nPerson 2 Chart:\n${chart2Context}`;
 
   const readingKa = await generateSingleSynastryReading(userMsg, 'ka', relationshipType);
@@ -230,7 +281,7 @@ async function generateSingleSynastryReading(
   inputTokens: number;
   outputTokens: number;
 }> {
-  const prompt = getSynastryCall2Prompt(relationshipType, language);
+  const prompt = getSynastryPrompt(relationshipType, language);
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {

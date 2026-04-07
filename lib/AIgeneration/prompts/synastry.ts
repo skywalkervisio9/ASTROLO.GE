@@ -1,7 +1,7 @@
 // ============================================================
-// Synastry prompts — Couple + Friend variants
-// Full prompt text lives in docs/SYSTEM-PROMPT-Couple_s3.md
-// and docs/SYSTEM-PROMPT-Friend_s3.md
+// Synastry prompts — Couple + Friend variants (s4: no Call 1)
+// Full prompt text lives in docs/SYSTEM-PROMPT-Couple_s4.md
+// and docs/SYSTEM-PROMPT-Friend_s4.md
 // ============================================================
 
 import { readFileSync } from 'fs';
@@ -32,77 +32,108 @@ function extractSection(text: string, startHeading: string, endHeading: string):
 }
 
 /**
- * Call 1 system prompt — Synastry Analysis (English, internal)
+ * System prompt for synastry reading (s4: single call, no Call 1)
+ * Uses natal analyses from both users as input context.
  */
-export function getSynastryCall1Prompt(type: 'couple' | 'friend'): string {
-  const filename = type === 'couple'
-    ? 'SYSTEM-PROMPT-Couple_s3.md'
-    : 'SYSTEM-PROMPT-Friend_s3.md';
-
-  const spec = loadPromptFile(filename);
-  const partA = extractSection(spec, '## PART A', '## PART B');
-  if (partA) return partA;
-
-  // Fallback
-  const focus = type === 'couple'
-    ? 'romantic compatibility, emotional chemistry, passion dynamics, and intimate potential'
-    : 'platonic depth, intellectual resonance, shared values, and mutual growth';
-
-  return `You are an expert synastry analyst. Analyze these two natal charts for ${focus}.
-
-Produce a structured analytical document covering:
-1. Relationship narrative arc
-2. Cross-chart aspect table (all orb <8°)
-3. Nodal axis cross-reference (both directions)
-4. Emotional architecture (Moon-Moon, Moon-Sun, Moon-Venus)
-5. ${type === 'couple' ? 'Passion & Attraction markers' : 'Intellectual & Values resonance'}
-6. Power dynamics (Pluto, Saturn)
-7. Growth catalysts (Jupiter, North Node, Chiron)
-8. Shadow zones (triggers, projections, loops)
-9. Composite indicators
-10. Numerology compatibility (Life Path, Expression, Soul Urge)
-11. Maximum potential vision
-
-Write in English. Be precise and psychologically insightful.`;
-}
-
-/**
- * Call 2 system prompt — Full Synastry Reading (parameterized)
- */
-export function getSynastryCall2Prompt(
+export function getSynastryPrompt(
   type: 'couple' | 'friend',
   language: Language
 ): string {
   const filename = type === 'couple'
-    ? 'SYSTEM-PROMPT-Couple_s3.md'
-    : 'SYSTEM-PROMPT-Friend_s3.md';
+    ? 'SYSTEM-PROMPT-Couple_s4.md'
+    : 'SYSTEM-PROMPT-Friend_s4.md';
 
   const spec = loadPromptFile(filename);
 
-  const partB = extractSection(spec, '## PART B', '## PART C');
+  const partB = extractSection(spec, '## SYSTEM PROMPT:', '## CALL 2 USER MESSAGE:');
+  // If no explicit end marker, try Part C boundary
+  const systemPrompt = partB || extractSection(spec, '## SYSTEM PROMPT:', '# PART C');
   const partD = extractSection(spec, '## PART D', '## PART E');
 
   // Extract relevant language block from Part C
   const langLabel = language === 'ka' ? 'GEORGIAN' : 'ENGLISH';
-  const partC = extractSection(spec, '## PART C', '## PART D');
-  const langStart = partC.indexOf(`### ${langLabel}`);
+  const partC = extractSection(spec, '# PART C', '# PART D');
+  const langStart = partC.indexOf(`## ${langLabel}:`);
   let langBlock = '';
   if (langStart !== -1) {
-    const nextSection = partC.indexOf('###', langStart + 4);
+    const nextSection = partC.indexOf('##', langStart + 4);
     langBlock = nextSection === -1
       ? partC.slice(langStart)
       : partC.slice(langStart, nextSection);
   }
 
-  if (partB) {
-    return `${partB}\n\n${langBlock}\n\n${partD}`;
+  if (systemPrompt) {
+    // Extract just the content between ``` fences in the system prompt block
+    const fenceMatch = systemPrompt.match(/```\n?([\s\S]*?)```/);
+    const promptBody = fenceMatch ? fenceMatch[1].trim() : systemPrompt;
+
+    // Extract language block content from ``` fences
+    const langFenceMatch = langBlock.match(/```\n?([\s\S]*?)```/);
+    const langBody = langFenceMatch ? langFenceMatch[1].trim() : langBlock;
+
+    return `${promptBody}\n\n${langBody}\n\n${partD}`;
   }
 
   // Fallback
-  return getSynastryCall2Fallback(type, language);
+  return getSynastryFallback(type, language);
 }
 
-function getSynastryCall2Fallback(type: 'couple' | 'friend', language: Language): string {
+/**
+ * Build the user message for synastry generation.
+ * Combines both users' natal analyses + chart contexts.
+ */
+export function buildSynastryUserMessage(
+  personAName: string,
+  personAAnalysis: string,
+  personAChartContext: string,
+  personBName: string,
+  personBAnalysis: string,
+  personBChartContext: string,
+  type: 'couple' | 'friend'
+): string {
+  const typeLabel = type === 'couple' ? 'couple' : 'friendship';
+  return [
+    `PERSON A — ${personAName}:`,
+    'Natal Analysis:',
+    personAAnalysis,
+    '',
+    'Chart Data:',
+    personAChartContext,
+    '',
+    `PERSON B — ${personBName}:`,
+    'Natal Analysis:',
+    personBAnalysis,
+    '',
+    'Chart Data:',
+    personBChartContext,
+    '',
+    `Generate the complete 8-section ${typeLabel} synastry reading as a single JSON object.`,
+    'Return ONLY JSON.',
+  ].join('\n');
+}
+
+// ── Legacy exports for backward compatibility (kept for seed route) ──
+
+/** @deprecated Use getSynastryPrompt() instead — s4 has no Call 1 */
+export function getSynastryCall1Prompt(type: 'couple' | 'friend'): string {
+  // Return a minimal prompt for any code still calling this
+  const focus = type === 'couple'
+    ? 'romantic compatibility, emotional chemistry, passion dynamics, and intimate potential'
+    : 'platonic depth, intellectual resonance, shared values, and mutual growth';
+
+  return `You are an expert synastry analyst. Analyze these two natal charts for ${focus}.
+Produce a structured analytical document. Write in English. Be precise and psychologically insightful.`;
+}
+
+/** @deprecated Use getSynastryPrompt() instead */
+export function getSynastryCall2Prompt(
+  type: 'couple' | 'friend',
+  language: Language
+): string {
+  return getSynastryPrompt(type, language);
+}
+
+function getSynastryFallback(type: 'couple' | 'friend', language: Language): string {
   const langInstruction = language === 'ka'
     ? 'Write in Georgian (ქართული). Use native terminology.'
     : 'Write in formal-literary English.';
@@ -115,11 +146,13 @@ function getSynastryCall2Fallback(type: 'couple' | 'friend', language: Language)
 
   return `You are a world-class synastry analyst creating a premium ${type} compatibility reading.
 
+You receive two partners' individual natal analyses and their chart data. Cross-reference both charts to find inter-chart aspects and generate the reading.
+
 ${langInstruction}
 
 Output a single JSON object with:
-- meta: person1, person2, relationshipType, compatibilityScore, categoryScores, language, generatedAt, promptVersion
-- sections: array of objects (${sections}) each with id, title, tagline, icon, iconColor, cards, pullQuote
+- meta: personA, personB, type, compatibilityScore, categoryScores, language
+- 8 section keys (${sections}) each with sectionTitle, sectionSubtitle, cards, pullQuote
 
 Word count target: ${wordRange} words.
 Every card must cross-reference aspects between both charts.`;
