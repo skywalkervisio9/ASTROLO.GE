@@ -358,12 +358,49 @@ document.querySelector('#sbNavRow .sb-nav-item:first-child').onclick = function(
 document.getElementById('synNavItem').onclick = function() {
   // FREE: locked → premium payment page
   if (this.classList.contains('locked-syn')) { closeSidebar(); showPaymentPage('premium'); return; }
-  // Pulsating CTA → open invite modal
-  if (this.classList.contains('syn-cta-pulsate')) { openInviteModal(); return; }
+  // Pulsating CTA → open invite modal (or dev trigger on localhost)
+  if (this.classList.contains('syn-cta-pulsate')) {
+    if (window.location.hostname === 'localhost') {
+      // Dev mode: trigger synastry generation via React wrapper
+      this.classList.remove('syn-cta-pulsate');
+      this.classList.add('syn-generating');
+      var label = this.querySelector('.sb-nav-label');
+      if (label) label.textContent = '⟳ Generating...';
+      closeSidebar();
+      switchView('synastry');
+      window.dispatchEvent(new CustomEvent('dev-trigger-synastry'));
+      return;
+    }
+    openInviteModal();
+    return;
+  }
   // Partner connected → view synastry reading
   closeSidebar();
   switchView('synastry');
 };
+
+// Listen for synastry ready event from React wrapper
+window.addEventListener('synastry-ready', function(e) {
+  var synItem = document.getElementById('synNavItem');
+  if (!synItem) return;
+  synItem.classList.remove('syn-cta-pulsate', 'syn-generating');
+  synItem.classList.add('has-partner');
+  var label = synItem.querySelector('.sb-nav-label');
+  var detail = e.detail || {};
+  if (label) {
+    var name = (detail.user2 && detail.user2.name) ? detail.user2.name.split(' ')[0] : 'Partner';
+    label.textContent = name;
+  }
+  // Add a tick icon to indicate reading is ready
+  var badge = synItem.querySelector('.syn-badge');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = 'syn-badge';
+    badge.textContent = '✓';
+    badge.style.cssText = 'color:var(--gold);font-size:.7rem;margin-left:4px;';
+    if (label) label.parentNode.insertBefore(badge, label.nextSibling);
+  }
+});
 
 // ═══ INVITE MODAL ═══
 let selectedInviteType = null;
