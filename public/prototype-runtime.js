@@ -290,19 +290,12 @@ function rebuildSidebar() {
     if (partnerName) partnerName.textContent = '(' + (_synastryPartnerName || 'Partner') + ')';
     var relType = _synastryRelType || 'couple';
     if (modeBadge) {
-      modeBadge.className = 'mode-badge ' + relType;
-      modeBadge.textContent = relType === 'couple' ? 'მეწყვილე' : 'მეგობარი';
+      modeBadge.className = 'mode-badge done';
+      modeBadge.textContent = 'მეგობარი';
     }
-    // Re-add tick badge if lost
+    // Remove any leftover tick badge
     var existingBadge = synItem.querySelector('.syn-badge');
-    if (!existingBadge) {
-      var badge = document.createElement('span');
-      badge.className = 'syn-badge';
-      badge.textContent = '✓';
-      badge.style.cssText = 'color:var(--gold);font-size:.7rem;margin-left:4px;';
-      var lbl = synItem.querySelector('.sb-nav-label');
-      if (lbl) lbl.parentNode.insertBefore(badge, lbl.nextSibling);
-    }
+    if (existingBadge) existingBadge.remove();
     // Keep dev button in occupied state
     var occBtn = document.getElementById('devSlot1Occupy');
     if (occBtn) {
@@ -317,7 +310,7 @@ function rebuildSidebar() {
     // Partner connected → show partner name & mode badge
     synItem.classList.add('has-partner');
     if (partnerName) partnerName.textContent = '(გიორგი მაისურაძე)';
-    if (modeBadge) { modeBadge.className = 'mode-badge couple'; modeBadge.textContent = 'მეწყვილე'; }
+    if (modeBadge) { modeBadge.className = 'mode-badge done'; modeBadge.textContent = 'მეგობარი'; }
   } else if (s1Unlocked && !s1Occupied) {
     // Paid but no partner → pulsating CTA to invite
     synItem.classList.add('syn-cta-pulsate');

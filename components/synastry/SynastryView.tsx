@@ -250,6 +250,7 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
             ref={(el) => { sectionRefs.current[i] = el; }}
             sectionId={`syn-${s.key}`}
             section={s.data}
+            language={language}
           />
         ))}
 
@@ -385,7 +386,8 @@ function CategoryBar({ category, label, score }: { category: string; label: stri
 const SynastrySection = React.forwardRef<HTMLElement, {
   sectionId: string;
   section: SynastrySectionData;
-}>(function SynastrySection({ sectionId, section }, ref) {
+  language: Language;
+}>(function SynastrySection({ sectionId, section, language }, ref) {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   const toggleExpand = (cardId: string) => {
@@ -418,6 +420,7 @@ const SynastrySection = React.forwardRef<HTMLElement, {
           card={lead}
           expanded={expandedCards.has(lead.id)}
           onToggleExpand={() => toggleExpand(lead.id)}
+          language={language}
         />
       )}
 
@@ -430,6 +433,7 @@ const SynastrySection = React.forwardRef<HTMLElement, {
                 card={card}
                 expanded={expandedCards.has(card.id)}
                 onToggleExpand={() => toggleExpand(card.id)}
+                language={language}
               />
             ))}
           </div>
@@ -439,6 +443,7 @@ const SynastrySection = React.forwardRef<HTMLElement, {
             card={pair[0]}
             expanded={expandedCards.has(pair[0].id)}
             onToggleExpand={() => toggleExpand(pair[0].id)}
+            language={language}
           />
         )
       ))}
@@ -458,10 +463,12 @@ function SynastryCardComponent({
   card,
   expanded,
   onToggleExpand,
+  language,
 }: {
   card: SynastryCardData;
   expanded: boolean;
   onToggleExpand: () => void;
+  language: Language;
 }) {
   const elClass = card.elementColor ? (ELEMENT_ACCENT_CLASS[card.elementColor] || '') : '';
   const hasCrossRefs = card.crossReferences && card.crossReferences.length > 0;
@@ -491,7 +498,9 @@ function SynastryCardComponent({
       {card.expandedContent && card.expandedContent.length > 0 && (
         <>
           <button className="tb2" onClick={onToggleExpand} aria-expanded={expanded}>
-            {expanded ? '− დეტალები' : 'დეტალური ანალიზი ↓'}
+            {expanded
+              ? (language === 'ka' ? '− დეტალები' : '− Details')
+              : (language === 'ka' ? 'დეტალური ანალიზი ↓' : 'Detailed Analysis ↓')}
           </button>
           <div className={`ce${expanded ? ' open' : ''}`}>
             {card.expandedContent.map((para, i) => (

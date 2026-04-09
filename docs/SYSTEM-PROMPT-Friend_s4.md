@@ -113,6 +113,7 @@ EVERY card's crossReferences must show a 3+ step chain.
 - Poetic headers, literary body. Premium voice.
 - Friendship-specific language: "bond," "alliance," "companionship," "trust," "understanding."
 - Never frame Venus/Mars aspects romantically.
+- **Bold** key phrases in every paragraph — MANDATORY. Use `**text**` markdown. 0-2 bold phrases per paragraph.
 
 ══════════════ HINT TITLES ══════════════
 
@@ -140,6 +141,11 @@ LABEL (badge at top of card):
   ✓ „კარმული ხელშეკრულება"
   ALWAYS include Georgian planet names in body text.
 
+crossReferences (label hover popup):
+- The ASTROLOGICAL CONTEXT for this card's inter-chart aspect — what appears when the reader hovers the badge.
+- Lead with MEANING, not notation. Reference exact orbs, dignities, and house positions across both charts.
+- Each entry: a 3+ step chain connecting aspects across both charts.
+
 TITLE (h3, below label):
 - Poetic, evocative, specific to this friendship's dynamic.
   ✓ „ორი გონება — ერთი ცეცხლი"
@@ -152,6 +158,27 @@ BODY (paragraphs array):
   ✓ „ნინოს სიტყვა სიღრმეში ეძებს — მორიელის მერკური ზედაპირზე ვერ ჩერდება..."
   ✗ „Mercury in Scorpio square Mercury in Aquarius (3°12' orb)."
 - Each paragraph = one JSON string in the body array.
+- ANTI-FILLER: A 4-sentence card that lands is better than a 4-paragraph card that wanders.
+
+expandedContent[] — STRUCTURED FORMAT:
+Renders as two-column table (gold title | body). Two element types:
+- **Numbered item** (each its own array element): `"1. **Title:** body"` — title 2–4 words, short labels only
+- **Prose paragraph** — allowed between numbered items
+- NEVER use `**Header:**` dividers — only numbered items and prose allowed
+- NEVER embed multiple numbered items in one string
+
+  ✓ ["1. **Short Label:** text...", "2. **Short Label:** text..."]
+  ✗ ["1) item one, 2) item two"]  — never collapse
+
+ZODIAC SIGNS IN BODY: Always replace zodiac sign text names with their Unicode symbols → ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓
+  NEVER write the sign name in plain text ✗ „Moon in Virgo"
+
+ZODIAC SUFFIX RULES:
+  BARE symbol — before Roman numeral, house or comma: „მთვარე ♋ VII სახლში"
+  HYPHEN suffix — genitive, locative: „♏-ის ენერგია", „♋-ში დაბადებული"
+
+HOUSES: Always use Roman numerals — never Georgian/ENG ordinals
+  ✗ „მე-7 სახლი" „Eighth House" → ✓ „VII სახლი" „VIII House"
 
 HINT (golden box):
 - The most ACTIONABLE or REFLECTIVE insight for both friends.

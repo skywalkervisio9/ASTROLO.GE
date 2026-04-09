@@ -106,17 +106,13 @@ LABEL (badge for cross referance):
 - SINGLE PLACEMENT: [symbol] [planet name] [sign symbol] [degree°min'] — [house]
   ✓ „☉ მზე ♎ 11°25' — VIII"
 - DOUBLE PLACEMENT: [symbol] [name] [aspect symbol] [symbol] [name] — [sign symbol], [house]
-  ✓ „♀ ვენერა ☌ ♄ სატურნი — ♏, IX"
 - THREE+ PLACEMENTS: thematic label only.
   ✓ „პიროვნების სინთეზი" / „სტიქიური ბალანსი"
 
 crossReferences (label hover popup):
 - This is the ASTROLOGICAL CONTEXT BLOCK for this card's label — what a curious reader hovering over the badge wants to know.
 - Content: exact degrees, dignity status, aspect orbs, house rulerships — technically rich, information-dense.
-- Keep each entry short. 2-3 entries per card.
-  ✓ ["☉ ♎ 11°25' — domicile ruler ♀ in ♏ VIII", "□ ♄ 2°14' orb — tension with authority"]
 - Lead with MEANING, not notation. The reader should understand themselves, not decode astrology.
-- Technical placements (degrees, houses) may appear in parentheses or subordinate clauses when they add credibility, but never as the opening words.
 
 CARD TITLES: See language block below for language-specific title constraints and examples.
 
@@ -175,8 +171,7 @@ HINT (golden box at bottom of card):
 
 ── SECTION 1: OVERVIEW ──
 
-ASPECTS: structural aspect data (planets, types, orbs) comes from chart data.
-Write interpretations for 2-4 most important provided aspects in the top-level `aspectInterpretations` array (see PART D schema).
+ASPECTS: Write interpretations for 2-5 most important provided aspects in the top-level `aspectInterpretations` array (see PART D schema).
 
 CORE CARDS (exactly 3):
 - SUN: identity centre, chart ruler connection, degree significance. Cross-ref: Moon, ASC, Venus, North Node.
