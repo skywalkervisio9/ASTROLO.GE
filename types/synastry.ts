@@ -1,49 +1,41 @@
 // ============================================================
-// Synastry reading types — matches Claude Call 2 JSON output
+// Synastry reading types — matches s4 prompt JSON output
 // Two variants: Couple (romantic) and Friend (platonic)
+// Field names align with SYSTEM-PROMPT-Couple_s4.md / Friend_s4.md
 // ============================================================
 
 export interface SynastryReading {
-  meta: {
-    person1: { name: string; sunSign: string; moonSign: string; rising: string };
-    person2: { name: string; sunSign: string; moonSign: string; rising: string };
-    relationshipType: 'couple' | 'friend';
-    compatibilityScore: number;
-    categoryScores: CategoryScore[];
-    language: 'ka' | 'en';
-    generatedAt: string;
-    promptVersion: string;
-  };
-  sections: SynastrySection[];
+  meta: SynastryMeta;
+  // Section keys live at root level (keyed by section name, not in a flat array)
+  [sectionKey: string]: unknown;
 }
 
-export interface CategoryScore {
-  name: string;
-  nameEn: string;
-  score: number;
-  color: string;
-  description: string;
+export interface SynastryMeta {
+  type: string;
+  language: 'ka' | 'en';
+  personA: { name: string; sun: string; moon: string; asc: string };
+  personB: { name: string; sun: string; moon: string; asc: string };
+  compatibilityScore: number;
+  categoryScores: Record<string, number>;
 }
 
 export interface SynastrySection {
-  id: string;
-  title: string;
-  tagline: string;
-  icon: string;
-  iconColor: string;
+  sectionTitle: string;
+  sectionSubtitle: string;
   cards: SynastryCard[];
   pullQuote: string | null;
 }
 
 export interface SynastryCard {
-  badge: string;
+  id: string;
+  label: string;
   title: string;
   body: string[];
-  hint: { title: string; content: string; bullets?: string[] } | null;
-  aspectTag: 'harmony' | 'tension' | 'magnetic' | null;
-  elementAccent: string | null;
+  aspectType: 'harmony' | 'tension' | 'magnetic';
+  elementColor: string;
   crossReferences: string[];
   expandedContent: string[] | null;
+  hint: { title: string; content: string; bullets: string[] | null } | null;
 }
 
 // ── Couple sections ──

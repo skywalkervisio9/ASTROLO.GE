@@ -45,10 +45,9 @@ export function getSynastryPrompt(
 
   const spec = loadPromptFile(filename);
 
-  const partB = extractSection(spec, '## SYSTEM PROMPT:', '## CALL 2 USER MESSAGE:');
-  // If no explicit end marker, try Part C boundary
-  const systemPrompt = partB || extractSection(spec, '## SYSTEM PROMPT:', '# PART C');
-  const partD = extractSection(spec, '## PART D', '## PART E');
+  // Extract system prompt body (between ``` fences in PART B)
+  const partB = extractSection(spec, '## SYSTEM PROMPT:', '# PART C');
+  const partD = extractSection(spec, '# PART D', '# PART E');
 
   // Extract relevant language block from Part C
   const langLabel = language === 'ka' ? 'GEORGIAN' : 'ENGLISH';
@@ -62,16 +61,23 @@ export function getSynastryPrompt(
       : partC.slice(langStart, nextSection);
   }
 
-  if (systemPrompt) {
+  if (partB) {
     // Extract just the content between ``` fences in the system prompt block
-    const fenceMatch = systemPrompt.match(/```\n?([\s\S]*?)```/);
-    const promptBody = fenceMatch ? fenceMatch[1].trim() : systemPrompt;
+    const fenceMatch = partB.match(/```\n?([\s\S]*?)```/);
+    let promptBody = fenceMatch ? fenceMatch[1].trim() : partB;
 
     // Extract language block content from ``` fences
     const langFenceMatch = langBlock.match(/```\n?([\s\S]*?)```/);
     const langBody = langFenceMatch ? langFenceMatch[1].trim() : langBlock;
 
-    return `${promptBody}\n\n${langBody}\n\n${partD}`;
+    // Replace {LANGUAGE_BLOCK} placeholder if present, otherwise append
+    if (promptBody.includes('{LANGUAGE_BLOCK}')) {
+      promptBody = promptBody.replace('{LANGUAGE_BLOCK}', langBody);
+    } else {
+      promptBody = `${promptBody}\n\n${langBody}`;
+    }
+
+    return `${promptBody}\n\n${partD}`;
   }
 
   // Fallback

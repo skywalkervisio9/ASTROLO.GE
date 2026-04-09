@@ -29,10 +29,7 @@ import type {
 import { SECTION_KEYS, FREE_PICKABLE } from '@/types/reading';
 import { canAccessSection, type User, PRICING } from '@/types/user';
 import { SECTION_ICONS, ELEMENT_COLORS } from '@/lib/utils/constants';
-
-const ELEMENT_CSS_CLASS: Record<string, string> = {
-  fire: 'af', earth: 'ae', air: 'aa', water: 'aw',
-};
+import { renderText, setRenderLang, ELEMENT_CSS_CLASS } from '@/lib/utils/renderText';
 import type { Lang } from '@/lib/utils/translations';
 
 // ── Helpers ──
@@ -40,70 +37,6 @@ import type { Lang } from '@/lib/utils/translations';
 function stripSectionPrefix(title: string): string {
   const idx = title.indexOf(': ');
   return idx !== -1 ? title.slice(idx + 2) : title;
-}
-
-// ── Astro symbol rendering ──
-
-const SYMBOL_TO_GLYPH: Record<string, string> = {
-  '☉':'sun','☽':'moon','☿':'mercury','♀':'venus','♂':'mars',
-  '♃':'jupiter','♄':'saturn','♅':'uranus','♆':'neptune','♇':'pluto',
-  '⚸':'lilith','☊':'node','☋':'node',
-  '♈':'aries','♉':'taurus','♊':'gemini','♋':'cancer','♌':'leo','♍':'virgo',
-  '♎':'libra','♏':'scorpio','♐':'sagittarius','♑':'capricorn','♒':'aquarius','♓':'pisces',
-};
-const PLANET_SET = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋']);
-const SIGN_ELEMENT: Record<string, string> = {
-  aries:'fire',taurus:'earth',gemini:'air',cancer:'water',leo:'fire',virgo:'earth',
-  libra:'air',scorpio:'water',sagittarius:'fire',capricorn:'earth',aquarius:'air',pisces:'water',
-};
-// Tokenizer: bold, italic, chart points (ASC/MC/IC), retrograde ℞, astro Unicode symbols
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓])/gu;
-
-const PT_TIPS_EN: Record<string, string> = {
-  ASC: 'Ascendant — outer mask & first impression',
-  MC: 'Midheaven — career & public role',
-  IC: 'Imum Coeli — roots & private self',
-  DSC: 'Descendant — the mirror & partnerships',
-};
-const PT_TIPS_KA: Record<string, string> = {
-  ASC: 'ასცენდენტი — გარეგანი ნიღაბი და პირველი შთაბეჭდილება',
-  MC: 'ცის შუაწერტილი — კარიერა და საჯარო როლი',
-  IC: 'ცის ფსკერი — ფესვები და შინაგანი სამყარო',
-  DSC: 'დესცენდენტი — სარკე და პარტნიორობა',
-};
-
-// Module-level language for renderText (set by ReadingRenderer on mount)
-let _renderLang: Lang = 'ka';
-
-function renderText(text: string): React.ReactNode {
-  if (!text) return null;
-  const ptTips = _renderLang === 'ka' ? PT_TIPS_KA : PT_TIPS_EN;
-  const retroTip = _renderLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
-  const nodes: React.ReactNode[] = [];
-  let last = 0; let k = 0;
-  TEXT_TOKEN_RE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = TEXT_TOKEN_RE.exec(text)) !== null) {
-    if (m.index > last) nodes.push(text.slice(last, m.index));
-    if (m[1] !== undefined) {
-      nodes.push(<strong key={k++}>{m[1]}</strong>);
-    } else if (m[2] !== undefined) {
-      nodes.push(<em key={k++} className="hl">{m[2]}</em>);
-    } else if (m[3] !== undefined) {
-      nodes.push(<span key={k++} className="pt tip" data-tip={ptTips[m[3]]}>{m[3]}</span>);
-    } else if (m[4] !== undefined) {
-      nodes.push(<span key={k++} className="tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
-    } else if (m[5] !== undefined) {
-      const ch = m[5]; const glyph = SYMBOL_TO_GLYPH[ch];
-      if (glyph) {
-        const cls = PLANET_SET.has(ch) ? 'gi gi-pl' : `gi gi-${SIGN_ELEMENT[glyph] || ''}`;
-        nodes.push(<span key={k++} className={cls}><svg><use href={`#gl-${glyph}`}/></svg></span>);
-      } else nodes.push(ch);
-    }
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) nodes.push(text.slice(last));
-  return nodes.length === 1 ? nodes[0] : nodes;
 }
 
 // ── Props ──
@@ -125,7 +58,7 @@ export default function ReadingRenderer({
   onUpgrade,
   onSectionPick,
 }: ReadingRendererProps) {
-  _renderLang = language;
+  setRenderLang(language);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<SectionKey>('overview');
 
@@ -441,7 +374,7 @@ function LockedSection({
             <span className="card-label">{section.cards[0].label}</span>
             <h3 className="card-title">{section.cards[0].title}</h3>
             <div className="teaser-blur">
-              <p>{section.cards[0].body[0]?.slice(0, 120)}...</p>
+              <p>{(t => t.length > 120 ? t.slice(0, 120).replace(/\s\S*$/, '') + '…' : t)(section.cards[0].body[0] ?? '')}</p>
             </div>
           </div>
         </div>

@@ -120,6 +120,10 @@ export default function SynastryViewWrapper() {
           }
         }
       }
+
+      // Stream ended without done/error — treat as failure
+      setGenerating(false);
+      setError('Generation stream ended unexpectedly');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed');
       setGenerating(false);
@@ -182,7 +186,11 @@ export default function SynastryViewWrapper() {
     });
   }, [fetchConnections, fetchReading, language]);
 
-  const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+  // Must be state + useEffect to avoid SSR hydration mismatch
+  const [isDev, setIsDev] = useState(false);
+  useEffect(() => {
+    setIsDev(window.location.hostname === 'localhost');
+  }, []);
 
   const handleBackToNatal = () => {
     const btn = document.getElementById('devNatal');

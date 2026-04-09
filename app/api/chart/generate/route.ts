@@ -492,11 +492,11 @@ export async function POST(req: NextRequest) {
     const finalReadingKa = injectAndClean(result.readingKa, aspectsKa);
     const finalReadingEn = injectAndClean(result.readingEn, aspectsEn);
 
-    // Store reading with public share slug
+    // Store reading — upsert on user_id so a retry after a partial failure doesn't 23505
     const shareSlug = generateShareSlug();
     const { data: reading, error: readingError } = await supabase
       .from('natal_readings')
-      .insert({
+      .upsert({
         user_id: user.id,
         share_slug: shareSlug,
         analysis_en: result.analysis,
@@ -509,7 +509,7 @@ export async function POST(req: NextRequest) {
         tokens_call2_ka: result.meta.tokensCall2Ka,
         tokens_call2_en: result.meta.tokensCall2En,
         validation_warnings: result.meta.validationWarnings,
-      })
+      }, { onConflict: 'user_id' })
       .select('id, share_slug')
       .single();
 

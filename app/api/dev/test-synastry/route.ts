@@ -33,9 +33,14 @@ export async function POST(req: NextRequest) {
         status: 'progress' | 'done' | 'error' = 'progress',
         data?: Record<string, unknown>
       ) => {
-        controller.enqueue(
-          encoder.encode(JSON.stringify({ step, status, ...data }) + '\n')
-        );
+        try {
+          controller.enqueue(
+            encoder.encode(JSON.stringify({ step, status, ...data }) + '\n')
+          );
+        } catch {
+          // Controller may be closed if client disconnected — log and continue
+          console.warn('[test-synastry] Stream closed, cannot send:', step);
+        }
       };
 
       try {
@@ -199,9 +204,7 @@ export async function POST(req: NextRequest) {
           reading_ka: result.readingKa,
           reading_en: result.readingEn,
           prompt_version: 'SYSTEM-PROMPT-Couple_s4',
-          model_call1: result.meta.modelCall1,
           model_call2: result.meta.modelCall2,
-          tokens_call1: result.meta.tokensCall1,
           tokens_call2_ka: result.meta.tokensCall2Ka,
           tokens_call2_en: result.meta.tokensCall2En,
           validation_warnings: result.meta.validationWarnings,
@@ -225,12 +228,12 @@ export async function POST(req: NextRequest) {
           tokensEn: result.meta.tokensCall2En,
           warnings: result.meta.validationWarnings,
         });
-        controller.close();
+        try { controller.close(); } catch { /* already closed */ }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         console.error('Test synastry error:', err);
         send(`Error: ${message}`, 'error');
-        controller.close();
+        try { controller.close(); } catch { /* already closed */ }
       }
     },
   });

@@ -61,7 +61,7 @@ export async function generateNatalReading(
   const call1 = await callClaude(
     getNatalCall1Prompt(),
     `Analyze this natal chart:\n\n${chartContext}`,
-    20000,
+    16000,
     false
   );
 
@@ -129,11 +129,14 @@ async function generateSingleReading(
   outputTokens: number;
 }> {
   const prompt = getNatalCall2Prompt(language);
+  // Georgian is ~2 chars/token (Mkhedruli script); English is ~4 chars/token.
+  // Full KA reading ≈ 35K tokens; EN ≈ 10K tokens. Add headroom for JSON structure + aspects.
+  const maxTokens = language === 'ka' ? 64000 : 36000;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await callClaude(prompt, userMessage, 60000);
+      const response = await callClaude(prompt, userMessage, maxTokens);
       const raw = await parseOrRepairJSON(response.text) as Record<string, unknown>;
       // Extract aspect interpretations before normalization (normalizer would drop unknown keys)
       const aspectInterpretations = extractAspectInterpretations(raw);
@@ -214,9 +217,11 @@ export async function generateSynastryReading(
     input.relationshipType
   );
 
-  // Direct to Call 2 — KA then EN sequentially to avoid Gemini throttling
-  const readingKa = await generateSingleSynastryReading(userMsg, 'ka', input.relationshipType);
-  const readingEn = await generateSingleSynastryReading(userMsg, 'en', input.relationshipType);
+  // Generate KA and EN in parallel for ~2x speed
+  const [readingKa, readingEn] = await Promise.all([
+    generateSingleSynastryReading(userMsg, 'ka', input.relationshipType),
+    generateSingleSynastryReading(userMsg, 'en', input.relationshipType),
+  ]);
 
   return {
     analysis: `[s4: no Call 1 — used natal analyses for ${input.personAName} & ${input.personBName}]`,
@@ -252,8 +257,10 @@ export async function generateSynastryReadingLegacy(
 
   const userMsg = `Synastry Analysis:\n${call1.text}\n\nPerson 1 Chart:\n${chart1Context}\n\nPerson 2 Chart:\n${chart2Context}`;
 
-  const readingKa = await generateSingleSynastryReading(userMsg, 'ka', relationshipType);
-  const readingEn = await generateSingleSynastryReading(userMsg, 'en', relationshipType);
+  const [readingKa, readingEn] = await Promise.all([
+    generateSingleSynastryReading(userMsg, 'ka', relationshipType),
+    generateSingleSynastryReading(userMsg, 'en', relationshipType),
+  ]);
 
   return {
     analysis: call1.text,
@@ -282,11 +289,13 @@ async function generateSingleSynastryReading(
   outputTokens: number;
 }> {
   const prompt = getSynastryPrompt(relationshipType, language);
+  const maxTokens = language === 'ka' ? 64000 : 36000;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await callClaude(prompt, userMessage, 60000);
+      const response = await callClaude(prompt, userMessage, maxTokens);
+      console.log(`[synastry-${relationshipType}-${language}] AI: ${response.outputTokens} tokens, keys: ${Object.keys(JSON.parse(response.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim())).join(',')}`);
       const parsed = await parseOrRepairJSON(response.text) as Record<string, unknown>;
       const validation = validateSynastryReading(parsed, relationshipType);
 

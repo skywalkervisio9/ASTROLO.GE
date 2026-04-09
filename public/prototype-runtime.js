@@ -163,10 +163,50 @@ function toggleSlot(slotNum, btn) {
   rebuildSidebar();
 }
 
+// Track real synastry state from generation
+var _synastryGenerated = false;
+var _synastryPartnerName = null;
+var _synastryConnectionId = null;
+var _synastryRelType = null;
+
 function occupySlot(slotNum, btn) {
   // Get effective unlock state
-  const unlocked = slotNum === 1 ? getSlot1Unlocked() : getSlot2Unlocked();
+  var unlocked = slotNum === 1 ? getSlot1Unlocked() : getSlot2Unlocked();
   if (!unlocked) return;
+
+  // Dev mode on localhost: slot 1 triggers real synastry generation
+  if (slotNum === 1 && window.location.hostname === 'localhost') {
+    // If already generated, don't re-trigger — just toggle view
+    if (_synastryGenerated) {
+      closeSidebar();
+      switchView('synastry');
+      return;
+    }
+    // If already generating, ignore
+    if (btn.classList.contains('generating')) return;
+
+    // Start generation
+    btn.classList.add('active', 'generating');
+    btn.textContent = '✓ generating...';
+    slot1OccupiedOverride = true;
+
+    // Update sidebar to show generating state
+    var synItem = document.getElementById('synNavItem');
+    if (synItem) {
+      synItem.classList.remove('syn-cta-pulsate');
+      synItem.classList.add('has-partner');
+      var pn = document.getElementById('synPartnerName');
+      if (pn) pn.textContent = '⟳ იტვირთება...';
+      var mb = document.getElementById('modeBadge');
+      if (mb) { mb.className = 'mode-badge'; mb.textContent = ''; }
+    }
+
+    // Trigger React wrapper
+    window.dispatchEvent(new CustomEvent('dev-trigger-synastry'));
+    return;
+  }
+
+  // Non-dev / slot 2: original toggle behavior
   if (slotNum === 1) {
     slot1OccupiedOverride = slot1OccupiedOverride ? null : true;
     btn.classList.toggle('active', !!slot1OccupiedOverride);
@@ -244,7 +284,36 @@ function rebuildSidebar() {
   if (inviteBtn) inviteBtn.style.display = '';
 
   // ─── SLOT 1 ───
-  if (s1Unlocked && s1Occupied) {
+  // If synastry was generated in this session, keep it permanently occupied
+  if (_synastryGenerated && s1Unlocked) {
+    synItem.classList.add('has-partner');
+    if (partnerName) partnerName.textContent = '(' + (_synastryPartnerName || 'Partner') + ')';
+    var relType = _synastryRelType || 'couple';
+    if (modeBadge) {
+      modeBadge.className = 'mode-badge ' + relType;
+      modeBadge.textContent = relType === 'couple' ? 'მეწყვილე' : 'მეგობარი';
+    }
+    // Re-add tick badge if lost
+    var existingBadge = synItem.querySelector('.syn-badge');
+    if (!existingBadge) {
+      var badge = document.createElement('span');
+      badge.className = 'syn-badge';
+      badge.textContent = '✓';
+      badge.style.cssText = 'color:var(--gold);font-size:.7rem;margin-left:4px;';
+      var lbl = synItem.querySelector('.sb-nav-label');
+      if (lbl) lbl.parentNode.insertBefore(badge, lbl.nextSibling);
+    }
+    // Keep dev button in occupied state
+    var occBtn = document.getElementById('devSlot1Occupy');
+    if (occBtn) {
+      occBtn.classList.add('active');
+      occBtn.classList.remove('generating');
+      occBtn.textContent = '👤 occupied';
+      occBtn.disabled = true;
+      occBtn.style.opacity = '0.6';
+      occBtn.style.cursor = 'default';
+    }
+  } else if (s1Unlocked && s1Occupied) {
     // Partner connected → show partner name & mode badge
     synItem.classList.add('has-partner');
     if (partnerName) partnerName.textContent = '(გიორგი მაისურაძე)';
@@ -356,6 +425,8 @@ document.querySelector('#sbNavRow .sb-nav-item:first-child').onclick = function(
   switchView('natal', document.getElementById('devNatal'));
 };
 document.getElementById('synNavItem').onclick = function() {
+  // If synastry already generated, just show it
+  if (_synastryGenerated) { closeSidebar(); switchView('synastry'); return; }
   // FREE: locked → premium payment page
   if (this.classList.contains('locked-syn')) { closeSidebar(); showPaymentPage('premium'); return; }
   // Pulsating CTA → open invite modal (or dev trigger on localhost)
@@ -381,25 +452,53 @@ document.getElementById('synNavItem').onclick = function() {
 
 // Listen for synastry ready event from React wrapper
 window.addEventListener('synastry-ready', function(e) {
-  var synItem = document.getElementById('synNavItem');
-  if (!synItem) return;
-  synItem.classList.remove('syn-cta-pulsate', 'syn-generating');
-  synItem.classList.add('has-partner');
-  var label = synItem.querySelector('.sb-nav-label');
   var detail = e.detail || {};
-  if (label) {
-    var name = (detail.user2 && detail.user2.name) ? detail.user2.name.split(' ')[0] : 'Partner';
-    label.textContent = name;
+  var name = (detail.user2 && detail.user2.name) ? detail.user2.name.split(' ')[0] : 'Partner';
+
+  // Permanently mark synastry as generated
+  _synastryGenerated = true;
+  _synastryPartnerName = name;
+  _synastryConnectionId = detail.connectionId || null;
+  _synastryRelType = detail.relationshipType || 'couple';
+  slot1OccupiedOverride = true;
+
+  // Update sidebar nav
+  var synItem = document.getElementById('synNavItem');
+  if (synItem) {
+    synItem.classList.remove('syn-cta-pulsate', 'syn-generating');
+    synItem.classList.add('has-partner');
+    var label = synItem.querySelector('.sb-nav-label');
+    if (label) label.textContent = name;
+    var pn = document.getElementById('synPartnerName');
+    if (pn) pn.textContent = '(' + name + ')';
+    var mb = document.getElementById('modeBadge');
+    if (mb) {
+      mb.className = 'mode-badge ' + _synastryRelType;
+      mb.textContent = _synastryRelType === 'couple' ? 'მეწყვილე' : 'მეგობარი';
+    }
+    // Add a tick icon
+    var badge = synItem.querySelector('.syn-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'syn-badge';
+      badge.textContent = '✓';
+      badge.style.cssText = 'color:var(--gold);font-size:.7rem;margin-left:4px;';
+      if (label) label.parentNode.insertBefore(badge, label.nextSibling);
+    }
   }
-  // Add a tick icon to indicate reading is ready
-  var badge = synItem.querySelector('.syn-badge');
-  if (!badge) {
-    badge = document.createElement('span');
-    badge.className = 'syn-badge';
-    badge.textContent = '✓';
-    badge.style.cssText = 'color:var(--gold);font-size:.7rem;margin-left:4px;';
-    if (label) label.parentNode.insertBefore(badge, label.nextSibling);
+
+  // Update dev occupy button to permanent state
+  var occBtn = document.getElementById('devSlot1Occupy');
+  if (occBtn) {
+    occBtn.classList.remove('generating');
+    occBtn.classList.add('active');
+    occBtn.textContent = '👤 occupied';
+    occBtn.disabled = true;
+    occBtn.style.opacity = '0.6';
+    occBtn.style.cursor = 'default';
   }
+
+  console.log('[DEV] Synastry ready:', name, _synastryRelType, _synastryConnectionId);
 });
 
 // ═══ INVITE MODAL ═══
@@ -1828,6 +1927,43 @@ function _renderRichText(text) {
   // Retrograde symbol → tooltip
   var retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
   escaped = escaped.replace(/℞/g, '<span class="tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');
+  // Element words → colored inline pills (Characteristics core card).
+  // Matches: ცეცხლ- / მიწ- / ჰაერ- / წყალ- / წყლ- (genitive: წყლის, წყლისა) with any
+  // Georgian ending, plus English fire/earth/air/water. Optional trailing "(NN%)" or "(NN)".
+  var _elStem = function(word) {
+    var w = word.toLowerCase();
+    if (/^fire$/.test(w)) return 'fire';
+    if (/^earth$/.test(w)) return 'earth';
+    if (/^air$/.test(w)) return 'air';
+    if (/^water$/.test(w)) return 'water';
+    if (/^ცეცხლ/.test(word)) return 'fire';
+    if (/^მიწ/.test(word)) return 'earth';
+    if (/^ჰაერ/.test(word)) return 'air';
+    if (/^წყალ/.test(word) || /^წყლ/.test(word)) return 'water';
+    return null;
+  };
+  var _elTipsKa = {
+    fire: 'ცეცხლი — მოქმედება, ვნება, სითამამე',
+    earth: 'მიწა — სტაბილურობა, პრაქტიკა, საფუძველი',
+    air: 'ჰაერი — აზრი, კომუნიკაცია, იდეები',
+    water: 'წყალი — ემოცია, ინტუიცია, სიღრმე'
+  };
+  var _elTipsEn = {
+    fire: 'Fire — action, passion, courage',
+    earth: 'Earth — stability, practicality, grounding',
+    air: 'Air — thought, communication, ideas',
+    water: 'Water — emotion, intuition, depth'
+  };
+  // წყალ before წყლ so the longer form wins on "წყალისა"
+  var _elRe = /((?:(?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b))(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?/giu;
+  var _elTips = _hydrateLang === 'ka' ? _elTipsKa : _elTipsEn;
+  escaped = escaped.replace(_elRe, function(_full, word, pct) {
+    var el = _elStem(word);
+    if (!el) return _full;
+    var pctHtml = (pct != null && pct !== '') ? '<span class="gel-p">(' + pct + '%)</span>' : '';
+    var tipAttr = _elTips[el] ? ' data-tip="' + _elTips[el] + '"' : '';
+    return '<span class="gel gel-' + el + ' tip"' + tipAttr + '><span class="gel-w">' + word + '</span>' + pctHtml + '</span>';
+  });
   // Now replace Unicode astro symbols with SVG glyphs
   var chars = Array.from(escaped);
   var result = '';
@@ -1866,6 +2002,7 @@ function _buildBodyHtml(arr, richFn, simple) {
   });
   var html = '';
   var i = 0;
+  var _prevWasIntro = false; // track consecutive cl-intro elements
   while (i < flat.length) {
     var s = flat[i];
     if (simple) {
@@ -1873,6 +2010,7 @@ function _buildBodyHtml(arr, richFn, simple) {
       // Transform inline numbers (1. 2. 1) 2) etc.) and arrows into decorative bullet dots
       var _ps = fn(s).replace(/\b\d+[.)]\s/g, '<span class="dn">●</span>').replace(/\s*→\s*/g, ' ');
       html += '<p>' + _ps + '</p>';
+      _prevWasIntro = false;
       i++;
     } else if (/^\d+\.\s/.test(s)) {
       html += '<div class="cl">';
@@ -1887,22 +2025,41 @@ function _buildBodyHtml(arr, richFn, simple) {
           if (colonMatch) { title = colonMatch[1]; body = colonMatch[2]; }
         }
         if (title) {
-          html += '<div class="cl-row"><span class="cl-t">' + fn(title) + '</span><span class="cl-b">' + fn(body) + '</span></div>';
+          // Split parenthetical context onto a second line: "Main Title (extra)" → main + sub
+          var titleHtml;
+          var parenMatch = title.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+          if (parenMatch) {
+            titleHtml = '<span class="cl-t-main">' + fn(parenMatch[1].trim()) + '</span>' +
+                        '<span class="cl-t-sub">' + fn(parenMatch[2].trim()) + '</span>';
+          } else {
+            titleHtml = fn(title);
+          }
+          html += '<div class="cl-row"><span class="cl-t">' + titleHtml + '</span><span class="cl-b">' + fn(body) + '</span></div>';
         } else {
           html += '<div class="cl-row"><span class="cl-b cl-b-full">' + fn(content) + '</span></div>';
         }
         i++;
       }
       html += '</div>';
+      _prevWasIntro = false;
     } else {
-      // Detect section intro: short line ending with ':' (with or without **bold** wrapping)
+      // Detect section intro: line ending with ':' (with or without **bold** wrapping), max 65 chars
       var _bare = s.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
-      if (/^[^.\n]{4,90}:\s*$/.test(_bare)) {
-        var _dl = '<span class="cl-dl"><i></i><i></i><i></i></span>';
-        var _dr = '<span class="cl-dr"><i></i><i></i><i></i></span>';
-        html += '<p class="cl-intro">' + _dl + fn(_bare.replace(/:\s*$/, '')) + _dr + '</p>';
+      if (/^[^.\n]{4,65}:\s*$/.test(_bare)) {
+        var _cleanText = fn(_bare.replace(/:\s*$/, ''));
+        if (_prevWasIntro) {
+          // Second consecutive intro = subtitle: no dots, smaller, italic treatment
+          html += '<p class="cl-intro-sub">' + _cleanText + '</p>';
+          _prevWasIntro = false;
+        } else {
+          var _dl = '<span class="cl-dl"><i></i><i></i><i></i></span>';
+          var _dr = '<span class="cl-dr"><i></i><i></i><i></i></span>';
+          html += '<p class="cl-intro">' + _dl + _cleanText + _dr + '</p>';
+          _prevWasIntro = true;
+        }
       } else {
         html += '<p>' + fn(s) + '</p>';
+        _prevWasIntro = false;
       }
       i++;
     }
@@ -2138,7 +2295,9 @@ function _buildLockWrap(sectionKey, section, iconId) {
     html += '<div class="b">' + _buildBadgeHtml(firstCard.label) + '</div>';
     html += '<h3>' + _esc(firstCard.title) + '</h3>';
     if (firstCard.hint) {
-      html += '<div class="lock-hint">✦ ' + _esc(firstCard.hint.content.slice(0, 120)) + '</div>';
+      var raw = firstCard.hint.content;
+      var preview = raw.length > 120 ? raw.slice(0, 120).replace(/\s\S*$/, '') + '…' : raw;
+      html += '<div class="lock-hint">✦ ' + _esc(preview) + '</div>';
     }
   }
   html += '<div class="blur-lines">';
@@ -2146,7 +2305,7 @@ function _buildLockWrap(sectionKey, section, iconId) {
     html += '<div class="blur-line" style="width:' + w + '%"></div>';
   });
   html += '</div>';
-  html += '<button class="unlock-cta" onclick="showUpgrade()"><span>✦</span> სრული წაკითხვის განბლოკვა</button>';
+  html += '<button class="btn-unlock" onclick="showUpgrade()"> სრული წაკითხვის განბლოკვა</button>';
   html += '</div></div>';
   return html;
 }

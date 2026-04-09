@@ -1,7 +1,16 @@
 'use client';
 
+// ============================================================
+// SynastryView — renders the s4 synastry reading JSON using the
+// SAME short-form CSS class vocabulary as the natal reading
+// (hydrated by prototype-runtime.js). This keeps both surfaces
+// visually identical: .c / .b / .h / .ht / .ce / .tb2 / .sh / .st
+// / .snav / .snb / .pq / .g2 / .af .ae .aa .aw .ar .as .ag
+// ============================================================
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Language } from '@/types/user';
+import { renderText, setRenderLang } from '@/lib/utils/renderText';
 
 // ── Types matching the s4 JSON schema ──
 
@@ -88,6 +97,24 @@ const CATEGORY_LABELS_EN: Record<string, string> = {
   values: 'Values',
 };
 
+// elementColor string → short-form accent class used by .c
+const ELEMENT_ACCENT_CLASS: Record<string, string> = {
+  fire: 'af',
+  earth: 'ae',
+  air: 'aa',
+  water: 'aw',
+  rose: 'ar',
+  shadow: 'as',
+  gold: 'ag',
+};
+
+// Aspect type → small colored symbol shown inside the .b badge
+const ASPECT_BADGE: Record<string, { symbol: string; tone: string }> = {
+  harmony: { symbol: '●', tone: 'var(--earth)' },
+  tension: { symbol: '▲', tone: 'var(--fire)' },
+  magnetic: { symbol: '◆', tone: 'var(--water)' },
+};
+
 // ── Main Component ──
 
 interface SynastryViewProps {
@@ -97,6 +124,7 @@ interface SynastryViewProps {
 }
 
 export default function SynastryView({ reading, language, onBackToNatal }: SynastryViewProps) {
+  setRenderLang(language);
   const isFriend = reading.meta.type === 'synastry_friend';
   const sectionKeys = isFriend ? FRIEND_SECTIONS : COUPLE_SECTIONS;
   const navLabels = language === 'ka' ? SECTION_NAV_KA : SECTION_NAV_EN;
@@ -104,9 +132,9 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
 
   const [activeSection, setActiveSection] = useState(0);
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
-  const navRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
-  // Scroll-aware section tracking
+  // Scroll-aware active-section tracking (mirrors the nbtn behaviour in natal)
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -128,7 +156,7 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
     sectionRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  // Extract sections
+  // Extract sections that exist on this reading
   const sections = (sectionKeys as readonly string[])
     .map((key) => ({ key, data: reading[key] as SynastrySectionData | undefined }))
     .filter((s): s is { key: string; data: SynastrySectionData } => !!s.data);
@@ -162,7 +190,7 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
         </div>
 
         {/* Hero */}
-        <div className="chero section-reveal">
+        <div className="chero section-reveal vis">
           <div className="chero-glow" />
           <SigilSVG />
           <h1>{heroTitle}</h1>
@@ -170,13 +198,17 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
         </div>
 
         {/* Partner Cards */}
-        <div className="pcards section-reveal">
+        <div className="pcards section-reveal vis">
           <PartnerCard person={meta.personA} isYou language={language} />
           <div className="bridge">
-            <svg viewBox="0 0 40 40" width="40" height="40">
-              <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(201,168,76,.3)" strokeWidth="1" />
-              <text x="20" y="24" textAnchor="middle" fill="var(--gold)" fontSize="14" fontFamily="serif">☌</text>
-            </svg>
+            <div className="bridge-line" />
+            <div className="bridge-icon">
+              <svg viewBox="0 0 40 40" width="40" height="40">
+                <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(201,168,76,.3)" strokeWidth="1" />
+                <text x="20" y="24" textAnchor="middle" fill="var(--gold)" fontSize="14" fontFamily="serif">☌</text>
+              </svg>
+            </div>
+            <div className="bridge-line" />
           </div>
           <PartnerCard person={meta.personB} language={language} />
         </div>
@@ -185,38 +217,44 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
         <CompatibilityWheel score={meta.compatibilityScore} language={language} />
 
         {/* Category Scores */}
-        <div className="cats section-reveal">
+        <div className="cats section-reveal vis">
           {Object.entries(meta.categoryScores).map(([key, score]) => (
-            <CategoryBar key={key} label={catLabels[key] || key} score={score as number} />
+            <CategoryBar
+              key={key}
+              category={key}
+              label={catLabels[key] || key}
+              score={score as number}
+            />
           ))}
         </div>
 
-        {/* Section Navigation */}
-        <div className="snav" ref={navRef}>
+        {/* Section Navigation — uses .snav/.snb (same as natal synastry shared nav) */}
+        <nav className="snav" ref={navRef} role="tablist">
           {sections.map((s, i) => (
             <button
               key={s.key}
+              role="tab"
+              aria-selected={activeSection === i}
               className={`snb${activeSection === i ? ' active' : ''}`}
               onClick={() => scrollToSection(i)}
             >
               {navLabels[s.key] || s.key}
             </button>
           ))}
-        </div>
+        </nav>
 
-        {/* Sections */}
+        {/* Sections — each uses .sh / .c / .b / .ce / .tb2 / .h / .ht just like natal */}
         {sections.map((s, i) => (
           <SynastrySection
             key={s.key}
             ref={(el) => { sectionRefs.current[i] = el; }}
+            sectionId={`syn-${s.key}`}
             section={s.data}
-            language={language}
           />
         ))}
 
         {/* Footer */}
-        <footer className="rfooter">
-          <div className="footer-brand">ASTROLO.GE</div>
+        <footer className="footer">
           <div className="footer-copy">© 2026 ASTROLO.GE</div>
         </footer>
       </div>
@@ -264,15 +302,15 @@ function PartnerCard({
       <div className="pc-sub">{person.sun} · {person.moon} · {person.asc}</div>
       <div className="pc-placements">
         <div className="pc-row">
-          <span className="pc-row-label"><svg><use href="#gl-sun" /></svg></span>
+          <span className="pc-row-label"><svg><use href="#gl-sun" /></svg>{language === 'ka' ? 'მზე' : 'Sun'}</span>
           <span className="pc-row-val">{person.sun}</span>
         </div>
         <div className="pc-row">
-          <span className="pc-row-label"><svg><use href="#gl-moon" /></svg></span>
+          <span className="pc-row-label"><svg><use href="#gl-moon" /></svg>{language === 'ka' ? 'მთვარე' : 'Moon'}</span>
           <span className="pc-row-val">{person.moon}</span>
         </div>
         <div className="pc-row">
-          <span className="pc-row-label"><svg><use href="#gl-asc" /></svg></span>
+          <span className="pc-row-label">ASC</span>
           <span className="pc-row-val">{person.asc}</span>
         </div>
       </div>
@@ -285,134 +323,197 @@ function CompatibilityWheel({ score, language }: { score: number; language: Lang
   const offset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="wheel-section section-reveal">
-      <svg className="wheel-svg" viewBox="0 0 120 120" width="160" height="160">
-        <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(201,168,76,.08)" strokeWidth="6" />
-        <circle
-          className="wheel-arc"
-          cx="60" cy="60" r="54"
-          fill="none"
-          stroke="var(--gold)"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          transform="rotate(-90 60 60)"
-          style={{ transition: 'stroke-dashoffset 1.5s ease-out' }}
-        />
-      </svg>
-      <div className="wheel-center">
-        <div className="wheel-num">{score}</div>
-        <div className="wheel-label">{language === 'ka' ? 'თავსებადობა' : 'Compatibility'}</div>
+    <div className="wheel-section section-reveal vis">
+      <div className="wheel-wrap">
+        <div className="wheel-ring" />
+        <svg className="wheel-svg" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(201,168,76,.08)" strokeWidth="6" />
+          <circle
+            cx="60" cy="60" r="54"
+            fill="none"
+            stroke="var(--gold)"
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            style={{ transition: 'stroke-dashoffset 1.5s ease-out' }}
+          />
+        </svg>
+        <div className="wheel-center">
+          <div className="wheel-num">{score}</div>
+          <div className="wheel-label">{language === 'ka' ? 'თავსებადობა' : 'Compatibility'}</div>
+        </div>
       </div>
     </div>
   );
 }
 
-function CategoryBar({ label, score }: { label: string; score: number }) {
+// Category → element accent var for the .cat-fill gradient
+const CAT_TO_ELEMENT: Record<string, string> = {
+  emotional: 'var(--water)',
+  passion: 'var(--fire)',
+  karmic: 'var(--gold)',
+  growth: 'var(--earth)',
+  challenge: 'var(--fire)',
+  intellectual: 'var(--air)',
+  values: 'var(--gold)',
+};
+
+function CategoryBar({ category, label, score }: { category: string; label: string; score: number }) {
+  const tone = CAT_TO_ELEMENT[category] || 'var(--gold)';
   return (
     <div className="cat">
-      <span className="cat-name">{label}</span>
-      <span className="cat-score">{score}%</span>
+      <div className="cat-top">
+        <span className="cat-name">{label}</span>
+        <span className="cat-score" style={{ color: tone }}>{score}%</span>
+      </div>
       <div className="cat-bar">
         <div
           className="cat-fill"
-          style={{ width: `${score}%`, transition: 'width 1s ease-out' }}
+          style={{
+            width: `${score}%`,
+            background: `linear-gradient(90deg, ${tone}, color-mix(in srgb, ${tone} 55%, transparent))`,
+          }}
         />
       </div>
     </div>
   );
 }
 
-// ── Section + Card ──
+// ── Section renderer — uses .sh / .sh h2 / .st / .pq (natal pattern) ──
 
 const SynastrySection = React.forwardRef<HTMLElement, {
+  sectionId: string;
   section: SynastrySectionData;
-  language: Language;
-}>(function SynastrySection({ section, language }, ref) {
+}>(function SynastrySection({ sectionId, section }, ref) {
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (cardId: string) => {
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  };
+
+  // First card full-width, rest in a 2-col .g2 grid (same as natal _buildCardsGrid)
+  const cards = section.cards ?? [];
+  const lead = cards[0];
+  const rest = cards.slice(1);
+  const pairs: SynastryCardData[][] = [];
+  for (let i = 0; i < rest.length; i += 2) {
+    pairs.push(rest.slice(i, i + 2));
+  }
+
   return (
-    <section className="analysis-section" ref={ref}>
-      <div className="section-head">
+    <section id={sectionId} className="vis" ref={ref}>
+      <div className="sh">
         <h2>{section.sectionTitle}</h2>
-        {section.sectionSubtitle && <p className="section-tagline">{section.sectionSubtitle}</p>}
+        {section.sectionSubtitle && <div className="st">{section.sectionSubtitle}</div>}
       </div>
 
-      {section.cards.map((card, i) => (
-        <SynastryCard key={card.id || i} card={card} language={language} />
+      {lead && (
+        <SynastryCardComponent
+          card={lead}
+          expanded={expandedCards.has(lead.id)}
+          onToggleExpand={() => toggleExpand(lead.id)}
+        />
+      )}
+
+      {pairs.map((pair, idx) => (
+        pair.length === 2 ? (
+          <div className="g2" key={idx}>
+            {pair.map((card) => (
+              <SynastryCardComponent
+                key={card.id}
+                card={card}
+                expanded={expandedCards.has(card.id)}
+                onToggleExpand={() => toggleExpand(card.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <SynastryCardComponent
+            key={pair[0].id}
+            card={pair[0]}
+            expanded={expandedCards.has(pair[0].id)}
+            onToggleExpand={() => toggleExpand(pair[0].id)}
+          />
+        )
       ))}
 
       {section.pullQuote && (
-        <blockquote className="pull-quote">{section.pullQuote}</blockquote>
+        <div className="pq">
+          <p>{renderText(section.pullQuote)}</p>
+        </div>
       )}
     </section>
   );
 });
 
-function SynastryCard({ card, language }: { card: SynastryCardData; language: Language }) {
-  const [expanded, setExpanded] = useState(false);
-  const elColor = card.elementColor || 'gold';
-  const aspectClass = card.aspectType || 'harmony';
+// ── Card renderer — mirrors natal _buildCard short-form pattern ──
+
+function SynastryCardComponent({
+  card,
+  expanded,
+  onToggleExpand,
+}: {
+  card: SynastryCardData;
+  expanded: boolean;
+  onToggleExpand: () => void;
+}) {
+  const elClass = card.elementColor ? (ELEMENT_ACCENT_CLASS[card.elementColor] || '') : '';
+  const hasCrossRefs = card.crossReferences && card.crossReferences.length > 0;
+  const crossRefPopup = hasCrossRefs ? card.crossReferences.join(' · ') : undefined;
+  const badge = ASPECT_BADGE[card.aspectType] || ASPECT_BADGE.harmony;
 
   return (
-    <div className={`card el-${elColor}`}>
-      {/* Badge / Label */}
-      <div className="card-badge">
-        <span className={`aspect-tag ${aspectClass}`}>
-          {aspectClass === 'harmony' ? '●' : aspectClass === 'tension' ? '▲' : '◆'}
-          {' '}{card.label}
+    <div className={`c ${elClass}`.trim()}>
+      {/* Label badge — uses .b (matches natal), aspect symbol prefix */}
+      <div className={`b${hasCrossRefs ? ' has-popup' : ''}`}>
+        <span style={{ color: badge.tone, marginRight: 5, fontSize: '.7rem' }}>
+          {badge.symbol}
         </span>
+        {card.label}
+        {hasCrossRefs && <span className="label-popup">{crossRefPopup}</span>}
       </div>
 
-      <h3>{card.title}</h3>
+      {/* Title — .c h3 styled automatically */}
+      <h3>{renderText(card.title)}</h3>
 
-      {/* Body paragraphs */}
-      {card.body.map((p, i) => (
-        <p key={i}>{p}</p>
+      {/* Body paragraphs — direct <p> children of .c (matches natal .c p) */}
+      {card.body.map((paragraph, i) => (
+        <p key={i}>{renderText(paragraph)}</p>
       ))}
 
-      {/* Cross-references */}
-      {card.crossReferences && card.crossReferences.length > 0 && (
-        <div className="card-crossrefs">
-          {card.crossReferences.map((ref, i) => (
-            <small key={i} style={{ display: 'block', color: 'var(--txd)', marginTop: '4px', fontSize: '.8rem' }}>
-              ↳ {ref}
-            </small>
-          ))}
-        </div>
-      )}
-
-      {/* Expanded content */}
+      {/* Expand button + .ce expand container — matches natal tb2/.ce */}
       {card.expandedContent && card.expandedContent.length > 0 && (
         <>
-          <button
-            className="expand-btn"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded
-              ? (language === 'ka' ? 'დახურვა ↑' : 'Collapse ↑')
-              : (language === 'ka' ? 'სიღრმისეულად ↓' : 'Explore deeper ↓')}
+          <button className="tb2" onClick={onToggleExpand} aria-expanded={expanded}>
+            {expanded ? '− დეტალები' : 'დეტალური ანალიზი ↓'}
           </button>
-          {expanded && (
-            <div className="expandable show">
-              {card.expandedContent.map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
-            </div>
-          )}
+          <div className={`ce${expanded ? ' open' : ''}`}>
+            {card.expandedContent.map((para, i) => (
+              <p key={i}>{renderText(para)}</p>
+            ))}
+          </div>
         </>
       )}
 
-      {/* Hint box */}
+      {/* Hint — uses .h/.ht (matches natal) */}
       {card.hint && (
-        <div className="hint">
-          <div className="hint-head">
-            <span className="hint-icon">✦</span>
-            <span className="hint-title">{card.hint.title}</span>
+        <div className="h">
+          <div className="ht">
+            <svg><use href="#gl-sparkle" /></svg>
+            {renderText(card.hint.title)}
           </div>
-          <p>{card.hint.content}</p>
+          <p>{renderText(card.hint.content)}</p>
           {card.hint.bullets && card.hint.bullets.length > 0 && (
-            <ul className="hint-bullets">
-              {card.hint.bullets.map((b, i) => <li key={i}>{b}</li>)}
+            <ul>
+              {card.hint.bullets.map((b, i) => (
+                <li key={i}>{renderText(b)}</li>
+              ))}
             </ul>
           )}
         </div>
