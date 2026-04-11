@@ -83,7 +83,6 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
   if (!open) return null;
 
   const tier = getTierDisplay(user);
-  const showUpgradeCta = user.account_type === 'free' || user.account_type === 'invited';
 
   const dob = user.birth_day && user.birth_month && user.birth_year
     ? `${String(user.birth_day).padStart(2, '0')}.${String(user.birth_month).padStart(2, '0')}.${user.birth_year}`
@@ -264,13 +263,13 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
               )}
             </div>
 
-            {/* Upgrade CTA */}
-            {showUpgradeCta && (
+            {/* Upgrade CTA — different for free vs invited */}
+            {user.account_type === 'free' && (
               <div className="stg-upgrade">
                 <div className="stg-upgrade-glow" />
                 <svg className="stg-upgrade-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" opacity=".8"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
                 <div className="stg-upgrade-text">
-                  <div className="stg-upgrade-title">{isLangEn ? 'Unlock full experience' : 'სრული გამოცდილება'}</div>
+                  <div className="stg-upgrade-title">{isLangEn ? 'Full experience' : 'სრული გამოცდილება'}</div>
                   <div className="stg-upgrade-desc">
                     {isLangEn
                       ? 'Get full natal reading, synastry, and more'
@@ -280,6 +279,27 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
                 </div>
                 <button className="stg-upgrade-btn" onClick={() => { onUpgrade?.(); onClose(); }}>
                   {isLangEn ? 'Upgrade' : 'გაუმჯობესება'} <span className="stg-upgrade-price">₾15</span>
+                </button>
+              </div>
+            )}
+            {user.account_type === 'invited' && !user.natal_chart_unlocked && (
+              <div className="stg-upgrade">
+                <div className="stg-upgrade-glow" />
+                <svg className="stg-upgrade-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" opacity=".8"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
+                <div className="stg-upgrade-text">
+                  <div className="stg-upgrade-title">{isLangEn ? 'Unlock full reading' : 'სრული წაკითხვა'}</div>
+                  <div className="stg-upgrade-desc">
+                    {isLangEn
+                      ? 'Unlock all 8 natal sections'
+                      : 'განბლოკე ნატალის სრული 8 სექცია'
+                    }
+                  </div>
+                </div>
+                <button className="stg-upgrade-btn" onClick={() => {
+                  (window as unknown as { showPaymentPage?: (type: string) => void }).showPaymentPage?.('natal-unlock');
+                  onClose();
+                }}>
+                  {isLangEn ? 'Unlock' : 'განბლოკვა'} <span className="stg-upgrade-price">₾5</span>
                 </button>
               </div>
             )}
@@ -313,9 +333,6 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
                         <span className="stg-slot-status">{slotStatusLabel(conn, isLangEn)}</span>
                       </div>
                     </div>
-                    {conn.status === 'reading_generated' && (
-                      <svg className="stg-slot-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                    )}
                     {conn.status === 'accepted' && (
                       <div className="stg-slot-spinner" />
                     )}

@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { requireAuthContext } from '@/lib/auth/guards';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 import { jsonServerError } from '@/lib/auth/http';
 
 export async function GET() {
@@ -27,7 +28,9 @@ export async function GET() {
 
     const partnerMap = new Map<string, string>();
     if (partnerIds.length > 0) {
-      const { data: partners } = await supabase
+      // Use admin client to bypass RLS — user can only see own profile
+      const admin = createAdminSupabase();
+      const { data: partners } = await admin
         .from('users')
         .select('id, full_name')
         .in('id', partnerIds);

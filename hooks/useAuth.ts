@@ -44,7 +44,14 @@ export function useAuth() {
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Listen for profile changes from dev panel (tier switches, etc.)
+    const onProfileChanged = () => refreshSessionSnapshot();
+    window.addEventListener('profile-changed', onProfileChanged);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('profile-changed', onProfileChanged);
+    };
   }, []);
 
   const signOut = async () => {

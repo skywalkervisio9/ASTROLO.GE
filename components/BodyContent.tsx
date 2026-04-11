@@ -404,7 +404,6 @@ export default function BodyContent() {
   <div className="dev-row">
     <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).setTier?.("free", e.currentTarget); }} id="devFree">FREE</button>
     <button className="dev-btn active" onClick={(e) => { (window as unknown as ProtoGlobals).setTier?.("premium", e.currentTarget); }} id="devPremium">PREMIUM</button>
-    <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).setTier?.("premium-plus", e.currentTarget); }} id="devPremPlus">PREM+</button>
   </div>
   <div className="dev-row">
     <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).setTier?.("invited", e.currentTarget); }} id="devInvited">INVITED</button>

@@ -178,18 +178,28 @@ export default function SynastryViewWrapper() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [generating, fetchConnections, fetchReading, language]);
 
-  // Auto-load reading on mount if one exists
+  // Auto-load reading on mount if one exists — and notify sidebar
   useEffect(() => {
     fetchConnections().then((conns) => {
       const ready = conns?.find((c: Connection) => c.status === 'reading_generated');
-      if (ready) fetchReading(ready.id, language);
+      if (ready) {
+        fetchReading(ready.id, language);
+        // Notify prototype-runtime.js so sidebar shows the partner
+        window.dispatchEvent(new CustomEvent('synastry-ready', {
+          detail: {
+            connectionId: ready.id,
+            relationshipType: ready.relationship_type,
+            user2: { name: ready.partner_name || 'Partner' },
+          },
+        }));
+      }
     });
   }, [fetchConnections, fetchReading, language]);
 
   // Must be state + useEffect to avoid SSR hydration mismatch
   const [isDev, setIsDev] = useState(false);
   useEffect(() => {
-    setIsDev(window.location.hostname === 'localhost');
+    setIsDev(window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app'));
   }, []);
 
   const handleBackToNatal = () => {

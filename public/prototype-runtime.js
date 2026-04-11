@@ -75,6 +75,18 @@ function setTier(tier, btn) {
   document.querySelectorAll('#devFree,#devPremium,#devPremPlus,#devInvited,#devInvitedPlus').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
 
+  // Sync tier to DB (fire-and-forget) — only when triggered by dev button click
+  if (btn) {
+    fetch('/api/dev/set-tier', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ tier: tier }),
+    }).then(function() {
+      window.dispatchEvent(new CustomEvent('profile-changed'));
+    }).catch(function() {});
+  }
+
   const badge = document.getElementById('sbTier');
   badge.style.color = '';
   badge.style.background = '';
@@ -174,8 +186,9 @@ function occupySlot(slotNum, btn) {
   var unlocked = slotNum === 1 ? getSlot1Unlocked() : getSlot2Unlocked();
   if (!unlocked) return;
 
-  // Dev mode on localhost: slot 1 triggers real synastry generation
-  if (slotNum === 1 && window.location.hostname === 'localhost') {
+  // Dev mode (localhost + Vercel preview): slot 1 triggers real synastry generation
+  var isDev = window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app');
+  if (slotNum === 1 && isDev) {
     // If already generated, don't re-trigger — just toggle view
     if (_synastryGenerated) {
       closeSidebar();
@@ -290,8 +303,8 @@ function rebuildSidebar() {
     if (partnerName) partnerName.textContent = '(' + (_synastryPartnerName || 'Partner') + ')';
     var relType = _synastryRelType || 'couple';
     if (modeBadge) {
-      modeBadge.className = 'mode-badge done';
-      modeBadge.textContent = 'მეგობარი';
+      modeBadge.className = 'mode-badge ' + relType;
+      modeBadge.textContent = relType === 'couple' ? 'მეწყვილე' : 'მეგობარი';
     }
     // Remove any leftover tick badge
     var existingBadge = synItem.querySelector('.syn-badge');
@@ -310,7 +323,7 @@ function rebuildSidebar() {
     // Partner connected → show partner name & mode badge
     synItem.classList.add('has-partner');
     if (partnerName) partnerName.textContent = '(გიორგი მაისურაძე)';
-    if (modeBadge) { modeBadge.className = 'mode-badge done'; modeBadge.textContent = 'მეგობარი'; }
+    if (modeBadge) { modeBadge.className = 'mode-badge friend'; modeBadge.textContent = 'მეგობარი'; }
   } else if (s1Unlocked && !s1Occupied) {
     // Paid but no partner → pulsating CTA to invite
     synItem.classList.add('syn-cta-pulsate');
@@ -424,7 +437,8 @@ document.getElementById('synNavItem').onclick = function() {
   if (this.classList.contains('locked-syn')) { closeSidebar(); showPaymentPage('premium'); return; }
   // Pulsating CTA → open invite modal (or dev trigger on localhost)
   if (this.classList.contains('syn-cta-pulsate')) {
-    if (window.location.hostname === 'localhost') {
+    var isDevEnv = window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app');
+    if (isDevEnv) {
       // Dev mode: trigger synastry generation via React wrapper
       this.classList.remove('syn-cta-pulsate');
       this.classList.add('syn-generating');
@@ -446,7 +460,7 @@ document.getElementById('synNavItem').onclick = function() {
 // Listen for synastry ready event from React wrapper
 window.addEventListener('synastry-ready', function(e) {
   var detail = e.detail || {};
-  var name = (detail.user2 && detail.user2.name) ? detail.user2.name.split(' ')[0] : 'Partner';
+  var name = (detail.user2 && detail.user2.name) ? detail.user2.name : 'Partner';
 
   // Permanently mark synastry as generated
   _synastryGenerated = true;
@@ -461,7 +475,7 @@ window.addEventListener('synastry-ready', function(e) {
     synItem.classList.remove('syn-cta-pulsate', 'syn-generating');
     synItem.classList.add('has-partner');
     var label = synItem.querySelector('.sb-nav-label');
-    if (label) label.textContent = name;
+    if (label) label.textContent = 'სინასტრია';
     var pn = document.getElementById('synPartnerName');
     if (pn) pn.textContent = '(' + name + ')';
     var mb = document.getElementById('modeBadge');
@@ -469,15 +483,9 @@ window.addEventListener('synastry-ready', function(e) {
       mb.className = 'mode-badge ' + _synastryRelType;
       mb.textContent = _synastryRelType === 'couple' ? 'მეწყვილე' : 'მეგობარი';
     }
-    // Add a tick icon
+    // Remove any leftover tick badge
     var badge = synItem.querySelector('.syn-badge');
-    if (!badge) {
-      badge = document.createElement('span');
-      badge.className = 'syn-badge';
-      badge.textContent = '✓';
-      badge.style.cssText = 'color:var(--gold);font-size:.7rem;margin-left:4px;';
-      if (label) label.parentNode.insertBefore(badge, label.nextSibling);
-    }
+    if (badge) badge.remove();
   }
 
   // Update dev occupy button to permanent state

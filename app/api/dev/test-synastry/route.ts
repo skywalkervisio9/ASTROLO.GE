@@ -123,6 +123,13 @@ export async function POST(req: NextRequest) {
           `Pairing: ${nameA} + ${nameB} as ${relationshipType} (${profileA.gender ?? '?'}/${profileB.gender ?? '?'})`
         );
 
+        // ── Step 3b: Ensure both users are at least premium (synastry requires it) ──
+        await admin
+          .from('users')
+          .update({ account_type: 'premium' })
+          .in('id', userIds)
+          .eq('account_type', 'free');
+
         // ── Step 4: Create connection records ──
         send('Creating synastry connection...');
 

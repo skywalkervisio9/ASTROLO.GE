@@ -269,6 +269,7 @@ CARD TITLES: 2-3 words maximum — evocative noun phrases, never full sentences.
   ✗ "The Light You Came Here to Be" (too long)
 
 BODY: Formal-literary, elevated but accessible. Philosophical treatise by someone who cares.
+**BOLD FORMATTING (MANDATORY)**: Use **double asterisks** around key phrases in card body paragraphs. 0-2 bold phrases per paragraph
 
 ```
 
