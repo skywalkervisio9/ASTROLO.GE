@@ -13,12 +13,15 @@ export const SECTION_ICONS: Record<string, string> = {
   potential: 'gl-diamond',
 };
 
-export const ELEMENT_COLORS = {
+export const ELEMENT_COLORS: Record<string, string> = {
   fire: '#d4644a',
   earth: '#6b9a6b',
   air: '#6b8fb5',
   water: '#7b6baa',
-} as const;
+  rose: '#c47a8a',
+  shadow: '#555555',
+  gold: '#c9a84c',
+};
 
 export const ZODIAC_SIGN_IDS = [
   'gl-aries', 'gl-taurus', 'gl-gemini', 'gl-cancer',

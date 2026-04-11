@@ -345,12 +345,26 @@ export function validateSynastryReading(
   const warnings: string[] = [];
 
   if (!json.meta) errors.push('Missing meta');
-  if (!json.sections) errors.push('Missing sections');
 
-  const sections = json.sections as unknown[] | undefined;
-  const expectedCount = type === 'couple' ? 8 : 8;
-  if (sections && sections.length < expectedCount) {
-    warnings.push(`Expected ${expectedCount} sections, got ${sections.length}`);
+  // Section keys live at root level (not in a "sections" array)
+  const coupleSections = ['emotionalBond', 'passion', 'karmic', 'numerology', 'growth', 'shadow', 'dailyRitual', 'potential'];
+  const friendSections = ['emotionalBond', 'intellectualSynergy', 'karmic', 'numerology', 'growth', 'shadow', 'sharedAdventures', 'potential'];
+  const expectedKeys = type === 'couple' ? coupleSections : friendSections;
+
+  const found = expectedKeys.filter(k => json[k]);
+  const missing = expectedKeys.filter(k => !json[k]);
+
+  if (missing.length > 0) {
+    // If more than half are missing, it's an error; otherwise warning
+    if (missing.length > 4) {
+      errors.push(`Missing sections: ${missing.join(', ')}`);
+    } else {
+      warnings.push(`Missing ${missing.length} sections: ${missing.join(', ')}`);
+    }
+  }
+
+  if (found.length === 0 && !json.meta) {
+    errors.push('Response appears to be empty or wrong format');
   }
 
   return { valid: errors.length === 0, errors, warnings };

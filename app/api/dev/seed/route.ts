@@ -6,7 +6,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { generateNatalReading } from '@/lib/AIgeneration/pipeline';
-import { generateSynastryReading } from '@/lib/AIgeneration/pipeline';
+import { generateSynastryReadingLegacy as generateSynastryReading } from '@/lib/AIgeneration/pipeline';
 import {
   TEST_USERS,
   LUKA_CHART_CONTEXT,
@@ -211,9 +211,7 @@ export async function POST() {
           reading_ka: synastryResult.readingKa,
           reading_en: synastryResult.readingEn,
           prompt_version: 'SYSTEM-PROMPT-Couple_s3',
-          model_call1: synastryResult.meta.modelCall1,
           model_call2: synastryResult.meta.modelCall2,
-          tokens_call1: synastryResult.meta.tokensCall1,
           tokens_call2_ka: synastryResult.meta.tokensCall2Ka,
           tokens_call2_en: synastryResult.meta.tokensCall2En,
           validation_warnings: synastryResult.meta.validationWarnings,
