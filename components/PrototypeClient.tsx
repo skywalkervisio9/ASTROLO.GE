@@ -4,6 +4,7 @@ import Script from "next/script";
 import BodyContent from "@/components/BodyContent";
 import AuthBridge from "@/components/AuthBridge";
 import HydrationBridge from "@/components/HydrationBridge";
+import SettingsBridge from "@/components/SettingsBridge";
 
 export default function PrototypeClient() {
   return (
@@ -12,6 +13,7 @@ export default function PrototypeClient() {
       <Script src="/prototype-runtime.js" strategy="afterInteractive" />
       <AuthBridge />
       <HydrationBridge />
+      <SettingsBridge />
     </>
   );
 }

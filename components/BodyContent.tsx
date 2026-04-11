@@ -38,6 +38,7 @@ type ProtoGlobals = {
   handleForgot?: () => void;
   handleBirthData?: () => void;
   startLoading?: () => void;
+  openSettings?: () => void;
 };
 
 export default function BodyContent() {
@@ -96,7 +97,9 @@ export default function BodyContent() {
 <div className="sb-header">
 <span className="sb-tier premium" id="sbTier" style={{position:'absolute',top:'50px',right:'16px'}}><span className="dot"></span> PREMIUM</span>
 <div className="sb-avatar"></div>
-<div className="sb-info"><div className="sb-name"></div><div className="sb-email"></div></div></div>
+<div className="sb-info"><div className="sb-name"></div><div className="sb-email"></div></div>
+<button className="stg-gear" id="stgBtn" type="button" aria-label="Settings" onClick={(e) => { e.stopPropagation(); (window as unknown as ProtoGlobals).openSettings?.(); }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1.08 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33h.08a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.08a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
+</div>
 
 
 <div className="sb-section" id="navSection">

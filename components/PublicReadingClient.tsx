@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import BodyContent from "@/components/BodyContent";
+import SettingsBridge from "@/components/SettingsBridge";
 import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { whenRuntimeReady } from "@/lib/runtime-ready";
@@ -94,6 +95,7 @@ export default function PublicReadingClient({ slug }: Props) {
     <>
       <BodyContent />
       <Script src="/prototype-runtime.js" strategy="afterInteractive" />
+      <SettingsBridge />
     </>
   );
 }

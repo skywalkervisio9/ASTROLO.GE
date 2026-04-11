@@ -91,6 +91,10 @@ export function setRenderLang(lang: RenderLang) {
   _renderLang = lang;
 }
 
+export function getRenderLang(): RenderLang {
+  return _renderLang;
+}
+
 /**
  * Render rich text with bold, italic, astrological symbols, chart points, and retrograde markers.
  * Call setRenderLang() before rendering to set tooltip language.
@@ -145,5 +149,6 @@ export function renderText(text: string): React.ReactNode {
 
 export const ELEMENT_CSS_CLASS: Record<string, string> = {
   fire: 'af', earth: 'ae', air: 'aa', water: 'aw',
+  Fire: 'af', Earth: 'ae', Air: 'aa', Water: 'aw',
   rose: 'ar', shadow: 'as', gold: 'ag',
 };
