@@ -36,25 +36,19 @@ export default function HydrationBridge() {
 
   // Language switching: fetch the correct reading directly and re-hydrate
   useEffect(() => {
-    console.log("[HB] lang-switch effect, user=", user?.email ?? null);
     if (!user) return;
-    // Signal to prototype-runtime that HydrationBridge owns lang-switch fetches
+
     (window as unknown as Record<string, unknown>).__hydrationBridgeActive = true;
-    return () => {
-      (window as unknown as Record<string, unknown>).__hydrationBridgeActive = false;
-    };
 
     const handler = async (e: Event) => {
       const detail = (e as CustomEvent<{ lang: string }>).detail;
       const lang = detail?.lang;
-      console.log("[HB] lang-change event received, lang=", lang, "user=", user?.email);
       if (lang !== "ka" && lang !== "en") return;
 
       try {
         const res = await fetch(`/api/reading/natal?lang=${lang}`, {
           credentials: "include",
         });
-        console.log("[HB] fetch done, status=", res.status);
         if (!res.ok) return;
         const data = await res.json() as { reading: unknown };
         if (!data.reading) return;
@@ -62,13 +56,16 @@ export default function HydrationBridge() {
         if (typeof w.hydrateReading === "function") {
           (w.hydrateReading as (r: unknown, u: unknown) => void)(data.reading, user);
         }
-      } catch (err) {
-        console.log("[HB] fetch error:", err);
+      } catch {
+        // silent — lang-switch fetch failure is non-fatal
       }
     };
 
     window.addEventListener("astrolo:lang-change", handler);
-    return () => window.removeEventListener("astrolo:lang-change", handler);
+    return () => {
+      (window as unknown as Record<string, unknown>).__hydrationBridgeActive = false;
+      window.removeEventListener("astrolo:lang-change", handler);
+    };
   }, [user]);
 
   return null;

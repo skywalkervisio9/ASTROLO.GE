@@ -43,5 +43,5 @@ export function useReading(language: Language = 'ka', userId?: string | null) {
     fetchReading();
   }, [language, userId]);
 
-  return { reading, chartData: null, loading, error };
+  return { reading, loading, error };
 }

@@ -118,26 +118,6 @@ export function buildSynastryUserMessage(
   ].join('\n');
 }
 
-// ── Legacy exports for backward compatibility (kept for seed route) ──
-
-/** @deprecated Use getSynastryPrompt() instead — s4 has no Call 1 */
-export function getSynastryCall1Prompt(type: 'couple' | 'friend'): string {
-  // Return a minimal prompt for any code still calling this
-  const focus = type === 'couple'
-    ? 'romantic compatibility, emotional chemistry, passion dynamics, and intimate potential'
-    : 'platonic depth, intellectual resonance, shared values, and mutual growth';
-
-  return `You are an expert synastry analyst. Analyze these two natal charts for ${focus}.
-Produce a structured analytical document. Write in English. Be precise and psychologically insightful.`;
-}
-
-/** @deprecated Use getSynastryPrompt() instead */
-export function getSynastryCall2Prompt(
-  type: 'couple' | 'friend',
-  language: Language
-): string {
-  return getSynastryPrompt(type, language);
-}
 
 function getSynastryFallback(type: 'couple' | 'friend', language: Language): string {
   const langInstruction = language === 'ka'

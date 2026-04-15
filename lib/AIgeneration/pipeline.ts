@@ -18,8 +18,6 @@ import {
 import {
   getSynastryPrompt,
   buildSynastryUserMessage,
-  getSynastryCall1Prompt,
-  getSynastryCall2Prompt,
 } from './prompts/synastry';
 import type { Language } from '@/types/user';
 import { SECTION_KEYS } from '@/types/reading';
@@ -67,7 +65,7 @@ export async function generateNatalReading(
 
   // Build Call 2 user message — include aspects list so AI writes aspectInterpretations
   const aspectsSection = chartAspects && chartAspects.length > 0
-    ? `\n\nKey Aspects (write interpretations for each in aspectInterpretations):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
+    ? `\n\nKey Aspects (select 2–5 most important for aspectInterpretations — personal planets, tight orbs, nodal axis only):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
     : '';
   const userMsg = `Chart Analysis:\n${call1.text}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
 
@@ -238,44 +236,6 @@ export async function generateSynastryReading(
   };
 }
 
-/**
- * @deprecated Legacy wrapper — kept for seed route backward compatibility.
- * Prefer generateSynastryReading(SynastryPipelineInput) instead.
- */
-export async function generateSynastryReadingLegacy(
-  chart1Context: string,
-  chart2Context: string,
-  relationshipType: 'couple' | 'friend'
-): Promise<SynastryPipelineResult> {
-  // Legacy: run a quick Call 1 then pipe to Call 2
-  const call1 = await callClaude(
-    getSynastryCall1Prompt(relationshipType),
-    `Person 1 Chart:\n${chart1Context}\n\nPerson 2 Chart:\n${chart2Context}`,
-    20000,
-    false
-  );
-
-  const userMsg = `Synastry Analysis:\n${call1.text}\n\nPerson 1 Chart:\n${chart1Context}\n\nPerson 2 Chart:\n${chart2Context}`;
-
-  const [readingKa, readingEn] = await Promise.all([
-    generateSingleSynastryReading(userMsg, 'ka', relationshipType),
-    generateSingleSynastryReading(userMsg, 'en', relationshipType),
-  ]);
-
-  return {
-    analysis: call1.text,
-    readingKa: readingKa.parsed,
-    readingEn: readingEn.parsed,
-    meta: {
-      modelCall1: call1.model,
-      modelCall2: readingKa.model,
-      tokensCall1: call1.inputTokens + call1.outputTokens,
-      tokensCall2Ka: readingKa.inputTokens + readingKa.outputTokens,
-      tokensCall2En: readingEn.inputTokens + readingEn.outputTokens,
-      validationWarnings: [...readingKa.warnings, ...readingEn.warnings],
-    },
-  };
-}
 
 async function generateSingleSynastryReading(
   userMessage: string,
@@ -295,7 +255,6 @@ async function generateSingleSynastryReading(
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await callClaude(prompt, userMessage, maxTokens);
-      console.log(`[synastry-${relationshipType}-${language}] AI: ${response.outputTokens} tokens, keys: ${Object.keys(JSON.parse(response.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim())).join(',')}`);
       const parsed = await parseOrRepairJSON(response.text) as Record<string, unknown>;
       const validation = validateSynastryReading(parsed, relationshipType);
 

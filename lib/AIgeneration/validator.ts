@@ -347,8 +347,8 @@ export function validateSynastryReading(
   if (!json.meta) errors.push('Missing meta');
 
   // Section keys live at root level (not in a "sections" array)
-  const coupleSections = ['emotionalBond', 'passion', 'karmic', 'numerology', 'growth', 'shadow', 'dailyRitual', 'potential'];
-  const friendSections = ['emotionalBond', 'intellectualSynergy', 'karmic', 'numerology', 'growth', 'shadow', 'sharedAdventures', 'potential'];
+  const coupleSections = ['emotionalBond', 'passion', 'karmic', 'numerology', 'growth', 'sharedShadow', 'dailyRitual', 'potential'];
+  const friendSections = ['emotionalBond', 'intellectualSynergy', 'karmic', 'numerology', 'growth', 'sharedShadow', 'sharedAdventures', 'potential'];
   const expectedKeys = type === 'couple' ? coupleSections : friendSections;
 
   const found = expectedKeys.filter(k => json[k]);

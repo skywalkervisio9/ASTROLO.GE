@@ -477,7 +477,7 @@ interface SynastryCouplReading {
   "karmic": { "sectionTitle": "...", "sectionSubtitle": "...", "cards": [], "pullQuote": "..." },
   "numerology": { "sectionTitle": "...", "sectionSubtitle": "...", "cards": [], "pullQuote": "..." },
   "growth": { "sectionTitle": "...", "sectionSubtitle": "...", "cards": [], "pullQuote": "..." },
-  "shadow": { "sectionTitle": "...", "sectionSubtitle": "...", "cards": [], "pullQuote": "..." },
+  "sharedShadow": { "sectionTitle": "...", "sectionSubtitle": "...", "cards": [], "pullQuote": "..." },
   "dailyRitual": { "sectionTitle": "...", "sectionSubtitle": "...", "cards": [], "pullQuote": "..." },
   "potential": { "sectionTitle": "...", "sectionSubtitle": "...", "cards": [], "pullQuote": "..." }
 }

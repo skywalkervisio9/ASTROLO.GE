@@ -13,8 +13,14 @@ const SYMBOL_TO_GLYPH: Record<string, string> = {
   '⚸':'lilith','☊':'node','☋':'node',
   '♈':'aries','♉':'taurus','♊':'gemini','♋':'cancer','♌':'leo','♍':'virgo',
   '♎':'libra','♏':'scorpio','♐':'sagittarius','♑':'capricorn','♒':'aquarius','♓':'pisces',
+  // Aspect symbols
+  '☌':'conjunction','☍':'opposition','△':'trine','□':'square','⚹':'sextile',
+  // AI-generated emoji variants → mapped to existing glyphs
+  '🔱':'asc','⬆':'asc','↑':'asc',
 };
 const PLANET_SET = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋']);
+// Aspect symbols rendered in the same gold tone as planets
+const ASPECT_SET = new Set(['☌','☍','△','□','⚹']);
 const SIGN_ELEMENT: Record<string, string> = {
   aries:'fire',taurus:'earth',gemini:'air',cancer:'water',leo:'fire',virgo:'earth',
   libra:'air',scorpio:'water',sagittarius:'fire',capricorn:'earth',aquarius:'air',pisces:'water',
@@ -37,7 +43,7 @@ const SIGN_ELEMENT: Record<string, string> = {
 // Matches any Georgian ending [ა-ჰ]* after the stem — so ცეცხლი / ცეცხლის / წყალში all work.
 // Water has two stems in Georgian: წყალ (nominative) and წყლ (genitive — წყლის, წყლისა, წყლით…)
 // Order matters: წყალ before წყლ so the longer match wins on "წყალისა".
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)/giu;
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)/giu;
 
 /** Classify the stem of an element word to its CSS modifier */
 function getElementClass(word: string): string | null {
@@ -110,9 +116,15 @@ export function renderText(text: string): React.ReactNode {
   while ((m = TEXT_TOKEN_RE.exec(text)) !== null) {
     if (m.index > last) nodes.push(text.slice(last, m.index));
     if (m[1] !== undefined) {
-      nodes.push(<strong key={k++}>{m[1]}</strong>);
+      const savedIdx1 = TEXT_TOKEN_RE.lastIndex;
+      const inner1 = renderText(m[1]);
+      TEXT_TOKEN_RE.lastIndex = savedIdx1;
+      nodes.push(<strong key={k++}>{inner1}</strong>);
     } else if (m[2] !== undefined) {
-      nodes.push(<em key={k++} className="hl">{m[2]}</em>);
+      const savedIdx2 = TEXT_TOKEN_RE.lastIndex;
+      const inner2 = renderText(m[2]);
+      TEXT_TOKEN_RE.lastIndex = savedIdx2;
+      nodes.push(<em key={k++} className="hl">{inner2}</em>);
     } else if (m[3] !== undefined) {
       nodes.push(<span key={k++} className="pt tip" data-tip={ptTips[m[3]]}>{m[3]}</span>);
     } else if (m[4] !== undefined) {
@@ -120,7 +132,7 @@ export function renderText(text: string): React.ReactNode {
     } else if (m[5] !== undefined) {
       const ch = m[5]; const glyph = SYMBOL_TO_GLYPH[ch];
       if (glyph) {
-        const cls = PLANET_SET.has(ch) ? 'gi gi-pl' : `gi gi-${SIGN_ELEMENT[glyph] || ''}`;
+        const cls = (PLANET_SET.has(ch) || ASPECT_SET.has(ch)) ? 'gi gi-pl' : `gi gi-${SIGN_ELEMENT[glyph] || ''}`;
         nodes.push(<span key={k++} className={cls}><svg><use href={`#gl-${glyph}`}/></svg></span>);
       } else nodes.push(ch);
     } else if (m[6] !== undefined) {

@@ -48,8 +48,8 @@ export interface SynastryReadingData {
 }
 
 // Section key order for couple vs friend
-const COUPLE_SECTIONS = ['emotionalBond', 'passion', 'karmic', 'numerology', 'growth', 'shadow', 'dailyRitual', 'potential'] as const;
-const FRIEND_SECTIONS = ['emotionalBond', 'intellectualSynergy', 'karmic', 'numerology', 'growth', 'shadow', 'sharedAdventures', 'potential'] as const;
+const COUPLE_SECTIONS = ['emotionalBond', 'passion', 'karmic', 'numerology', 'growth', 'sharedShadow', 'dailyRitual', 'potential'] as const;
+const FRIEND_SECTIONS = ['emotionalBond', 'intellectualSynergy', 'karmic', 'numerology', 'growth', 'sharedShadow', 'sharedAdventures', 'potential'] as const;
 
 const SECTION_NAV_KA: Record<string, string> = {
   emotionalBond: 'ემოციური',
@@ -57,7 +57,7 @@ const SECTION_NAV_KA: Record<string, string> = {
   karmic: 'კარმული',
   numerology: 'ნუმეროლოგია',
   growth: 'ზრდა',
-  shadow: 'ჩრდილი',
+  sharedShadow: 'ჩრდილი',
   dailyRitual: 'პრაქტიკა',
   potential: 'პოტენციალი',
   intellectualSynergy: 'ინტელექტუალური',
@@ -70,7 +70,7 @@ const SECTION_NAV_EN: Record<string, string> = {
   karmic: 'Karmic',
   numerology: 'Numerology',
   growth: 'Growth',
-  shadow: 'Shadow',
+  sharedShadow: 'Shadow',
   dailyRitual: 'Ritual',
   potential: 'Potential',
   intellectualSynergy: 'Intellectual',
@@ -300,19 +300,19 @@ function PartnerCard({
       {isYou && <div className="pc-tooltip">{language === 'ka' ? 'ჩემი რუკა →' : 'My Chart →'}</div>}
       <div className="pc-avatar"><span className="pc-avatar-letter">{initial}</span></div>
       <div className="pc-name">{person.name}</div>
-      <div className="pc-sub">{person.sun} · {person.moon} · {person.asc}</div>
+      <div className="pc-sub">{renderText(`${person.sun} · ${person.moon} · ${person.asc}`)}</div>
       <div className="pc-placements">
         <div className="pc-row">
           <span className="pc-row-label"><svg><use href="#gl-sun" /></svg>{language === 'ka' ? 'მზე' : 'Sun'}</span>
-          <span className="pc-row-val">{person.sun}</span>
+          <span className="pc-row-val">{renderText(person.sun)}</span>
         </div>
         <div className="pc-row">
           <span className="pc-row-label"><svg><use href="#gl-moon" /></svg>{language === 'ka' ? 'მთვარე' : 'Moon'}</span>
-          <span className="pc-row-val">{person.moon}</span>
+          <span className="pc-row-val">{renderText(person.moon)}</span>
         </div>
         <div className="pc-row">
           <span className="pc-row-label">ASC</span>
-          <span className="pc-row-val">{person.asc}</span>
+          <span className="pc-row-val">{renderText(person.asc)}</span>
         </div>
       </div>
     </div>
@@ -411,8 +411,8 @@ const SynastrySection = React.forwardRef<HTMLElement, {
   return (
     <section id={sectionId} className="vis" ref={ref}>
       <div className="sh">
-        <h2>{section.sectionTitle}</h2>
-        {section.sectionSubtitle && <div className="st">{section.sectionSubtitle}</div>}
+        <h2>{renderText(section.sectionTitle)}</h2>
+        {section.sectionSubtitle && <div className="st">{renderText(section.sectionSubtitle)}</div>}
       </div>
 
       {lead && (
@@ -479,11 +479,11 @@ function SynastryCardComponent({
     <div className={`c ${elClass}`.trim()}>
       {/* Label badge — uses .b (matches natal), aspect symbol prefix */}
       <div className={`b${hasCrossRefs ? ' has-popup' : ''}`}>
-        <span style={{ color: badge.tone, marginRight: 5, fontSize: '.7rem' }}>
+        <span style={{ color: badge.tone }}>
           {badge.symbol}
         </span>
-        {card.label}
-        {hasCrossRefs && <span className="label-popup">{crossRefPopup}</span>}
+        {renderText(card.label)}
+        {hasCrossRefs && <span className="label-popup">{crossRefPopup ? renderText(crossRefPopup) : null}</span>}
       </div>
 
       {/* Title — .c h3 styled automatically */}

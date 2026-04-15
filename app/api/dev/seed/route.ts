@@ -5,8 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
-import { generateNatalReading } from '@/lib/AIgeneration/pipeline';
-import { generateSynastryReadingLegacy as generateSynastryReading } from '@/lib/AIgeneration/pipeline';
+import { generateNatalReading, generateSynastryReading } from '@/lib/AIgeneration/pipeline';
 import {
   TEST_USERS,
   LUKA_CHART_CONTEXT,
@@ -142,25 +141,24 @@ export async function POST() {
         // ── Step 5: Generate natal reading for Luka ──
         send('Generating natal reading for ლუკა.პ (this takes ~45-65s)...');
 
-        const natalResult = await generateNatalReading(LUKA_CHART_CONTEXT);
+        const lukaNatal = await generateNatalReading(LUKA_CHART_CONTEXT);
 
         send('Storing natal reading...');
 
         const { error: natalErr } = await admin.from('natal_readings').insert({
           user_id: lukaId,
           share_slug: generateShareSlug(),
-          analysis_en: natalResult.analysis,
-          reading_ka: natalResult.readingKa,
-          reading_en: natalResult.readingEn,
-          prompt_version: 'SYSTEM-PROMPT-8SEC_i6',
-          model_call1: natalResult.meta.modelCall1,
-          model_call2: natalResult.meta.modelCall2,
-          tokens_call1: natalResult.meta.tokensCall1,
-          tokens_call2_ka: natalResult.meta.tokensCall2Ka,
-          tokens_call2_en: natalResult.meta.tokensCall2En,
-          validation_warnings: natalResult.meta.validationWarnings,
+          analysis_en: lukaNatal.analysis,
+          reading_ka: lukaNatal.readingKa,
+          reading_en: lukaNatal.readingEn,
+          prompt_version: 'SYSTEM-PROMPT-i12',
+          model_call1: lukaNatal.meta.modelCall1,
+          model_call2: lukaNatal.meta.modelCall2,
+          tokens_call1: lukaNatal.meta.tokensCall1,
+          tokens_call2_ka: lukaNatal.meta.tokensCall2Ka,
+          tokens_call2_en: lukaNatal.meta.tokensCall2En,
+          validation_warnings: lukaNatal.meta.validationWarnings,
         });
-
         if (natalErr) throw new Error(`Failed to store natal reading: ${natalErr.message}`);
 
         // ── Step 6: Create invite chain for synastry ──
@@ -194,11 +192,15 @@ export async function POST() {
         // ── Step 7: Generate synastry reading ──
         send('Generating couple synastry reading (this takes ~45-65s)...');
 
-        const synastryResult = await generateSynastryReading(
-          LUKA_CHART_CONTEXT,
-          NINO_CHART_CONTEXT,
-          'couple'
-        );
+        const synastryResult = await generateSynastryReading({
+          personAName: luka.full_name,
+          personAAnalysis: lukaNatal.analysis,
+          personAChartContext: LUKA_CHART_CONTEXT,
+          personBName: nino.full_name,
+          personBAnalysis: NINO_CHART_CONTEXT, // Nino is a real user — chart context used directly
+          personBChartContext: NINO_CHART_CONTEXT,
+          relationshipType: 'couple',
+        });
 
         send('Storing synastry reading...');
 
