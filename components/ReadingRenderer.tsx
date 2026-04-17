@@ -305,7 +305,7 @@ function PlanetRowComponent({ row }: { row: PlanetRow }) {
         {row.retrograde && (
           <span
             className="tip retro"
-            data-tip={language === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy'}
+            data-tip={getRenderLang() === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy'}
           >℞</span>
         )}
       </td>
