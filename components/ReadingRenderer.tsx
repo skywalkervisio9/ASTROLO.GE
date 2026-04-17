@@ -232,7 +232,7 @@ function CardComponent({
 
   return (
     <article
-      className={`reading-card ${elClass} ${expanded ? 'expanded' : ''}`}
+      className={`c reading-card ${elClass} ${expanded ? 'expanded' : ''}`}
       data-element={card.accentElement}
       style={card.accentElement ? {
         borderLeftColor: ELEMENT_COLORS[card.accentElement],
@@ -278,7 +278,7 @@ function CardComponent({
 
       {/* Hint */}
       {card.hint && (
-        <div className="card-hint">
+        <div className="card-hint h">
           <span className="hint-title">{renderText(card.hint.title)}</span>
           <p className="hint-content">{renderText(card.hint.content)}</p>
           {card.hint.bullets && (
@@ -315,12 +315,44 @@ function PlanetRowComponent({ row }: { row: PlanetRow }) {
 
 // ── Aspect badge ──
 
+function aspectNatureClass(type: string): string {
+  if (type === 'conjunction') return 'al-conj';
+  if (type === 'trine' || type === 'sextile') return 'al-harm';
+  return 'al-tens';
+}
+
 function AspectBadge({ aspect }: { aspect: Aspect }) {
+  const [open, setOpen] = useState(false);
+  const hasInterp = !!aspect.interpretation;
+  const natureClass = aspectNatureClass(aspect.aspectType);
+
+  const row = (
+    <div className={`al ${natureClass}${hasInterp ? ' al-hi' : ''}`}>
+      <span className="al-p">{aspect.planet1}</span>
+      <span className="asy">{aspect.aspectSymbol}</span>
+      <span className="al-p">{aspect.planet2}</span>
+      <div className="alb">
+        <span className="al-type">{aspect.aspectType.toUpperCase()}</span>
+        {aspect.orb !== undefined && <span className="al-orb">{aspect.orb}°</span>}
+      </div>
+      {hasInterp && <span className="al-star">★</span>}
+    </div>
+  );
+
+  if (!hasInterp) return row;
+
   return (
-    <div className={`aspect-badge aspect-${aspect.aspectType}`}>
-      <span>{aspect.planet1}</span>
-      <span className="aspect-symbol">{aspect.aspectSymbol}</span>
-      <span>{aspect.planet2}</span>
+    <div
+      className={`ai-entry ${natureClass}`}
+      onClick={() => setOpen(o => !o)}
+      style={{ cursor: 'pointer' }}
+    >
+      {row}
+      {open && (
+        <div className="ai-body">
+          <p>{aspect.interpretation}</p>
+        </div>
+      )}
     </div>
   );
 }

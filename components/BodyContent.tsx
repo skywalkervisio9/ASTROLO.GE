@@ -422,22 +422,20 @@ export default function BodyContent() {
   <div className="dev-sep"></div>
   <div className="dev-label">TEST USER</div>
   <div className="dev-row">
-    <button className="dev-btn" id="devRandomLogin" onClick={async (e) => {
+    <button className="dev-btn" id="devPrevLogin" onClick={async (e) => {
       const btn = e.currentTarget;
       btn.textContent = '...';
       try {
-        const res = await fetch('/api/dev/test-user', { method: 'POST' });
-        const data = await res.json() as { email: string; password: string; hasReading: boolean; shareSlug?: string };
+        const res = await fetch('/api/dev/test-user?offset=1');
+        if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '⬅ Prev'; }, 1500); return; }
+        const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
         const { createClient } = await import('@/lib/supabase/client');
         const sb = createClient();
         await sb.auth.signInWithPassword({ email: data.email, password: data.password });
-        if (data.hasReading && data.shareSlug) {
-          window.location.href = `/r/${data.shareSlug}`;
-        } else {
-          window.location.reload();
-        }
-      } catch { btn.textContent = 'ERROR'; }
-    }}>🎲 Random</button>
+        if (data.shareSlug) { window.location.href = `/r/${data.shareSlug}`; return; }
+        window.location.reload();
+      } catch { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = '⬅ Prev'; }, 1500); }
+    }}>⬅ Prev</button>
     <button className="dev-btn" id="devLastUser" onClick={async (e) => {
       const btn = e.currentTarget;
       btn.textContent = '...';

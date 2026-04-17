@@ -94,13 +94,14 @@ export function mergeAspectsForReading(
 
   const interpMap = new Map<string, SingleLangInterp>();
   for (const interp of interpretations) {
-    const key = `${interp.planet1}+${interp.planet2}+${interp.aspect}`;
+    const asp = interp.aspect.toLowerCase();
+    const key = `${interp.planet1}+${interp.planet2}+${asp}`;
     interpMap.set(key, interp);
-    interpMap.set(`${interp.planet2}+${interp.planet1}+${interp.aspect}`, interp);
+    interpMap.set(`${interp.planet2}+${interp.planet1}+${asp}`, interp);
   }
 
   return aspects.map(a => {
-    const key = `${a.planet1}+${a.planet2}+${a.aspect}`;
+    const key = `${a.planet1}+${a.planet2}+${a.aspect.toLowerCase()}`;
     const interp = interpMap.get(key);
     return {
       planet1: a.planet1,

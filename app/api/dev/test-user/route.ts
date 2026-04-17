@@ -11,20 +11,23 @@ import { createAdminSupabase } from '@/lib/supabase/admin';
 const isDevAllowed = process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV === 'preview';
 
 // GET /api/dev/test-user — Return the account whose chart was most recently generated
-export async function GET() {
+// ?offset=1 returns the second-to-last, etc.
+export async function GET(request: Request) {
   if (!isDevAllowed) {
     return NextResponse.json({ error: 'Dev only' }, { status: 403 });
   }
 
   const admin = createAdminSupabase();
+  const offset = parseInt(new URL(request.url).searchParams.get('offset') ?? '0', 10) || 0;
 
   // Find the most recently generated reading for any @astrolo.ge account
-  const { data: reading } = await admin
+  const { data: readings } = await admin
     .from('natal_readings')
     .select('user_id, share_slug, created_at')
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .range(offset, offset);
+
+  const reading = readings?.[0] ?? null;
 
   if (!reading) {
     return NextResponse.json({ error: 'No generated charts found' }, { status: 404 });

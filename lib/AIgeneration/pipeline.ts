@@ -88,7 +88,7 @@ export async function runNatalCall2(
   chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
 ): Promise<Call2Result> {
   const aspectsSection = chartAspects && chartAspects.length > 0
-    ? `\n\nKey Aspects (select 2–5 most important for aspectInterpretations — personal planets, tight orbs, nodal axis only):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
+    ? `\n\nKey Aspects (interpret 2–5 of these in aspectInterpretations — see schema rules):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
     : '';
   const userMsg = `Chart Analysis:\n${analysis}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
 

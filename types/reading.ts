@@ -66,10 +66,14 @@ export interface PlanetRow {
 
 export interface Aspect {
   planet1: string;
+  symbol1?: string;
   planet2: string;
+  symbol2?: string;
   aspectType: 'conjunction' | 'trine' | 'square' | 'opposition' | 'sextile';
   aspectSymbol: string;
+  orb?: number;
   significance: 'high' | 'normal';
+  interpretation?: string;
 }
 
 // ── Section navigation ──
