@@ -33,17 +33,18 @@ const SIGN_ELEMENT: Record<string, string> = {
 //   1: **bold**
 //   2: _italic_
 //   3: ASC|MC|IC|DSC
-//   4: ℞
+//   4: ℞ symbol
 //   5: astrological unicode glyph
 //   6: full element word match  (e.g. "ცეცხლი (48%)" or "Water")
 //   7: element word itself       (e.g. "ცეცხლი", "Water")
 //   8: optional percentage       (e.g. "48")
+//   9: retrograde word (English "retrograde" or Georgian "რეტროგრადულ…") → rendered as ℞
 //
 // Georgian stems: ცეცხლ (fire) / მიწ (earth) / ჰაერ (air) / წყალ (water)
 // Matches any Georgian ending [ა-ჰ]* after the stem — so ცეცხლი / ცეცხლის / წყალში all work.
 // Water has two stems in Georgian: წყალ (nominative) and წყლ (genitive — წყლის, წყლისა, წყლით…)
 // Order matters: წყალ before წყლ so the longer match wins on "წყალისა".
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)/giu;
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრადულ[ა-ჰ]*)/giu;
 
 /** Classify the stem of an element word to its CSS modifier */
 function getElementClass(word: string): string | null {
@@ -150,6 +151,8 @@ export function renderText(text: string): React.ReactNode {
       } else {
         nodes.push(m[6]);
       }
+    } else if (m[9] !== undefined) {
+      nodes.push(<span key={k++} className="tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
     }
     last = m.index + m[0].length;
   }

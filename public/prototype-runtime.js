@@ -1944,6 +1944,7 @@ function _renderRichText(text) {
   // Retrograde symbol → tooltip
   var retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
   escaped = escaped.replace(/℞/g, '<span class="tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');
+  escaped = escaped.replace(/\bretrograde\b|(?<![ა-ჰ])რეტროგრადულ[ა-ჰ]*/giu, '<span class="tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');
   // Element words → colored inline pills (Characteristics core card).
   // Matches: ცეცხლ- / მიწ- / ჰაერ- / წყალ- / წყლ- (genitive: წყლის, წყლისა) with any
   // Georgian ending, plus English fire/earth/air/water. Optional trailing "(NN%)" or "(NN)".
