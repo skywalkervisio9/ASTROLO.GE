@@ -2,7 +2,7 @@
 // User types — aligned with supabase/migrations/001_users.sql
 // ============================================================
 
-export type AccountType = 'free' | 'premium' | 'invited';
+export type AccountType = 'free' | 'premium' | 'invited' | 'invited+';
 export type Language = 'ka' | 'en';
 export type Gender = 'female' | 'male' | 'non-binary';
 export type RelationshipType = 'couple' | 'friend';
@@ -30,7 +30,6 @@ export interface User {
   account_type: AccountType;
   natal_chart_unlocked: boolean;
   invite_slots_purchased: number;
-  free_section_pick: string | null;
   language: Language;
   created_at: string;
   updated_at: string;
@@ -83,33 +82,28 @@ export const PRICING = {
 } as const;
 
 // ── Tier access helpers ──
+
+/**
+ * Whether the user has a full AI-generated reading (Call 2 complete).
+ * Free and invited users without natal unlock only have astrologer API data.
+ */
+export function hasFullReading(user: User): boolean {
+  return user.account_type === 'premium' || user.natal_chart_unlocked;
+}
+
+/** Alias kept for call-sites that check per section — all sections share same gate now. */
+export function canAccessSection(user: User, _sectionKey: string): boolean {
+  return hasFullReading(user);
+}
+
 export function getAvailableInviteSlots(user: User, usedSlots: number): number {
   const totalSlots = user.account_type === 'premium'
     ? 1 + user.invite_slots_purchased
-    : user.invite_slots_purchased;
+    : user.invite_slots_purchased; // invited+ with purchased slot
   return totalSlots - usedSlots;
 }
 
 export function canInvite(user: User, usedSlots: number): boolean {
-  if (user.account_type === 'free') return false;
+  if (user.account_type === 'free' || user.account_type === 'invited') return false;
   return getAvailableInviteSlots(user, usedSlots) > 0;
-}
-
-export function canAccessSection(
-  user: User,
-  sectionKey: string
-): boolean {
-  // Premium users see everything
-  if (user.account_type === 'premium') return true;
-
-  // Invited users with natal unlock see everything
-  if (user.account_type === 'invited' && user.natal_chart_unlocked) return true;
-
-  // Free/invited: overview + mission always visible
-  if (sectionKey === 'overview' || sectionKey === 'mission') return true;
-
-  // Free section pick
-  if (user.free_section_pick === sectionKey) return true;
-
-  return false;
 }

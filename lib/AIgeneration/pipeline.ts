@@ -51,31 +51,52 @@ export interface NatalPipelineResult {
   };
 }
 
-export async function generateNatalReading(
-  chartContext: string,
-  chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
-): Promise<NatalPipelineResult> {
-  // Call 1: Chart Analysis (always English) — plain text output, not JSON
+export interface Call1Result {
+  analysis: string;
+  model: string;
+  tokens: number;
+}
+
+export interface Call2Result {
+  readingKa: Record<string, unknown>;
+  readingEn: Record<string, unknown>;
+  aspectInterpretationsKa: AspectInterpretation[];
+  aspectInterpretationsEn: AspectInterpretation[];
+  meta: {
+    modelCall2: string;
+    tokensCall2Ka: number;
+    tokensCall2En: number;
+    validationWarnings: string[];
+  };
+}
+
+/** Call 1 only — chart analysis (English plain text). Used for invited users (synastry input). */
+export async function runNatalCall1(chartContext: string): Promise<Call1Result> {
   const call1 = await callClaude(
     getNatalCall1Prompt(),
     `Analyze this natal chart:\n\n${chartContext}`,
     16000,
     false
   );
+  return { analysis: call1.text, model: call1.model, tokens: call1.inputTokens + call1.outputTokens };
+}
 
-  // Build Call 2 user message — include aspects list so AI writes aspectInterpretations
+/** Call 2 only — full reading (KA + EN). Requires existing Call 1 analysis. */
+export async function runNatalCall2(
+  analysis: string,
+  chartContext: string,
+  chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
+): Promise<Call2Result> {
   const aspectsSection = chartAspects && chartAspects.length > 0
     ? `\n\nKey Aspects (select 2–5 most important for aspectInterpretations — personal planets, tight orbs, nodal axis only):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
     : '';
-  const userMsg = `Chart Analysis:\n${call1.text}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
+  const userMsg = `Chart Analysis:\n${analysis}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
 
-  // Call 2: Full reading — KA + EN in parallel (both depend on Call 1, not each other)
   const [readingKa, readingEn] = await Promise.all([
     generateSingleReading(userMsg, 'ka'),
     generateSingleReading(userMsg, 'en'),
   ]);
 
-  // Fallback: if KA has no interpretations but EN does, use EN (better than nothing)
   const interpKa = readingKa.aspectInterpretations.length > 0
     ? readingKa.aspectInterpretations
     : readingEn.aspectInterpretations;
@@ -84,18 +105,40 @@ export async function generateNatalReading(
     : readingKa.aspectInterpretations;
 
   return {
-    analysis: call1.text,
     readingKa: readingKa.parsed,
     readingEn: readingEn.parsed,
     aspectInterpretationsKa: interpKa,
     aspectInterpretationsEn: interpEn,
     meta: {
-      modelCall1: call1.model,
       modelCall2: readingKa.model,
-      tokensCall1: call1.inputTokens + call1.outputTokens,
       tokensCall2Ka: readingKa.inputTokens + readingKa.outputTokens,
       tokensCall2En: readingEn.inputTokens + readingEn.outputTokens,
       validationWarnings: [...readingKa.warnings, ...readingEn.warnings],
+    },
+  };
+}
+
+/** Full pipeline: Call 1 + Call 2. Used for premium users at signup (dev mode). */
+export async function generateNatalReading(
+  chartContext: string,
+  chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
+): Promise<NatalPipelineResult> {
+  const call1 = await runNatalCall1(chartContext);
+  const call2 = await runNatalCall2(call1.analysis, chartContext, chartAspects);
+
+  return {
+    analysis: call1.analysis,
+    readingKa: call2.readingKa,
+    readingEn: call2.readingEn,
+    aspectInterpretationsKa: call2.aspectInterpretationsKa,
+    aspectInterpretationsEn: call2.aspectInterpretationsEn,
+    meta: {
+      modelCall1: call1.model,
+      modelCall2: call2.meta.modelCall2,
+      tokensCall1: call1.tokens,
+      tokensCall2Ka: call2.meta.tokensCall2Ka,
+      tokensCall2En: call2.meta.tokensCall2En,
+      validationWarnings: call2.meta.validationWarnings,
     },
   };
 }

@@ -1,18 +1,16 @@
 // ============================================================
-// POST /api/chart/generate — Full natal reading pipeline
-// 1. Store birth data in users table
-// 2. Call Astrologer API → store in chart_data
-// 3. Run Claude pipeline (Call 1 + Call 2 x2) → store in natal_readings
-// 4. Handle invite code if present → trigger synastry
+// POST /api/chart/generate — Tier-split natal pipeline
+// FREE:    Store birth data → Astrologer API → chart_data only
+// INVITED: Store birth data → Astrologer API → chart_data → Call 1 → natal_readings(analysis_en) → trigger synastry
+// PREMIUM: Handled by /api/reading/generate-full (post-payment)
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { getChartData } from '@/lib/astrology/api';
-import { generateNatalReading, type AspectInterpretation } from '@/lib/AIgeneration/pipeline';
-
-type SingleLangInterp = Pick<AspectInterpretation, 'planet1' | 'planet2' | 'aspect' | 'interpretation' | 'significance'>;
+import { runNatalCall1 } from '@/lib/AIgeneration/pipeline';
 import { PROMPT_VERSION } from '@/lib/AIgeneration/prompts/natal';
+import { generateShareSlug } from '@/lib/chart/reading-helpers';
 import { LUKA_CHART_CONTEXT, LUKA_CHART_DATA } from '@/lib/dev/test-charts';
 import type { GenerateChartRequest } from '@/types/api';
 import type { BirthData } from '@/types/chart';
@@ -20,16 +18,10 @@ import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonBadRequest, jsonServerError } from '@/lib/auth/http';
 import { requireCsrfOrThrow } from '@/lib/auth/csrf';
 import { clearOnboardingToken } from '@/lib/auth/onboarding';
-import crypto from 'crypto';
 
 // This handler performs long-running network work (external astrology API + LLM calls),
 // so it must run on the Node.js runtime on Vercel (Edge functions time out quickly).
 export const runtime = 'nodejs';
-
-function generateShareSlug(): string {
-  // 8-char URL-safe slug (base36 = lowercase alphanumeric)
-  return crypto.randomBytes(6).toString('base64url').slice(0, 8).toLowerCase();
-}
 
 // ── Normalize Astrologer API response to the format hydrateReading() expects ──
 // The real API returns raw astronomical data (p1_name, p2_name, orbit, abs_pos).
@@ -196,35 +188,6 @@ function normalizeChartData(raw: unknown): {
   };
 }
 
-// ── Chart-data → reading helpers ──
-
-const PLANET_SYMBOLS: Record<string, string> = {
-  Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂',
-  Jupiter: '♃', Saturn: '♄', Uranus: '♅', Neptune: '♆', Pluto: '♇',
-  'North Node': '☊', 'South Node': '☋', Lilith: '⚸', Chiron: '⚷',
-};
-
-const ASPECT_SYMBOLS: Record<string, string> = {
-  conjunction: '☌', trine: '△', square: '□', opposition: '☍', sextile: '⚹',
-};
-
-/** Convert sign name + "14°36'" degree string to absolute ecliptic (0-360) */
-function signDegToEcl(sign: string, degree: string): number {
-  const idx = ZODIAC_SIGNS.indexOf(sign);
-  if (idx === -1) return 0;
-  const match = degree.match(/(\d+)[°](\d+)['']?/);
-  const d = match ? parseInt(match[1]) : parseFloat(degree) || 0;
-  const m = match ? parseInt(match[2]) : 0;
-  return idx * 30 + d + m / 60;
-}
-
-/** Equal House: house index from planet ecliptic + ASC ecliptic */
-function equalHouseRoman(planetEcl: number, ascEcl: number): string {
-  const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-  const idx = Math.floor(((planetEcl - ascEcl + 360) % 360) / 30);
-  return ROMAN[idx] ?? 'I';
-}
-
 interface StoredPlanet {
   name: string; sign: string; degree: string; house: string; element: string; retrograde: boolean;
 }
@@ -232,73 +195,8 @@ interface StoredPoints {
   ascendant?: { sign: string; degree: string };
   [key: string]: unknown;
 }
-
-/**
- * Build planetTable for reading.overview from chart_data.
- * - Adds Unicode symbol per planet
- * - Computes Equal House if house column is empty (old API format rows)
- * - Lowercases element to match schema (fire/earth/air/water)
- */
-function buildPlanetTableForReading(
-  planets: StoredPlanet[] | null,
-  points: StoredPoints | null
-): unknown[] {
-  if (!planets || planets.length === 0) return [];
-
-  const needsHouse = planets.some(p => !p.house);
-  let ascEcl = 0;
-  if (needsHouse && points?.ascendant) {
-    ascEcl = signDegToEcl(points.ascendant.sign, points.ascendant.degree);
-  }
-
-  return planets.map(p => ({
-    planet: p.name,
-    symbol: PLANET_SYMBOLS[p.name] ?? '',
-    sign: p.sign,
-    degree: p.degree,
-    house: p.house || (needsHouse ? equalHouseRoman(signDegToEcl(p.sign, p.degree), ascEcl) : ''),
-    element: (p.element || '').toLowerCase() as 'fire' | 'earth' | 'air' | 'water',
-    retrograde: p.retrograde ?? false,
-  }));
-}
-
 interface StoredAspect {
   planet1: string; planet2: string; aspect: string; orb: number;
-}
-
-/**
- * Merge chart_data aspects with AI-generated interpretations (single language).
- * Adds symbol fields, matches interpretation by planet1+planet2+aspect key.
- */
-function mergeAspectsForReading(
-  aspects: StoredAspect[] | null,
-  interpretations: SingleLangInterp[]
-): unknown[] {
-  if (!aspects || aspects.length === 0) return [];
-
-  const interpMap = new Map<string, SingleLangInterp>();
-  for (const interp of interpretations) {
-    const key = `${interp.planet1}+${interp.planet2}+${interp.aspect}`;
-    interpMap.set(key, interp);
-    // Also try reverse planet order
-    interpMap.set(`${interp.planet2}+${interp.planet1}+${interp.aspect}`, interp);
-  }
-
-  return aspects.map(a => {
-    const key = `${a.planet1}+${a.planet2}+${a.aspect}`;
-    const interp = interpMap.get(key);
-    return {
-      planet1: a.planet1,
-      symbol1: PLANET_SYMBOLS[a.planet1] ?? '',
-      planet2: a.planet2,
-      symbol2: PLANET_SYMBOLS[a.planet2] ?? '',
-      aspectType: a.aspect,
-      aspectSymbol: ASPECT_SYMBOLS[a.aspect] ?? '',
-      orb: a.orb,
-      interpretation: interp?.interpretation ?? '',
-      significance: interp?.significance ?? 'normal',
-    };
-  });
 }
 
 export const maxDuration = 300; // Claude + external APIs can take 1-2 minutes
@@ -365,7 +263,6 @@ export async function POST(req: NextRequest) {
       birth_lng: body.birth_lng,
       birth_timezone: body.birth_timezone,
       gender: body.gender,
-      free_section_pick: body.free_section_pick || null,
     };
 
     // 1. Upsert + update profile with birth data
@@ -398,21 +295,10 @@ export async function POST(req: NextRequest) {
       if (updateError) throw updateError;
     }
 
-    // Check if reading already exists
-    const { data: existing } = await supabase
-      .from('natal_readings')
-      .select('id, share_slug')
-      .eq('user_id', user.id)
-      .single();
-
-    if (existing) {
-      await clearOnboardingToken();
-      return NextResponse.json({ readingId: existing.id, shareSlug: existing.share_slug, status: 'complete' });
-    }
+    const isInvited = Boolean(body.invite_code);
 
     // 2. Get or create chart_data (idempotent)
     let context: string | null = null;
-    let chartData: unknown | null = null;
     let storedPlanets: StoredPlanet[] | null = null;
     let storedPoints: StoredPoints | null = null;
     let storedAspects: StoredAspect[] | null = null;
@@ -425,7 +311,6 @@ export async function POST(req: NextRequest) {
 
     if (existingChart?.chart_context) {
       context = existingChart.chart_context;
-      chartData = existingChart.api_response;
       storedPlanets = (typeof existingChart.planets === 'string' ? JSON.parse(existingChart.planets) : existingChart.planets) as StoredPlanet[] | null;
       storedPoints = (typeof existingChart.points === 'string' ? JSON.parse(existingChart.points) : existingChart.points) as StoredPoints | null;
       storedAspects = (typeof existingChart.aspects === 'string' ? JSON.parse(existingChart.aspects) : existingChart.aspects) as StoredAspect[] | null;
@@ -435,7 +320,7 @@ export async function POST(req: NextRequest) {
         year: body.birth_year,
         month: body.birth_month,
         day: body.birth_day,
-        hour: body.birth_hour ?? 12,  // noon if unknown
+        hour: body.birth_hour ?? 12,
         minute: body.birth_minute ?? 0,
         longitude: body.birth_lng,
         latitude: body.birth_lat,
@@ -443,20 +328,31 @@ export async function POST(req: NextRequest) {
         city: body.birth_city,
       };
 
-      const generated = process.env.RAPIDAPI_KEY
-        ? await getChartData(birthData)
-        : { context: LUKA_CHART_CONTEXT, chartData: LUKA_CHART_DATA };
+      let generated: { context: string; chartData: unknown };
+      if (process.env.RAPIDAPI_KEY) {
+        try {
+          generated = await getChartData(birthData);
+        } catch (apiErr) {
+          const msg = apiErr instanceof Error ? apiErr.message : String(apiErr);
+          if (msg.includes('429')) {
+            console.warn('[chart/generate] RapidAPI quota exceeded — falling back to test chart data');
+            generated = { context: LUKA_CHART_CONTEXT, chartData: LUKA_CHART_DATA };
+          } else {
+            throw apiErr;
+          }
+        }
+      } else {
+        generated = { context: LUKA_CHART_CONTEXT, chartData: LUKA_CHART_DATA };
+      }
 
       context = generated.context;
-      chartData = generated.chartData;
+      const chartData = generated.chartData;
 
-      // Normalize raw Astrologer API data to the format the frontend expects
       const normalized = normalizeChartData(chartData);
       storedPlanets = normalized.planets as StoredPlanet[] | null;
       storedPoints = normalized.points as StoredPoints | null;
       storedAspects = normalized.aspects as StoredAspect[] | null;
 
-      // Store chart data (unique on user_id)
       await supabase.from('chart_data').insert({
         user_id: user.id,
         api_response: chartData,
@@ -468,66 +364,55 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (!context) {
-      throw new Error('Missing chart context');
-    }
+    if (!context) throw new Error('Missing chart context');
 
-    // 3. Run AI pipeline: Call 1 + Call 2 (KA+EN) + Call 3 (aspect interpretations)
-    const result = await generateNatalReading(context, storedAspects ?? undefined);
+    // ── FREE PATH: chart data only — no AI calls ──
+    if (!isInvited) {
+      // Create a minimal natal_readings row to get a share_slug for redirect
+      const { data: existingSlug } = await supabase
+        .from('natal_readings')
+        .select('id, share_slug')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-    // Inject chart_data into readings (planetTable + aspects) and strip meta
-    const planetTable = buildPlanetTableForReading(storedPlanets, storedPoints);
-    const aspectsKa = mergeAspectsForReading(storedAspects, result.aspectInterpretationsKa);
-    const aspectsEn = mergeAspectsForReading(storedAspects, result.aspectInterpretationsEn);
-
-    function injectAndClean(reading: Record<string, unknown>, aspects: unknown[]): Record<string, unknown> {
-      const r = { ...reading };
-      delete r.meta; // meta lives in Supabase — not needed in reading JSON
-      if (r.overview && typeof r.overview === 'object') {
-        r.overview = { ...(r.overview as Record<string, unknown>), planetTable, aspects };
+      let shareSlug = (existingSlug as { share_slug?: string } | null)?.share_slug ?? null;
+      if (!shareSlug) {
+        shareSlug = generateShareSlug();
+        await supabase.from('natal_readings').upsert(
+          { user_id: user.id, share_slug: shareSlug },
+          { onConflict: 'user_id' }
+        );
       }
-      return r;
+
+      await clearOnboardingToken();
+      return NextResponse.json({ status: 'complete', shareSlug, userId: user.id });
     }
 
-    const finalReadingKa = injectAndClean(result.readingKa, aspectsKa);
-    const finalReadingEn = injectAndClean(result.readingEn, aspectsEn);
-
-    // Store reading — upsert on user_id so a retry after a partial failure doesn't 23505
-    const shareSlug = generateShareSlug();
-    const { data: reading, error: readingError } = await supabase
+    // ── INVITED PATH: Call 1 only (needed for synastry) ──
+    // Check if Call 1 already done (idempotent retry)
+    const { data: existingReading } = await supabase
       .from('natal_readings')
-      .upsert({
+      .select('id, analysis_en')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!existingReading?.analysis_en) {
+      const call1 = await runNatalCall1(context);
+
+      await supabase.from('natal_readings').upsert({
         user_id: user.id,
-        share_slug: shareSlug,
-        analysis_en: result.analysis,
-        reading_ka: finalReadingKa,
-        reading_en: finalReadingEn,
+        analysis_en: call1.analysis,
         prompt_version: PROMPT_VERSION,
-        model_call1: result.meta.modelCall1,
-        model_call2: result.meta.modelCall2,
-        tokens_call1: result.meta.tokensCall1,
-        tokens_call2_ka: result.meta.tokensCall2Ka,
-        tokens_call2_en: result.meta.tokensCall2En,
-        validation_warnings: result.meta.validationWarnings,
-      }, { onConflict: 'user_id' })
-      .select('id, share_slug')
-      .single();
-
-    if (readingError) throw readingError;
-
-    // 4. Handle invite code — trigger synastry if needed
-    if (body.invite_code) {
-      await handleInviteAccept(supabase, user.id, body.invite_code);
+        model_call1: call1.model,
+        tokens_call1: call1.tokens,
+      }, { onConflict: 'user_id' });
     }
+
+    // 4. Handle invite accept + fire-and-forget synastry trigger
+    await handleInviteAccept(supabase, user.id, body.invite_code!);
 
     await clearOnboardingToken();
-
-    return NextResponse.json({
-      readingId: reading?.id,
-      shareSlug: reading?.share_slug ?? shareSlug,
-      status: 'complete',
-      userId: user.id,
-    });
+    return NextResponse.json({ status: 'complete', userId: user.id });
   } catch (error: unknown) {
     console.error('Chart generation error:', error);
     return jsonServerError(error);
@@ -570,7 +455,29 @@ async function handleInviteAccept(
     .update({ account_type: 'invited' })
     .eq('id', userId);
 
-  // TODO: Trigger synastry generation in background
-  // This should be handled by a background job / edge function
-  // to avoid blocking the response (synastry adds ~40-60s)
+  // Fire synastry generation in background (non-blocking)
+  // Both users need analysis_en (Call 1) before synastry can run
+  const { data: connection } = await supabase
+    .from('synastry_connections')
+    .select('id, inviter_id')
+    .eq('invite_code', inviteCode)
+    .single();
+
+  if (connection) {
+    const { data: inviterReading } = await supabase
+      .from('natal_readings')
+      .select('analysis_en')
+      .eq('user_id', connection.inviter_id)
+      .maybeSingle();
+
+    if (inviterReading?.analysis_en) {
+      // Both users have Call 1 — trigger synastry generation
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+      fetch(`${baseUrl}/api/synastry/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_SECRET ?? '' },
+        body: JSON.stringify({ connection_id: connection.id }),
+      }).catch((err) => console.error('[synastry trigger] fetch failed:', err));
+    }
+  }
 }

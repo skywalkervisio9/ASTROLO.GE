@@ -129,7 +129,7 @@ export async function POST(request: Request) {
     birth_lng: 44.8271,
     birth_timezone: 'Asia/Tbilisi',
     gender,
-    account_type: 'premium',
+    account_type: 'free',
   }, { onConflict: 'id' });
 
   // Don't insert hardcoded chart_data — let the /loading page trigger

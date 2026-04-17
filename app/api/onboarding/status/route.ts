@@ -1,6 +1,16 @@
+// ============================================================
+// GET /api/onboarding/status — Tier-aware completion check
+//
+// Free:    done when chart_data row exists
+// Invited: done when natal_readings.analysis_en exists (Call 1 complete)
+// Premium (post-payment loading): done when natal_readings.reading_ka exists
+// ============================================================
+
 import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonOk, jsonServerError } from '@/lib/auth/http';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { hasFullReading } from '@/types/user';
+import type { User } from '@/types/user';
 import crypto from 'crypto';
 
 function generateShareSlug(): string {
@@ -13,51 +23,70 @@ export async function GET() {
     if (auth.response) return auth.response;
 
     const userId = auth.authUser.id;
+    const admin = createAdminSupabase();
 
-    // Step 1: check reading exists (id always exists, safe without migration)
-    const { data: reading } = await auth.supabase
-      .from('natal_readings')
-      .select('id')
-      .eq('user_id', userId)
+    // Load profile to know the tier
+    const { data: profile } = await admin
+      .from('users')
+      .select('*')
+      .eq('id', userId)
       .maybeSingle();
 
-    if (reading?.id) {
-      // Step 2: try to get share_slug (requires migration — may not exist yet)
-      let shareSlug: string | null = null;
-      const admin = createAdminSupabase();
+    const user = profile as User | null;
 
-      const { data: slugRow } = await admin
-        .from('natal_readings')
-        .select('share_slug')
-        .eq('id', reading.id)
-        .maybeSingle();
-
-      shareSlug = (slugRow as { share_slug?: string | null } | null)?.share_slug ?? null;
-
-      // Backfill missing slug for readings created before migration
-      if (slugRow && !shareSlug) {
-        shareSlug = generateShareSlug();
-        const { error } = await admin
-          .from('natal_readings')
-          .update({ share_slug: shareSlug })
-          .eq('id', reading.id);
-        if (error) shareSlug = null; // migration column not yet added
-      }
-
-      return jsonOk({ status: 'complete', readingId: reading.id, shareSlug });
-    }
-
+    // Check chart_data first (all tiers need this as step 1)
     const { data: chart } = await auth.supabase
       .from('chart_data')
       .select('id')
       .eq('user_id', userId)
       .maybeSingle();
 
-    return jsonOk({
-      status: chart?.id ? 'generating' : 'queued',
-      readingId: null,
-    });
+    if (!chart?.id) {
+      return jsonOk({ status: 'queued', complete: false });
+    }
+
+    // Load natal_readings row
+    const { data: reading } = await admin
+      .from('natal_readings')
+      .select('id, analysis_en, reading_ka, share_slug')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    // ── PREMIUM: needs full reading (Call 2) ──
+    if (user && hasFullReading(user)) {
+      if (reading?.reading_ka) {
+        const shareSlug = await ensureShareSlug(admin, reading.id, reading.share_slug);
+        return jsonOk({ status: 'complete', complete: true, readingId: reading.id, shareSlug });
+      }
+      return jsonOk({ status: 'generating', complete: false });
+    }
+
+    // ── INVITED: needs Call 1 (analysis_en) ──
+    if (user?.account_type === 'invited' || user?.account_type === 'invited+') {
+      if (reading?.analysis_en) {
+        return jsonOk({ status: 'complete', complete: true });
+      }
+      return jsonOk({ status: 'generating', complete: false });
+    }
+
+    // ── FREE: chart_data is enough — also return shareSlug if available ──
+    return jsonOk({ status: 'complete', complete: true, shareSlug: reading?.share_slug ?? null });
   } catch (error) {
     return jsonServerError(error);
   }
+}
+
+async function ensureShareSlug(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  readingId: string,
+  existing: string | null | undefined
+): Promise<string | null> {
+  if (existing) return existing;
+  const slug = generateShareSlug();
+  const { error } = await admin
+    .from('natal_readings')
+    .update({ share_slug: slug })
+    .eq('id', readingId);
+  return error ? null : slug;
 }

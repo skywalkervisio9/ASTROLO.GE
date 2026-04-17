@@ -26,7 +26,7 @@ import type {
   Aspect,
   SectionKey,
 } from '@/types/reading';
-import { SECTION_KEYS, FREE_PICKABLE } from '@/types/reading';
+import { SECTION_KEYS } from '@/types/reading';
 import { canAccessSection, type User, PRICING } from '@/types/user';
 import { SECTION_ICONS, ELEMENT_COLORS } from '@/lib/utils/constants';
 import { renderText, setRenderLang, ELEMENT_CSS_CLASS } from '@/lib/utils/renderText';
@@ -45,8 +45,7 @@ interface ReadingRendererProps {
   reading: NatalReading;
   user: User;
   language: Lang;
-  onUpgrade?: () => void;         // Open payment modal
-  onSectionPick?: (key: string) => void;  // Free section pick callback
+  onUpgrade?: () => void;
 }
 
 // ── Main component ──
@@ -56,7 +55,6 @@ export default function ReadingRenderer({
   user,
   language,
   onUpgrade,
-  onSectionPick,
 }: ReadingRendererProps) {
   setRenderLang(language);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
@@ -107,7 +105,6 @@ export default function ReadingRenderer({
             user={user}
             language={language}
             onUpgrade={onUpgrade}
-            onSectionPick={onSectionPick}
           />
         ) : activeSection === 'overview' ? (
           <OverviewRenderer
@@ -331,23 +328,17 @@ function AspectBadge({ aspect }: { aspect: Aspect }) {
 // ── Locked section teaser ──
 
 function LockedSection({
-  sectionKey,
   section,
   user,
   language,
   onUpgrade,
-  onSectionPick,
 }: {
   sectionKey: SectionKey;
   section: OverviewSection | ContentSection;
   user: User;
   language: Lang;
   onUpgrade?: () => void;
-  onSectionPick?: (key: string) => void;
 }) {
-  const isPickable = FREE_PICKABLE.includes(sectionKey) && !user.free_section_pick;
-
-  // Show price based on user type
   const price = user.account_type === 'invited'
     ? PRICING.natal_unlock
     : PRICING.premium_upgrade;
@@ -355,10 +346,6 @@ function LockedSection({
   const ctaText = language === 'ka'
     ? `სრული წაკითხვის განბლოკვა — ₾${price}`
     : `Unlock full reading — ₾${price}`;
-
-  const pickText = language === 'ka'
-    ? 'აირჩიე ეს სექცია უფასოდ'
-    : 'Choose this section for free';
 
   return (
     <div className="locked-section">
@@ -381,17 +368,6 @@ function LockedSection({
       )}
 
       <div className="locked-cta-area">
-        {/* Free section pick option */}
-        {isPickable && onSectionPick && (
-          <button
-            className="btn-section-pick"
-            onClick={() => onSectionPick(sectionKey)}
-          >
-            {pickText}
-          </button>
-        )}
-
-        {/* Payment unlock */}
         <button className="btn-unlock" onClick={onUpgrade}>
           {ctaText}
         </button>

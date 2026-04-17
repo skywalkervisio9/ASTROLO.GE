@@ -18,7 +18,6 @@ export interface GenerateChartRequest {
   birth_timezone: string;
   gender: 'female' | 'male' | 'non-binary';
   invite_code?: string;
-  free_section_pick?: string;
 }
 
 export interface GenerateChartResponse {
@@ -39,13 +38,7 @@ export interface ChartStatusResponse {
 // ── Reading ──
 export interface GetReadingResponse {
   reading: Record<string, unknown>;
-  unlockedSections: string[];
-  freeSectionPick: string | null;
-}
-
-// ── Section pick ──
-export interface SectionPickRequest {
-  sectionKey: string;
+  hasFullReading: boolean;
 }
 
 // ── Invite ──

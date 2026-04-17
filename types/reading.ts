@@ -80,7 +80,3 @@ export const SECTION_KEYS = [
 
 export type SectionKey = typeof SECTION_KEYS[number];
 
-export const FREE_ALWAYS_VISIBLE: SectionKey[] = ['overview', 'mission'];
-export const FREE_PICKABLE: SectionKey[] = [
-  'characteristics', 'relationships', 'work', 'shadow', 'spiritual', 'potential'
-];

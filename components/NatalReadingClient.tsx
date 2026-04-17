@@ -66,7 +66,6 @@ export default function NatalReadingClient({ userId }: { userId: string }) {
             user={user}
             language={lang}
             onUpgrade={() => alert('Payment not implemented yet')}
-            onSectionPick={() => {}}
           />
         )}
       </div>

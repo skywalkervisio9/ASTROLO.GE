@@ -5,9 +5,10 @@ import type { User, AccountType } from '@/types/user';
 
 /* ── Tier display config ── */
 const TIER_META: Record<AccountType, { label: string; labelEn: string; cls: string }> = {
-  free:    { label: 'უფასო',        labelEn: 'FREE',       cls: 'free' },
-  invited: { label: 'მოწვეული',     labelEn: 'INVITED',    cls: 'invited' },
-  premium: { label: 'პრემიუმი',     labelEn: 'PREMIUM',    cls: 'premium' },
+  free:       { label: 'უფასო',     labelEn: 'FREE',       cls: 'free' },
+  invited:    { label: 'მოწვეული',  labelEn: 'INVITED',    cls: 'invited' },
+  'invited+': { label: 'მოწვეული+', labelEn: 'INVITED+',   cls: 'invited' },
+  premium:    { label: 'პრემიუმი',  labelEn: 'PREMIUM',    cls: 'premium' },
 };
 
 function getTierDisplay(user: User) {

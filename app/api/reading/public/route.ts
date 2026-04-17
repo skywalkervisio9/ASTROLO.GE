@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { buildStaticReading } from '@/lib/chart/static-reading';
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,8 +30,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Reading not found' }, { status: 404 });
     }
 
-    const reading = (lang === 'ka' ? row.reading_ka : row.reading_en) as Record<string, unknown>;
-
     // Inject chart data (planet table, aspects, points) into overview
     const { data: chartRow } = await admin
       .from('chart_data')
@@ -38,17 +37,22 @@ export async function GET(req: NextRequest) {
       .eq('user_id', row.user_id)
       .maybeSingle();
 
-    if (chartRow && reading.overview && typeof reading.overview === 'object') {
+    let reading = (lang === 'ka' ? row.reading_ka : row.reading_en) as Record<string, unknown> | null;
+
+    if (reading && chartRow && reading.overview && typeof reading.overview === 'object') {
       const overview = reading.overview as Record<string, unknown>;
       if (!overview.planetTable && chartRow.planets) overview.planetTable = chartRow.planets;
       if (!overview.aspects && chartRow.aspects) overview.aspects = chartRow.aspects;
       if (!overview.points && chartRow.points) overview.points = chartRow.points;
+    } else if (!reading) {
+      // Free user: no AI reading yet — build static reading from chart data
+      reading = buildStaticReading(lang, chartRow);
     }
 
     // Fetch user profile for display (name, account_type)
     const { data: profile } = await admin
       .from('users')
-      .select('id, full_name, email, account_type, free_section_pick')
+      .select('id, full_name, email, account_type')
       .eq('id', row.user_id)
       .single();
 
@@ -58,7 +62,8 @@ export async function GET(req: NextRequest) {
         id: profile.id,
         full_name: profile.full_name,
         email: profile.email,
-        account_type: 'premium', // Public view shows full reading
+        account_type: profile.account_type,
+        natal_chart_unlocked: profile.natal_chart_unlocked ?? false,
       } : null,
       isPublic: true,
     });

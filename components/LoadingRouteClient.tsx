@@ -9,6 +9,11 @@ import type { Gender } from '@/types/user';
 
 const LEGACY_LS_KEY = 'astrolo:lastGenerateRequest';
 
+// Free users: astrologer API only — quick (≤20s, 4 attempts at 5s).
+// Invited & premium-generate-full: Call 1 + synastry / full reading — up to 5 min.
+const FREE_MAX_ATTEMPTS = 4;   // 4 × 5s = 20s
+const FULL_MAX_ATTEMPTS = 80;  // 80 × adaptive ≈ 5 min
+
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -26,9 +31,14 @@ export default function LoadingRouteClient() {
     const supabase = createClient();
 
     const run = async () => {
-      // Mark as live so prototype animation loops instead of auto-completing
       const w = window as unknown as Record<string, unknown>;
       w.__ASTROLO_LIVE_LOADING = true;
+
+      // Detect mode from URL: ?mode=generate-full means post-payment full reading
+      const urlParams = new URLSearchParams(window.location.search);
+      const isGenerateFull = urlParams.get('mode') === 'generate-full';
+      const hasInvite = Boolean(urlParams.get('invite'));
+      const isFree = !isGenerateFull && !hasInvite;
 
       // Fetch user's language preference for loading screen
       let userLang: string = 'ka';
@@ -40,10 +50,10 @@ export default function LoadingRouteClient() {
         }
       } catch { /* default to ka */ }
 
-      // Wait for prototype-runtime.js to load, then start the animation
       whenRuntimeReady().then(() => {
-        const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string) => void) | undefined;
-        if (fn) fn(userLang);
+        const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string, durationMs?: number) => void) | undefined;
+        // 20s for free (Astrologer API only), 5 min for generate-full (AI reading)
+        if (fn) fn(userLang, isFree ? 20000 : 300000);
       });
 
       const { data: auth } = await supabase.auth.getUser();
@@ -53,93 +63,99 @@ export default function LoadingRouteClient() {
         return;
       }
 
-      // Check if reading already exists — redirect to public URL if so
+      // Early exit: already complete
       const earlyCheck = await fetch('/api/onboarding/status', { credentials: 'include' });
       if (earlyCheck.ok) {
-        const earlyStatus = await earlyCheck.json() as { status: string; shareSlug?: string };
+        const earlyStatus = await earlyCheck.json() as { status: string; complete?: boolean; shareSlug?: string };
         if (earlyStatus.status === 'complete' && earlyStatus.shareSlug) {
           window.location.href = `/r/${earlyStatus.shareSlug}`;
           return;
         }
       }
 
-      // Kick off generation if not already running/complete.
-      // Prefer server-issued onboarding payload, then fallback to profile snapshot.
-      let reqBody: GenerateChartRequest | null = null;
-      const pendingRes = await fetch('/api/onboarding/pending', { credentials: 'include' });
-      if (pendingRes.ok) {
-        const pending = await pendingRes.json() as {
-          requestId: string | null;
-          payload: GenerateChartRequest | null;
-        };
-        reqBody = pending.payload;
-      }
-      if (!reqBody) {
+      // ── POST-PAYMENT MODE: trigger generate-full ──
+      if (isGenerateFull) {
         try {
-          const raw = localStorage.getItem(LEGACY_LS_KEY);
-          if (raw) reqBody = JSON.parse(raw) as GenerateChartRequest;
-        } catch {
-          reqBody = null;
-        }
-      }
-
-      if (!reqBody) {
-        const profRes = await fetch('/api/user/profile', { credentials: 'include' });
-        if (profRes.ok) {
-          const { profile } = await profRes.json() as { profile: Record<string, unknown> };
-          const p = profile as Record<string, unknown>;
-          reqBody = {
-            name: (p.full_name as string | null) ?? (user.user_metadata?.full_name || user.user_metadata?.name || 'User'),
-            birth_day: p.birth_day as number,
-            birth_month: p.birth_month as number,
-            birth_year: p.birth_year as number,
-            birth_hour: (p.birth_hour as number | null) ?? null,
-            birth_minute: (p.birth_minute as number | null) ?? null,
-            birth_city: p.birth_city as string,
-            birth_lat: p.birth_lat as number,
-            birth_lng: p.birth_lng as number,
-            birth_timezone: p.birth_timezone as string,
-            gender: p.gender as Gender,
-            invite_code: new URLSearchParams(window.location.search).get('invite') ?? undefined,
-            free_section_pick: (p.free_section_pick as string | null) ?? undefined,
-          } as GenerateChartRequest;
-        }
-      }
-
-      // If we have complete data, call generate (idempotent)
-      if (reqBody?.birth_day && reqBody?.birth_month && reqBody?.birth_year && reqBody?.birth_lat && reqBody?.birth_lng && reqBody?.birth_timezone && reqBody?.gender) {
-        try {
-          // Keep URL at /loading while this runs
-          const init = await withCsrfHeaders({
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(reqBody),
-          });
-          const generateRes = await fetch('/api/chart/generate', init);
-          if (!generateRes.ok) {
-            const message = await generateRes.text();
-            console.error('[loading] chart generation request failed', generateRes.status, message);
-            // Only return to birth for input/auth issues. Keep loading for transient
-            // provider/server errors (429/5xx), so users don't lose flow.
-            if (shouldReturnToBirth(generateRes.status, message)) {
-              setErrorText('Birth data needs attention. Please review and submit again.');
-              setCanReturnToBirth(true);
-              return;
-            }
-            setErrorText('Reading generation is temporarily overloaded. Please wait and retry.');
-            setCanReturnToBirth(false);
+          const init = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
+          const res = await fetch('/api/reading/generate-full', init);
+          if (!res.ok) {
+            const message = await res.text();
+            setErrorText('Full reading generation failed. Please retry.');
+            console.error('[loading] generate-full failed', res.status, message);
           }
         } catch {
-          // Keep polling path, but show visible hint.
-          setErrorText('Temporary network issue while starting generation. Retrying...');
-          setCanReturnToBirth(false);
+          setErrorText('Network error starting full generation. Retrying...');
+        }
+        // Fall through to polling loop
+      } else {
+        // ── INITIAL ONBOARDING: chart/generate ──
+        let reqBody: GenerateChartRequest | null = null;
+
+        const pendingRes = await fetch('/api/onboarding/pending', { credentials: 'include' });
+        if (pendingRes.ok) {
+          const pending = await pendingRes.json() as { requestId: string | null; payload: GenerateChartRequest | null };
+          reqBody = pending.payload;
+        }
+        if (!reqBody) {
+          try {
+            const raw = localStorage.getItem(LEGACY_LS_KEY);
+            if (raw) reqBody = JSON.parse(raw) as GenerateChartRequest;
+          } catch { reqBody = null; }
+        }
+        if (!reqBody) {
+          const profRes = await fetch('/api/user/profile', { credentials: 'include' });
+          if (profRes.ok) {
+            const { profile } = await profRes.json() as { profile: Record<string, unknown> };
+            const p = profile as Record<string, unknown>;
+            reqBody = {
+              name: (p.full_name as string | null) ?? (user.user_metadata?.full_name || user.user_metadata?.name || 'User'),
+              birth_day: p.birth_day as number,
+              birth_month: p.birth_month as number,
+              birth_year: p.birth_year as number,
+              birth_hour: (p.birth_hour as number | null) ?? null,
+              birth_minute: (p.birth_minute as number | null) ?? null,
+              birth_city: p.birth_city as string,
+              birth_lat: p.birth_lat as number,
+              birth_lng: p.birth_lng as number,
+              birth_timezone: p.birth_timezone as string,
+              gender: p.gender as Gender,
+              invite_code: urlParams.get('invite') ?? undefined,
+            } as GenerateChartRequest;
+          }
+        }
+
+        if (reqBody?.birth_day && reqBody?.birth_month && reqBody?.birth_year && reqBody?.birth_lat && reqBody?.birth_lng && reqBody?.birth_timezone && reqBody?.gender) {
+          try {
+            const init = await withCsrfHeaders({
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify(reqBody),
+            });
+            const generateRes = await fetch('/api/chart/generate', init);
+            if (!generateRes.ok) {
+              const message = await generateRes.text();
+              console.error('[loading] chart generation failed', generateRes.status, message);
+              if (shouldReturnToBirth(generateRes.status, message)) {
+                setErrorText('Birth data needs attention. Please review and submit again.');
+                setCanReturnToBirth(true);
+                return;
+              }
+              setErrorText('Reading generation is temporarily overloaded. Please wait and retry.');
+              setCanReturnToBirth(false);
+            }
+          } catch {
+            setErrorText('Temporary network issue while starting generation. Retrying...');
+            setCanReturnToBirth(false);
+          }
         }
       }
 
-      // Poll until reading appears — adaptive: start slow, speed up as generation nears completion
+      // ── POLLING LOOP ──
+      // Free: max 20s (4 attempts × 5s). Invited/premium: max 5 min (80 attempts adaptive).
+      const maxAttempts = isFree ? FREE_MAX_ATTEMPTS : FULL_MAX_ATTEMPTS;
       let attempts = 0;
-      const maxAttempts = 80; // ~5 min across adaptive intervals
+
       for (;;) {
         attempts += 1;
         if (attempts > maxAttempts) {
@@ -147,32 +163,17 @@ export default function LoadingRouteClient() {
           setCanReturnToBirth(true);
           return;
         }
-        // 1-5: 5s (AI just started, no point hammering) → 6-10: 3s → 11+: 1.5s (nearly done)
-        const interval = attempts <= 5 ? 5000 : attempts <= 10 ? 3000 : 1500;
+        const interval = isFree ? 5000 : attempts <= 5 ? 5000 : attempts <= 10 ? 3000 : 1500;
         await sleep(interval);
+
         const statusRes = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (!statusRes.ok) continue;
-        const status = await statusRes.json() as { status: 'queued' | 'generating' | 'complete'; readingId: string | null; shareSlug?: string };
-        if (status.status === 'complete') {
-          // Save the user's free section pick before leaving loading
-          const pick = (window as unknown as { _selectedFreePick?: string })._selectedFreePick;
-          if (pick) {
-            try {
-              const pickInit = await withCsrfHeaders({
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ sectionKey: pick }),
-              });
-              await fetch('/api/reading/section-pick', pickInit);
-            } catch { /* best-effort — pick can be set later */ }
-          }
+        const status = await statusRes.json() as { status: string; complete?: boolean; readingId?: string | null; shareSlug?: string };
 
-          // Redirect to public reading URL
+        if (status.status === 'complete') {
           if (status.shareSlug) {
             window.location.href = `/r/${status.shareSlug}`;
           } else {
-            // Fallback: finish loading in-place
             const finish = (window as unknown as { finishLoading?: () => void }).finishLoading;
             if (finish) finish();
           }
@@ -230,4 +231,3 @@ export default function LoadingRouteClient() {
     </div>
   );
 }
-

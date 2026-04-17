@@ -140,11 +140,28 @@ function setTier(tier, btn) {
     }).then(function(session) {
       if (!session || !session.profile) return;
       _currentUser = session.profile;
-      // Re-hydrate reading with the real DB user so lock-wraps reflect actual access
+      console.log('[DEV] Re-hydrated with DB state:', _currentUser.account_type);
+
+      // Premium upgrade: check if full reading exists; if not, trigger generate-full
+      if (dbType === 'premium') {
+        return fetch('/api/onboarding/status', { credentials: 'include' })
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(status) {
+            if (!status) return;
+            if (status.status === 'complete' && status.shareSlug) {
+              // Already has a full reading — just re-hydrate display
+              if (_currentReading) hydrateReading(_currentReading, _currentUser);
+            } else {
+              // No full reading yet — launch generate-full loading
+              window.location.href = '/loading?mode=generate-full';
+            }
+          });
+      }
+
+      // Non-premium tiers: re-hydrate display only
       if (_currentReading) {
         hydrateReading(_currentReading, _currentUser);
       }
-      console.log('[DEV] Re-hydrated with DB state:', _currentUser.account_type);
     }).catch(function(e) { console.warn('[DEV] Tier update error:', e); });
   }
 }
@@ -1671,7 +1688,7 @@ var _sectionPickerSections = {
 var _sectionPickerIcons = { characteristics: 'gl-diamond', relationships: 'gl-venus', work: 'gl-mars', shadow: 'gl-moon', spiritual: 'gl-sparkle', potential: 'gl-diamond' };
 var _selectedFreePick = 'shadow'; // default
 
-function startLoading(lang) {
+function startLoading(lang, durationMs) {
   _loadingLang = lang || 'ka';
   var loadMsgs = _loadingMsgs[_loadingLang] || _loadingMsgs.ka;
   var funFacts = _loadingFunFacts[_loadingLang] || _loadingFunFacts.ka;
@@ -1690,8 +1707,7 @@ function startLoading(lang) {
   var factLabel = document.querySelector('.fun-fact-label');
   if (factLabel) factLabel.textContent = _loadingFactLabels[_loadingLang] || _loadingFactLabels.ka;
 
-  // Build section picker UI (only in live mode — real generation)
-  _buildSectionPicker(liveMode);
+  // Section picker removed
 
   // Constellation particles
   const con = document.getElementById('constellation'); con.innerHTML = '';
@@ -1715,9 +1731,9 @@ function startLoading(lang) {
   const zSigns = ring.querySelectorAll('.z-sign'); let zIdx = 0;
   const zInt = setInterval(() => { zSigns.forEach(z => z.classList.remove('lit')); if (zIdx < zSigns.length) { zSigns[zIdx].classList.add('lit'); zIdx++; } else zIdx = 0; }, 800);
 
-  // Messages + progress bar — time-based over 4.2 minutes (252s)
-  const TOTAL_DURATION = 252000; // 4.2 min in ms
-  const MSG_INTERVAL = TOTAL_DURATION / loadMsgs.length; // ~28s per message
+  // Messages + progress bar — caller can pass explicit duration; defaults to 20s live / 252s demo
+  const TOTAL_DURATION = durationMs || (liveMode ? 20000 : 252000);
+  const MSG_INTERVAL = TOTAL_DURATION / loadMsgs.length;
   const msgEl = document.getElementById('loadingMsg');
   const fillEl = document.getElementById('loadingFill');
   const startTime = Date.now();
@@ -2132,9 +2148,8 @@ function _buildBadgeHtml(label) {
 
 function _canAccess(user, key) {
   if (user.account_type === 'premium') return true;
-  if (user.account_type === 'invited' && user.natal_chart_unlocked) return true;
-  if (key === 'overview' || key === 'mission') return true;
-  if (user.free_section_pick === key) return true;
+  if (user.natal_chart_unlocked) return true;
+  if (key === 'overview') return true;
   return false;
 }
 
@@ -2284,29 +2299,60 @@ function _buildCard(card) {
   return html;
 }
 
+var _LOCKED_OVERVIEW_LABELS = {
+  ka: ['თქვენი პლანეტური ხელნაწერი', 'თქვენი ელემენტური ნიმუში', 'თქვენი რუკის ხელმოწერა'],
+  en: ['Your Planetary Blueprint', 'Your Elemental Pattern', 'Your Chart Signature'],
+};
+
+function _buildLockedOverviewCards(lang) {
+  var titles = _LOCKED_OVERVIEW_LABELS[lang] || _LOCKED_OVERVIEW_LABELS.ka;
+  var html = '<div class="lock-preview" style="margin-top:16px">';
+  html += '<div class="b">' + _buildBadgeHtml(lang === 'ka' ? 'AI ანალიზი' : 'AI Analysis') + '</div>';
+  html += '<h3>' + _esc(titles[0]) + '</h3>';
+  html += '<div class="blur-lines">';
+  [100, 93, 97, 86, 91].forEach(function(w) { html += '<div class="blur-line" style="width:' + w + '%"></div>'; });
+  html += '</div>';
+  var bookSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+  var libLabel = lang === 'ka' ? 'ბიბლიოთეკა' : 'Library';
+  html += '<a class="btn-library" href="/library" style="text-decoration:none">' + bookSvg + ' ' + libLabel + '</a>';
+  html += '</div>';
+  return html;
+}
+
 function _buildLockWrap(sectionKey, section, iconId) {
-  const cards = section.coreCards || section.cards || [];
-  const firstCard = cards[0];
-  let html = '<div class="lock-wrap locked" id="lock-s' + (SECTION_KEYS.indexOf(sectionKey) + 1) + '">';
+  var cards = section.coreCards || section.cards || [];
+  var lang = _hydrateLang;
+  var unlockLabel = lang === 'ka' ? 'სრული ანალიზის განბლოკვა' : 'Unlock Full Analysis';
+  var lockSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+
+  var html = '<div class="lock-wrap locked" id="lock-s' + (SECTION_KEYS.indexOf(sectionKey) + 1) + '">';
   html += '<div class="sh"><div class="section-icon"><svg style="color:var(--gold)"><use href="#' + iconId + '"/></svg></div>';
   html += '<h2>' + _esc(_stripPrefix(section.sectionTitle)) + '</h2>';
   html += '<div class="st">' + _esc(section.sectionTagline || '') + '</div></div>';
-  html += '<div class="lock-preview">';
-  if (firstCard) {
-    html += '<div class="b">' + _buildBadgeHtml(firstCard.label) + '</div>';
-    html += '<h3>' + _esc(firstCard.title) + '</h3>';
-    if (firstCard.hint) {
-      var raw = firstCard.hint.content;
-      var preview = raw.length > 120 ? raw.slice(0, 120).replace(/\s\S*$/, '') + '…' : raw;
-      html += '<div class="lock-hint">✦ ' + _esc(preview) + '</div>';
-    }
+
+  html += '<div class="lp-v2">';
+
+  // Stacked card peeks — up to 3
+  var peekCards = cards.slice(0, 3);
+  if (peekCards.length > 0) {
+    html += '<div class="lp-stack">';
+    peekCards.forEach(function(card, i) {
+      var cls = 'lp-peek' + (i > 0 ? ' lp-peek-' + (i + 1) : '');
+      html += '<div class="' + cls + '">';
+      html += '<span class="lp-peek-title">' + _esc(card.title) + '</span>';
+      var lineWidths = i === 0 ? [100, 88, 94, 76] : [100, 82];
+      lineWidths.forEach(function(w) { html += '<div class="lp-peek-line" style="width:' + w + '%"></div>'; });
+      html += '</div>';
+    });
+    html += '</div>';
   }
-  html += '<div class="blur-lines">';
-  [100, 93, 97, 86, 91].forEach(function(w) {
-    html += '<div class="blur-line" style="width:' + w + '%"></div>';
-  });
+
+  // Gate — lock icon + CTA
+  html += '<div class="lp-gate">';
+  html += '<div class="lp-lock-icon">' + lockSvg + '</div>';
+  html += '<button class="btn-unlock" onclick="showUpgrade()">' + _esc(unlockLabel) + '</button>';
   html += '</div>';
-  html += '<button class="btn-unlock" onclick="showUpgrade()"> სრული წაკითხვის განბლოკვა</button>';
+
   html += '</div></div>';
   return html;
 }
@@ -2403,9 +2449,14 @@ function _buildSectionContent(sectionKey, section) {
       }
       html += '</div>';
     }
-    // Core cards in 2-column grid
+    // Core cards — locked for free/invited users without full reading
     var cards = section.coreCards || section.cards || [];
-    html += _buildCardsGrid(cards);
+    var _hasFullReading = _currentUser && (_currentUser.account_type === 'premium' || _currentUser.natal_chart_unlocked);
+    if (_hasFullReading && cards.length) {
+      html += _buildCardsGrid(cards);
+    } else if (!_hasFullReading) {
+      html += _buildLockedOverviewCards(_hydrateLang);
+    }
   } else {
     // Content sections (2-8) in 2-column grid
     var sCards = section.cards || [];
@@ -2443,9 +2494,9 @@ function hydrateReading(reading, user) {
   if (paEl) paEl.textContent = (user.full_name || user.email || '?')[0].toUpperCase();
 
   // 2. Set tier
-  var tierMap = { free: 'free', premium: 'premium', invited: 'invited' };
+  var tierMap = { free: 'free', premium: 'premium', invited: 'invited', 'invited+': 'invited' };
   var mappedTier = tierMap[user.account_type] || 'free';
-  if (user.natal_chart_unlocked && user.account_type === 'invited') mappedTier = 'invited-plus';
+  if (user.natal_chart_unlocked && (user.account_type === 'invited' || user.account_type === 'invited+')) mappedTier = 'invited-plus';
   setTier(mappedTier, null);
 
   // 3. Hero chips — sourced from overview.planetTable + overview.points (no meta dependency)

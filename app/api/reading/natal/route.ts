@@ -1,73 +1,22 @@
 // ============================================================
-// GET /api/reading/natal — Get natal reading (tier-gated)
+// GET /api/reading/natal — Tier-aware natal reading
+//
+// Free/invited (no full reading):
+//   Returns chart_data (planet table + aspects) as the overview
+//   plus static placeholder sections for all 8 keys.
+//   { reading: staticReading, hasFullReading: false }
+//
+// Premium / natal_chart_unlocked:
+//   Returns the full AI reading with chart_data injected into overview.
+//   { reading: full, hasFullReading: true }
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@/types/user';
-import { SECTION_KEYS } from '@/types/reading';
+import { hasFullReading } from '@/types/user';
 import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonServerError } from '@/lib/auth/http';
-import { canUserAccessSection } from '@/lib/auth/policy';
-
-function gateSection(section: unknown) {
-  if (!section || typeof section !== 'object') return section;
-
-  // ContentSection
-  if ('cards' in section) {
-    const s = section as {
-      sectionTitle?: string;
-      sectionTagline?: string;
-      cards?: Array<{
-        id: string;
-        label: string;
-        title: string;
-        body: string[];
-        crossReferences?: string[];
-        expandedContent?: string[] | null;
-        hint?: unknown;
-        accentElement?: unknown;
-      }>;
-      pullQuote?: string | null;
-    };
-
-    const first = s.cards?.[0];
-    return {
-      sectionTitle: s.sectionTitle ?? '',
-      sectionTagline: s.sectionTagline ?? '',
-      cards: first ? [{
-        ...first,
-        body: Array.isArray(first.body) && first.body[0] ? [String(first.body[0]).slice(0, 140) + '…'] : [],
-        crossReferences: [],
-        expandedContent: null,
-        hint: null,
-      }] : [],
-      pullQuote: null,
-    };
-  }
-
-  // OverviewSection
-  if ('coreCards' in section) {
-    const s = section as {
-      sectionTitle?: string;
-      sectionTagline?: string;
-      planetTable?: unknown[];
-      aspects?: unknown[];
-      coreCards?: Array<{ id: string; label: string; title: string; body: string[] }>;
-      pullQuote?: string | null;
-    };
-    const first = s.coreCards?.[0];
-    return {
-      sectionTitle: s.sectionTitle ?? '',
-      sectionTagline: s.sectionTagline ?? '',
-      planetTable: [],
-      aspects: [],
-      coreCards: first ? [{ ...first, body: first.body?.[0] ? [String(first.body[0]).slice(0, 140) + '…'] : [] }] : [],
-      pullQuote: null,
-    };
-  }
-
-  return section;
-}
+import { buildStaticReading } from '@/lib/chart/static-reading';
 
 export async function GET(req: NextRequest) {
   try {
@@ -78,9 +27,7 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const lang = (url.searchParams.get('lang') ?? 'ka') as 'ka' | 'en';
 
-    // Profile may be missing briefly for brand new OAuth users (trigger delay),
-    // or reading may be requested before profile is created. In that case,
-    // return a safe "not generated yet" payload instead of 500.
+    // Profile may be missing briefly for brand-new OAuth users.
     const { data: profile } = await supabase
       .from('users')
       .select('*')
@@ -88,73 +35,48 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     if (!profile) {
-      return NextResponse.json({
-        reading: null,
-        unlockedSections: [],
-        freeSectionPick: null,
-      });
+      return NextResponse.json({ reading: null, hasFullReading: false });
     }
 
-    const u = profile as User;
+    const user = profile as User;
 
-    const { data: row, error: readingError } = await supabase
-      .from('natal_readings')
-      .select('reading_ka, reading_en')
-      .eq('user_id', authUser.id)
-      .single();
-
-    if (readingError) {
-      // Not generated yet
-      return NextResponse.json({
-        reading: null,
-        unlockedSections: [],
-        freeSectionPick: u.free_section_pick ?? null,
-      });
-    }
-
-    const full = (lang === 'ka' ? row.reading_ka : row.reading_en) as Record<string, unknown>;
-
-    // Inject planetTable and aspects from chart_data into overview section
+    // Always load chart_data — needed for overview planet table regardless of tier
     const { data: chartRow } = await supabase
       .from('chart_data')
       .select('planets, aspects, points')
       .eq('user_id', authUser.id)
       .maybeSingle();
 
+    // ── FREE / INVITED: no AI reading — return static placeholder ──
+    if (!hasFullReading(user)) {
+      const staticReading = buildStaticReading(lang, chartRow);
+      return NextResponse.json({ reading: staticReading, hasFullReading: false });
+    }
+
+    // ── PREMIUM: return full AI reading ──
+    const { data: row } = await supabase
+      .from('natal_readings')
+      .select('reading_ka, reading_en')
+      .eq('user_id', authUser.id)
+      .maybeSingle();
+
+    if (!row?.reading_ka) {
+      // Full reading not generated yet (e.g. payment just completed, still generating)
+      return NextResponse.json({ reading: null, hasFullReading: true });
+    }
+
+    const full = (lang === 'ka' ? row.reading_ka : row.reading_en) as Record<string, unknown>;
+
+    // Inject chart_data into the overview section
     if (chartRow && full.overview && typeof full.overview === 'object') {
       const overview = full.overview as Record<string, unknown>;
-      if (!overview.planetTable && chartRow.planets) {
-        overview.planetTable = chartRow.planets;
-      }
-      if (!overview.aspects && chartRow.aspects) {
-        overview.aspects = chartRow.aspects;
-      }
-      if (!overview.points && chartRow.points) {
-        overview.points = chartRow.points;
-      }
+      if (!overview.planetTable && chartRow.planets) overview.planetTable = chartRow.planets;
+      if (!overview.aspects && chartRow.aspects)     overview.aspects = chartRow.aspects;
+      if (!overview.points && chartRow.points)       overview.points = chartRow.points;
     }
 
-    // Keep shape stable for the client: always return all section keys,
-    // but downgrade locked sections to a teaser payload.
-    const gated: Record<string, unknown> = { ...full };
-    const unlockedSections: string[] = [];
-
-    for (const key of SECTION_KEYS) {
-      const allowed = canUserAccessSection(u, key);
-      if (allowed) {
-        unlockedSections.push(key);
-      } else {
-        gated[key] = gateSection(full[key]);
-      }
-    }
-
-    return NextResponse.json({
-      reading: gated,
-      unlockedSections,
-      freeSectionPick: u.free_section_pick ?? null,
-    });
+    return NextResponse.json({ reading: full, hasFullReading: true });
   } catch (error: unknown) {
     return jsonServerError(error);
   }
 }
-

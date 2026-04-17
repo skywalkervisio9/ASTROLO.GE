@@ -21,7 +21,6 @@ const baseUser: User = {
   account_type: 'free',
   natal_chart_unlocked: false,
   invite_slots_purchased: 0,
-  free_section_pick: null,
   language: 'ka',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
@@ -33,9 +32,21 @@ test('isConnectionMember validates inviter/invitee ownership', () => {
   assert.equal(isConnectionMember('u1', 'u2', 'u3'), false);
 });
 
-test('canAccessSection respects free pick', () => {
-  const free = { ...baseUser, free_section_pick: 'career' };
-  assert.equal(canAccessSection(free, 'overview'), true);
-  assert.equal(canAccessSection(free, 'career'), true);
-  assert.equal(canAccessSection(free, 'relationship'), false);
+test('canAccessSection: free user can only access overview', () => {
+  assert.equal(canAccessSection(baseUser, 'overview'), true);
+  assert.equal(canAccessSection(baseUser, 'mission'), false);
+  assert.equal(canAccessSection(baseUser, 'relationships'), false);
+});
+
+test('canAccessSection: natal_chart_unlocked grants full access', () => {
+  const unlocked = { ...baseUser, natal_chart_unlocked: true };
+  assert.equal(canAccessSection(unlocked, 'overview'), true);
+  assert.equal(canAccessSection(unlocked, 'mission'), true);
+  assert.equal(canAccessSection(unlocked, 'shadow'), true);
+});
+
+test('canAccessSection: premium account grants full access', () => {
+  const premium = { ...baseUser, account_type: 'premium' as const };
+  assert.equal(canAccessSection(premium, 'overview'), true);
+  assert.equal(canAccessSection(premium, 'potential'), true);
 });
