@@ -111,6 +111,7 @@ export default function ReadingRenderer({
             section={reading.overview}
             expandedCards={expandedCards}
             onToggleExpand={toggleExpand}
+            language={language}
           />
         ) : (
           <ContentRenderer
@@ -130,10 +131,12 @@ function OverviewRenderer({
   section,
   expandedCards,
   onToggleExpand,
+  language,
 }: {
   section: OverviewSection;
   expandedCards: Set<string>;
   onToggleExpand: (id: string) => void;
+  language: string;
 }) {
   return (
     <div className="reading-overview">
@@ -148,7 +151,7 @@ function OverviewRenderer({
           <table className="planet-table">
             <tbody>
               {section.planetTable.map((row, i) => (
-                <PlanetRowComponent key={i} row={row} />
+                <PlanetRowComponent key={i} row={row} language={language} />
               ))}
             </tbody>
           </table>
@@ -296,7 +299,7 @@ function CardComponent({
 
 // ── Planet row in overview table ──
 
-function PlanetRowComponent({ row }: { row: PlanetRow }) {
+function PlanetRowComponent({ row, language }: { row: PlanetRow; language: string }) {
   return (
     <tr className="planet-row" data-element={row.element}>
       <td className="planet-cell">
@@ -305,7 +308,7 @@ function PlanetRowComponent({ row }: { row: PlanetRow }) {
         {row.retrograde && (
           <span
             className="tip retro"
-            data-tip={getRenderLang() === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy'}
+            data-tip={language === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy'}
           >℞</span>
         )}
       </td>
