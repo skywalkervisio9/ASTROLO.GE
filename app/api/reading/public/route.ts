@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     // Fetch user profile for display (name, account_type)
     const { data: profile } = await admin
       .from('users')
-      .select('id, full_name, email, account_type')
+      .select('id, full_name, email, account_type, natal_chart_unlocked')
       .eq('id', row.user_id)
       .single();
 
