@@ -324,7 +324,7 @@ span.pt{color:var(--gold);font-family:'Outfit',sans-serif;letter-spacing:.07em;f
 
 /* Grid, table, misc */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.pt{width:100%;border-collapse:collapse;margin-top:10px}.pt th{font-size:.6rem;letter-spacing:.14em;color:var(--gd);text-align:left;padding:6px 9px;border-bottom:1px solid rgba(201,168,76,.08);font-weight:400}.pt td{font-size:.8rem;padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--silver);transition:all .2s}.pt tr:hover td{background:rgba(201,168,76,.02)}.pt .retro{color:var(--gd);font-style:italic}
+.pt{width:100%;border-collapse:collapse;margin-top:10px}.pt th{font-size:.6rem;letter-spacing:.14em;color:var(--gd);text-align:left;padding:6px 9px;border-bottom:1px solid rgba(201,168,76,.08);font-weight:400}.pt td{font-size:.8rem;padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--silver);transition:all .2s}.pt tr:hover td{background:rgba(201,168,76,.02)}.pt .retro{color:var(--gd);font-style:italic}.c:hover .retro{color:var(--gold);transition:color .2s}
 .pb2{display:inline-flex;align-items:center;gap:4px;font-size:.74rem;color:var(--gd);background:rgba(201,168,76,.05);padding:3px 9px;border-radius:6px;margin-right:4px;margin-bottom:4px}
 .pb2 .gi{vertical-align:middle;width:1em;height:1em;flex-shrink:0}
 /* Aspect list in overview section */

@@ -38,13 +38,13 @@ const SIGN_ELEMENT: Record<string, string> = {
 //   6: full element word match  (e.g. "ცეცხლი (48%)" or "Water")
 //   7: element word itself       (e.g. "ცეცხლი", "Water")
 //   8: optional percentage       (e.g. "48")
-//   9: retrograde word (English "retrograde" or Georgian "რეტროგრადულ…") → rendered as ℞
+//   9: retrograde word (English "retrograde" or Georgian core "რეტროგრად") → rendered as ℞; Georgian suffix stays as plain text
 //
 // Georgian stems: ცეცხლ (fire) / მიწ (earth) / ჰაერ (air) / წყალ (water)
 // Matches any Georgian ending [ა-ჰ]* after the stem — so ცეცხლი / ცეცხლის / წყალში all work.
 // Water has two stems in Georgian: წყალ (nominative) and წყლ (genitive — წყლის, წყლისა, წყლით…)
 // Order matters: წყალ before წყლ so the longer match wins on "წყალისა".
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრადულ[ა-ჰ]*)/giu;
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)/giu;
 
 /** Classify the stem of an element word to its CSS modifier */
 function getElementClass(word: string): string | null {
@@ -129,7 +129,7 @@ export function renderText(text: string): React.ReactNode {
     } else if (m[3] !== undefined) {
       nodes.push(<span key={k++} className="pt tip" data-tip={ptTips[m[3]]}>{m[3]}</span>);
     } else if (m[4] !== undefined) {
-      nodes.push(<span key={k++} className="tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
+      nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
     } else if (m[5] !== undefined) {
       const ch = m[5]; const glyph = SYMBOL_TO_GLYPH[ch];
       if (glyph) {
@@ -152,7 +152,8 @@ export function renderText(text: string): React.ReactNode {
         nodes.push(m[6]);
       }
     } else if (m[9] !== undefined) {
-      nodes.push(<span key={k++} className="tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
+      nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
+      if (/[ა-ჰ]/u.test(text[m.index + m[0].length] ?? '')) nodes.push('-');
     }
     last = m.index + m[0].length;
   }

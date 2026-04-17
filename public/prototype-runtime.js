@@ -1943,8 +1943,11 @@ function _renderRichText(text) {
   escaped = escaped.replace(/\b(ASC|MC|IC|DSC)\b/g, function(m) { return '<span class="pt tip" data-tip="' + ptTips[m] + '">' + m + '</span>'; });
   // Retrograde symbol → tooltip
   var retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
-  escaped = escaped.replace(/℞/g, '<span class="tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');
-  escaped = escaped.replace(/\bretrograde\b|(?<![ა-ჰ])რეტროგრადულ[ა-ჰ]*/giu, '<span class="tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');
+  escaped = escaped.replace(/℞/g, '<span class="retro tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');
+  escaped = escaped.replace(/\bretrograde\b|(?<![ა-ჰ])რეტროგრად/giu, function(m, offset, str) {
+    var span = '<span class="retro tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>';
+    return /[ა-ჰ]/u.test(str[offset + m.length] || '') ? span + '-' : span;
+  });
   // Element words → colored inline pills (Characteristics core card).
   // Matches: ცეცხლ- / მიწ- / ჰაერ- / წყალ- / წყლ- (genitive: წყლის, წყლისა) with any
   // Georgian ending, plus English fire/earth/air/water. Optional trailing "(NN%)" or "(NN)".
