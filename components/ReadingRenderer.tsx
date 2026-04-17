@@ -302,7 +302,12 @@ function PlanetRowComponent({ row }: { row: PlanetRow }) {
       <td className="planet-cell">
         <svg width="14" height="14"><use href={`#gl-${row.planet.toLowerCase()}`} /></svg>
         <span>{row.planet}</span>
-        {row.retrograde && <span className="retro-badge">R</span>}
+        {row.retrograde && (
+          <span
+            className="tip retro"
+            data-tip={language === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy'}
+          >℞</span>
+        )}
       </td>
       <td className="sign-cell">
         <span>{row.sign}</span>
