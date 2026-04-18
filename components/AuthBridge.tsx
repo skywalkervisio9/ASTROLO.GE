@@ -197,8 +197,11 @@ export default function AuthBridge() {
           }
         }
 
-        // Success → birth data step
-        onAuthSuccess();
+        // Route through the server-side /post-auth gate — same path Google OAuth uses.
+        // It authoritatively decides where to go (birth form / loading / reading) based
+        // on DB state, avoiding client-side race conditions with the prototype runtime.
+        const invite = urlParams.get("invite");
+        window.location.href = invite ? `/post-auth?invite=${encodeURIComponent(invite)}` : "/post-auth";
       };
 
       // ─── Forgot Password ───
@@ -543,8 +546,11 @@ export default function AuthBridge() {
       console.log("[AB] Session user:", user ? `${user.email} (${user.id})` : "none");
       if (user) {
         // /auth is the login page — sign out and stay on the form.
+        // Exception: when ?step=birth or ?invite=... is present, the user was sent here
+        // by /post-auth to complete onboarding and MUST keep their session.
         // Dev buttons do their own signOut before signIn, so no race.
-        if (window.location.pathname === '/auth') {
+        const hasOnboardingIntent = forceBirthStep || urlParams.get('invite');
+        if (window.location.pathname === '/auth' && !hasOnboardingIntent) {
           console.log("[AB] On /auth with active session — signing out");
           await supabase.auth.signOut();
           return;
