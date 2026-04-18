@@ -27,15 +27,18 @@ export default async function PostAuthPage({
 
   const hasBirth = !!(profile?.birth_day && profile?.birth_year);
 
-  // If a reading already exists, take them to their natal reading route.
+  // If a reading already exists, take them to the canonical /r/[slug] URL.
   const { data: readingRow } = await supabase
     .from('natal_readings')
-    .select('id')
+    .select('id, share_slug')
     .eq('user_id', user.id)
     .maybeSingle();
 
+  if (readingRow?.share_slug) {
+    redirect(`/r/${readingRow.share_slug}`);
+  }
   if (readingRow?.id) {
-    redirect(`/natalreading/${user.id}`);
+    // Legacy row missing a slug — fall through to loading so it gets one.
   }
 
   // New user (or missing birth data): go to birth data input.

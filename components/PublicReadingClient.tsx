@@ -5,7 +5,6 @@ import BodyContent from "@/components/BodyContent";
 import SettingsBridge from "@/components/SettingsBridge";
 import ReadingRenderer from "@/components/reading/ReadingRenderer";
 import { useEffect, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { whenRuntimeReady } from "@/lib/runtime-ready";
 
 interface Props {
@@ -15,25 +14,18 @@ interface Props {
 export default function PublicReadingClient({ slug }: Props) {
   const hydrated = useRef(false);
 
-  // On public reading pages, the profile button (.pb) should always
-  // sign out (if logged in) and navigate to /auth.
-  // Also set __ASTROLO_PUBLIC_VIEW as fallback for the runtime's own openSidebar check.
+  // Guest view only — the server-side route at /r/[slug] already
+  // determined the viewer is NOT the owner (owners get PrototypeClient).
+  // Setting the flag synchronously on mount eliminates the earlier race
+  // with Supabase's onAuthStateChange listener on Vercel.
+  // Also tag <body> so CSS can style the pb button differently for guests.
   useEffect(() => {
-    const supabase = createClient();
     const w = window as unknown as Record<string, unknown>;
-
-    // Keep __ASTROLO_PUBLIC_VIEW in sync so prototype-runtime.js openSidebar
-    // redirects to /auth when not logged in, and opens sidebar when logged in.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        delete w.__ASTROLO_PUBLIC_VIEW;
-      } else {
-        w.__ASTROLO_PUBLIC_VIEW = true;
-      }
-    });
-
+    w.__ASTROLO_PUBLIC_VIEW = true;
+    document.body.setAttribute('data-public-view', 'true');
     return () => {
-      subscription.unsubscribe();
+      delete w.__ASTROLO_PUBLIC_VIEW;
+      document.body.removeAttribute('data-public-view');
     };
   }, []);
 
@@ -60,6 +52,17 @@ export default function PublicReadingClient({ slug }: Props) {
       (w.hydrateReading as (r: unknown, u: unknown) => void)(data.reading, data.user);
       const authWrap = document.getElementById("authWrap");
       if (authWrap) authWrap.style.display = "flex";
+
+      // Public view: the prototype runtime sets .pn to the first name of
+      // the viewer. For a guest reading someone else's chart we want the
+      // OWNER's full name instead — a clear "you're viewing N's reading"
+      // cue. CSS recolors the pill via body[data-public-view].
+      const ownerName =
+        (data.user as { full_name?: string } | null)?.full_name ||
+        (data.user as { email?: string } | null)?.email ||
+        '';
+      const pn = document.querySelector<HTMLElement>('.pn');
+      if (pn && ownerName) pn.textContent = ownerName;
     };
 
     const init = async () => {

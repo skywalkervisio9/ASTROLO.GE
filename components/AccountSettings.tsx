@@ -49,7 +49,8 @@ interface Props {
 }
 
 export default function AccountSettings({ user, open, onClose, onUpgrade }: Props) {
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(user.full_name || '');
@@ -71,7 +72,35 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
       .then(r => r.ok ? r.json() : { connections: [] })
       .then((d: { connections: Connection[] }) => setConnections(d.connections))
       .catch(() => setConnections([]));
+
+    // Load current reading visibility so the toggle reflects reality.
+    fetch('/api/reading/visibility', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { isPublic: true })
+      .then((d: { isPublic?: boolean }) => {
+        if (typeof d.isPublic === 'boolean') setIsPublic(d.isPublic);
+      })
+      .catch(() => {});
   }, [open, user.full_name]);
+
+  async function toggleVisibility() {
+    if (visibilitySaving) return;
+    const next = !isPublic;
+    setIsPublic(next);          // optimistic
+    setVisibilitySaving(true);
+    try {
+      const res = await fetch('/api/reading/visibility', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isPublic: next }),
+      });
+      if (!res.ok) setIsPublic(!next); // roll back on failure
+    } catch {
+      setIsPublic(!next);
+    } finally {
+      setVisibilitySaving(false);
+    }
+  }
 
   // Focus name input when editing
   useEffect(() => {
@@ -229,7 +258,8 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
               </div>
               <button
                 className={`stg-toggle ${isPublic ? 'on' : ''}`}
-                onClick={() => setIsPublic(!isPublic)}
+                onClick={toggleVisibility}
+                disabled={visibilitySaving}
                 aria-label="Toggle privacy"
               >
                 <span className="stg-toggle-knob" />

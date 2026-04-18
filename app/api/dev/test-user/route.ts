@@ -43,8 +43,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'No users found' }, { status: 404 });
   }
 
-  // Try known dev passwords — test- accounts use one, others use another
+  // Force a known dev password on the auth user so signInWithPassword
+  // works for ANY account — including ones originally created via
+  // OAuth (Google/Apple), which start without a password. Dev-only.
   const password = user.email.startsWith('test-') ? 'testuser123' : 'testpass123!';
+  const { error: pwErr } = await admin.auth.admin.updateUserById(user.id, { password });
+  if (pwErr) {
+    return NextResponse.json(
+      { error: `Could not set dev password: ${pwErr.message}` },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({
     email: user.email,
