@@ -1,7 +1,7 @@
 // ============================================================
-// Synastry prompts — Couple + Friend variants (s4: no Call 1)
-// Full prompt text lives in docs/SYSTEM-PROMPT-Couple_s4.md
-// and docs/SYSTEM-PROMPT-Friend_s4.md
+// Synastry prompts — Couple + Friend variants (s5: no Call 1)
+// Full prompt text lives in docs/SYSTEM-PROMPT-Couple_s5.md
+// and docs/SYSTEM-PROMPT-Friend_s5.md
 // ============================================================
 
 import { readFileSync } from 'fs';
@@ -40,8 +40,8 @@ export function getSynastryPrompt(
   language: Language
 ): string {
   const filename = type === 'couple'
-    ? 'SYSTEM-PROMPT-Couple_s4.md'
-    : 'SYSTEM-PROMPT-Friend_s4.md';
+    ? 'SYSTEM-PROMPT-Couple_s5.md'
+    : 'SYSTEM-PROMPT-Friend_s5.md';
 
   const spec = loadPromptFile(filename);
 
@@ -125,8 +125,8 @@ function getSynastryFallback(type: 'couple' | 'friend', language: Language): str
     : 'Write in formal-literary English.';
 
   const sections = type === 'couple'
-    ? 'emotionalBond, passion, karmic, numerology, growth, shadow, dailyRitual, potential'
-    : 'emotionalBond, intellectualSynergy, karmic, numerology, growth, shadow, sharedAdventures, potential';
+    ? 'emotionalBond, passion, karmic, numerology, growth, sharedShadow, dailyRitual, potential'
+    : 'emotionalBond, intellectualSynergy, karmic, numerology, growth, sharedShadow, sharedAdventures, potential';
 
   const wordRange = type === 'couple' ? '5,500-7,500' : '4,500-6,500';
 

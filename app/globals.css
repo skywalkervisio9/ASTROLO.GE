@@ -229,7 +229,7 @@ section.vis{opacity:1;transform:translateY(0)}
 .b.has-popup,.card-label.has-popup{position:relative;cursor:help}
 .label-popup{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--sf2);color:var(--silver);padding:8px 14px;border-radius:10px;font-size:.7rem;font-family:var(--fb);font-weight:400;letter-spacing:.02em;line-height:1.65;white-space:normal;width:max-content;max-width:340px;opacity:0;pointer-events:none;transition:opacity .25s;border:1px solid rgba(201,168,76,.12);z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.5)}
 .b.has-popup:hover .label-popup,.card-label.has-popup:hover .label-popup{opacity:1;pointer-events:all}
-.c h3{font-family:var(--fd);font-weight:500;font-size:1.1rem;color:var(--tx);margin-bottom:12px;line-height:1.45}
+.c h3{font-family:var(--fd);font-weight:500;font-size:1.1rem;color:var(--tx);margin-bottom:12px;line-height:1.45;display:flex;align-items:center;gap:8px}
 .c p{color:var(--silver);font-size:.86rem;line-height:1.85;margin-bottom:10px}.c p:last-of-type{margin-bottom:0}
 /* Numbered lists in card body/expanded */
 .card-list{color:var(--silver);font-size:.86rem;line-height:1.85;margin:8px 0 10px;padding-left:1.4em;list-style:none;counter-reset:cl}

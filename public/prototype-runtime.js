@@ -2007,112 +2007,6 @@ function _renderRichText(text) {
   return result;
 }
 
-// Render a body string array; consecutive "N. Title: desc" items become a two-column definition layout.
-// Pass simple=true (card body) to skip list detection — just rich-text paragraphs.
-function _buildBodyHtml(arr, richFn, simple) {
-  var fn = richFn || _renderRichText;
-  // Flatten embedded newlines so each line is a separate entry
-  var flat = [];
-  (arr || []).forEach(function(s) {
-    if (!s) return;
-    if (s.indexOf('\n') !== -1) {
-      s.split('\n').forEach(function(l) { if (l.trim()) flat.push(l.trim()); });
-    } else {
-      flat.push(s);
-    }
-  });
-  var html = '';
-  var i = 0;
-  var _prevWasIntro = false; // track consecutive cl-intro elements
-  while (i < flat.length) {
-    var s = flat[i];
-    if (simple) {
-      // Body = narrative prose only (i12). Render everything as <p>.
-      // Transform inline numbers (1. 2. 1) 2) etc.) and arrows into decorative bullet dots
-      var _ps = fn(s).replace(/\b\d+[.)]\s/g, '<span class="dn">●</span>').replace(/\s*→\s*/g, ' ');
-      html += '<p>' + _ps + '</p>';
-      _prevWasIntro = false;
-      i++;
-    } else if (/^\d+\.\s/.test(s)) {
-      html += '<div class="cl">';
-      while (i < flat.length && /^\d+\.\s/.test(flat[i])) {
-        var content = flat[i].replace(/^\d+\.\s+/, '');
-        var title = '', body = content;
-        var boldMatch = content.match(/^\*\*(.+?)\*\*:?\s*([\s\S]*)/);
-        if (boldMatch) {
-          title = boldMatch[1].replace(/:$/, '').trim(); body = boldMatch[2];
-        } else {
-          var colonMatch = content.match(/^([^:.\n]{3,55}):\s+([\s\S]*)/);
-          if (colonMatch) { title = colonMatch[1]; body = colonMatch[2]; }
-        }
-        if (title) {
-          // Split parenthetical context onto a second line: "Main Title (extra)" → main + sub
-          var titleHtml;
-          var parenMatch = title.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
-          if (parenMatch) {
-            titleHtml = '<span class="cl-t-main">' + fn(parenMatch[1].trim()) + '</span>' +
-                        '<span class="cl-t-sub">' + fn(parenMatch[2].trim()) + '</span>';
-          } else {
-            titleHtml = fn(title);
-          }
-          html += '<div class="cl-row"><span class="cl-t">' + titleHtml + '</span><span class="cl-b">' + fn(body) + '</span></div>';
-        } else {
-          html += '<div class="cl-row"><span class="cl-b cl-b-full">' + fn(content) + '</span></div>';
-        }
-        i++;
-      }
-      html += '</div>';
-      _prevWasIntro = false;
-    } else {
-      // Detect section intro: line ending with ':' (with or without **bold** wrapping), max 65 chars
-      var _bare = s.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
-      if (/^[^.\n]{4,65}:\s*$/.test(_bare)) {
-        var _cleanText = fn(_bare.replace(/:\s*$/, ''));
-        if (_prevWasIntro) {
-          // Second consecutive intro = subtitle: no dots, smaller, italic treatment
-          html += '<p class="cl-intro-sub">' + _cleanText + '</p>';
-          _prevWasIntro = false;
-        } else {
-          var _dl = '<span class="cl-dl"><i></i><i></i><i></i></span>';
-          var _dr = '<span class="cl-dr"><i></i><i></i><i></i></span>';
-          html += '<p class="cl-intro">' + _dl + _cleanText + _dr + '</p>';
-          _prevWasIntro = true;
-        }
-      } else {
-        html += '<p>' + fn(s) + '</p>';
-        _prevWasIntro = false;
-      }
-      i++;
-    }
-  }
-  return html;
-}
-
-// Like _renderRichText but without tooltips on ASC/MC/IC/℞ (for use inside popups)
-function _renderRichTextNoTip(text) {
-  if (!text) return '';
-  text = _normalizeLlmHtmlEmphasisToMarkdown(String(text));
-  var escaped = _esc(text);
-  escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  escaped = escaped.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em class="hl">$1</em>');
-  escaped = escaped.replace(/\b(ASC|MC|IC|DSC)\b/g, '<span class="pt">$1</span>');
-  var chars = Array.from(escaped);
-  var result = '';
-  for (var i = 0; i < chars.length; i++) {
-    var ch = chars[i];
-    if (SYMBOL_TO_GLYPH[ch]) {
-      var glyphName = SYMBOL_TO_GLYPH[ch];
-      if (PLANET_SYMBOLS.has(ch)) {
-        result += '<span class="gi gi-pl"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
-      } else if (SIGN_SYMBOLS.has(ch)) {
-        var el = SIGN_ELEMENT[glyphName] || '';
-        result += '<span class="gi gi-' + el + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
-      } else { result += ch; }
-    } else { result += ch; }
-  }
-  return result;
-}
-
 // Build rich badge HTML from a label string
 // Converts Unicode symbols to SVG glyphs and adds element-colored sign glyphs
 function _buildBadgeHtml(label) {
@@ -2275,34 +2169,6 @@ function _buildAspect(asp) {
     '</div>';
 }
 
-function _buildCard(card) {
-  const elClass = card.accentElement ? ELEMENT_CLASS[(card.accentElement || '').toLowerCase()] || '' : '';
-  var hasCrossRefs = card.crossReferences && card.crossReferences.length;
-  var crossRefPopup = hasCrossRefs ? card.crossReferences.map(function(r){return _renderRichTextNoTip(r);}).join(' · ') : '';
-  let html = '<div class="c ' + elClass + '">';
-  html += '<div class="b' + (hasCrossRefs ? ' has-popup' : '') + '">' + _buildBadgeHtml(card.label) + (hasCrossRefs ? '<span class="label-popup">' + crossRefPopup + '</span>' : '') + '</div>';
-  html += '<h3>' + _esc(card.title) + '</h3>';
-  if (card.body && card.body.length) {
-    var bodyArr = Array.isArray(card.body) ? card.body : [card.body];
-    html += _buildBodyHtml(bodyArr, null, true); // simple: no list detection in card body
-  }
-  if (card.expandedContent && card.expandedContent.length) {
-    html += '<button class="tb2" onclick="toggleExp(this)">' + (_hydrateLang === 'ka' ? 'დეტალური ანალიზი ↓' : 'Detailed Analysis ↓') + '</button>';
-    html += '<div class="ce">';
-    var ecArr = Array.isArray(card.expandedContent) ? card.expandedContent : [card.expandedContent];
-    html += _buildBodyHtml(ecArr); // full list detection in expanded content
-    html += '</div>';
-  }
-  if (card.hint) {
-    html += '<div class="h"><div class="ht"><svg><use href="#gl-sparkle"/></svg> ' + _esc(card.hint.title) + '</div>';
-    html += '<p>' + _renderRichText(card.hint.content) + '</p>';
-    // bullets removed in i10 — hint.content is full prose
-    html += '</div>';
-  }
-  html += '</div>';
-  return html;
-}
-
 var _LOCKED_OVERVIEW_LABELS = {
   ka: ['თქვენი პლანეტური ხელნაწერი', 'თქვენი ელემენტური ნიმუში', 'თქვენი რუკის ხელმოწერა'],
   en: ['Your Planetary Blueprint', 'Your Elemental Pattern', 'Your Chart Signature'],
@@ -2361,21 +2227,27 @@ function _buildLockWrap(sectionKey, section, iconId) {
   return html;
 }
 
-function _buildCardsGrid(cards) {
+// Empty slot emitted by prototype; React ReadingRenderer portals a <CardComponent>
+// into it on the `reading:hydrated` event. `display:contents` keeps the slot
+// invisible to flex/grid layout so `.g2 > .c` pairing still works.
+function _buildCardSlot(sectionKey, cardIdx) {
+  return '<div data-reading-slot data-section="' + sectionKey + '" data-card-idx="' + cardIdx + '" style="display:contents"></div>';
+}
+
+function _buildCardsGrid(cards, sectionKey) {
   if (!cards || !cards.length) return '';
   var html = '';
   // First card renders full-width (standalone), then remaining cards pair into g2 grids.
-  // This matches the prototype pattern: lead card → paired detail cards → optional trailing card.
-  html += _buildCard(cards[0]);
+  html += _buildCardSlot(sectionKey, 0);
   for (var i = 1; i < cards.length; i += 2) {
     if (i + 1 < cards.length) {
       html += '<div class="g2">';
-      html += _buildCard(cards[i]);
-      html += _buildCard(cards[i + 1]);
+      html += _buildCardSlot(sectionKey, i);
+      html += _buildCardSlot(sectionKey, i + 1);
       html += '</div>';
     } else {
       // Odd trailing card — render standalone
-      html += _buildCard(cards[i]);
+      html += _buildCardSlot(sectionKey, i);
     }
   }
   return html;
@@ -2457,14 +2329,14 @@ function _buildSectionContent(sectionKey, section) {
     var cards = section.coreCards || section.cards || [];
     var _hasFullReading = _currentUser && (_currentUser.account_type === 'premium' || _currentUser.natal_chart_unlocked);
     if (_hasFullReading && cards.length) {
-      html += _buildCardsGrid(cards);
+      html += _buildCardsGrid(cards, sectionKey);
     } else if (!_hasFullReading) {
       html += _buildLockedOverviewCards(_hydrateLang);
     }
   } else {
     // Content sections (2-8) in 2-column grid
     var sCards = section.cards || [];
-    html += _buildCardsGrid(sCards);
+    html += _buildCardsGrid(sCards, sectionKey);
   }
 
   // Pull quote
@@ -2611,6 +2483,10 @@ function hydrateReading(reading, user) {
 
   // 7. Re-init observers for scroll animations + nav sync
   setTimeout(initObservers, 100);
+
+  // 8. Expose reading state + notify ReadingRenderer to portal cards into slots
+  window.__readingState = { reading: reading, user: user, lang: _hydrateLang, type: 'natal' };
+  window.dispatchEvent(new CustomEvent('reading:hydrated'));
 
   console.log('[HYDRATE] Reading hydration complete');
 }

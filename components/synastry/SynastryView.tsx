@@ -11,6 +11,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Language } from '@/types/user';
 import { renderText, setRenderLang } from '@/lib/utils/renderText';
+import { renderExpanded } from '@/components/reading/renderBody';
 
 // ── Types matching the s4 JSON schema ──
 
@@ -503,9 +504,7 @@ function SynastryCardComponent({
               : (language === 'ka' ? 'დეტალური ანალიზი ↓' : 'Detailed Analysis ↓')}
           </button>
           <div className={`ce${expanded ? ' open' : ''}`}>
-            {card.expandedContent.map((para, i) => (
-              <p key={i}>{renderText(para)}</p>
-            ))}
+            {renderExpanded(card.expandedContent)}
           </div>
         </>
       )}
