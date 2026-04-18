@@ -18,10 +18,14 @@ export default function PublicReadingClient({ slug }: Props) {
   // determined the viewer is NOT the owner (owners get PrototypeClient).
   // Setting the flag synchronously on mount eliminates the earlier race
   // with Supabase's onAuthStateChange listener on Vercel.
+  // Also tag <body> so CSS can style the pb button differently for guests.
   useEffect(() => {
-    (window as unknown as Record<string, unknown>).__ASTROLO_PUBLIC_VIEW = true;
+    const w = window as unknown as Record<string, unknown>;
+    w.__ASTROLO_PUBLIC_VIEW = true;
+    document.body.setAttribute('data-public-view', 'true');
     return () => {
-      delete (window as unknown as Record<string, unknown>).__ASTROLO_PUBLIC_VIEW;
+      delete w.__ASTROLO_PUBLIC_VIEW;
+      document.body.removeAttribute('data-public-view');
     };
   }, []);
 
@@ -48,6 +52,17 @@ export default function PublicReadingClient({ slug }: Props) {
       (w.hydrateReading as (r: unknown, u: unknown) => void)(data.reading, data.user);
       const authWrap = document.getElementById("authWrap");
       if (authWrap) authWrap.style.display = "flex";
+
+      // Public view: the prototype runtime sets .pn to the first name of
+      // the viewer. For a guest reading someone else's chart we want the
+      // OWNER's full name instead — a clear "you're viewing N's reading"
+      // cue. CSS recolors the pill via body[data-public-view].
+      const ownerName =
+        (data.user as { full_name?: string } | null)?.full_name ||
+        (data.user as { email?: string } | null)?.email ||
+        '';
+      const pn = document.querySelector<HTMLElement>('.pn');
+      if (pn && ownerName) pn.textContent = ownerName;
     };
 
     const init = async () => {

@@ -41,6 +41,31 @@ type ProtoGlobals = {
   openSettings?: () => void;
 };
 
+// ── Dev helper: sign in as a test user, then confirm the session is
+// actually in the cookie before navigating. Without this wait, the next
+// server render at /r/[slug] can run before the Supabase session cookie
+// lands, and the page renders as a guest instead of the owner.
+async function devSignInAndGo(data: {
+  email: string;
+  password: string;
+  shareSlug?: string | null;
+}) {
+  const { createClient } = await import('@/lib/supabase/client');
+  const sb = createClient();
+  await sb.auth.signInWithPassword({ email: data.email, password: data.password });
+
+  // Poll getSession() briefly — @supabase/ssr writes the cookie as part
+  // of signInWithPassword, but the storage adapter resolves a tick later.
+  for (let i = 0; i < 20; i++) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) break;
+    await new Promise(r => setTimeout(r, 50));
+  }
+
+  const target = data.shareSlug ? `/r/${data.shareSlug}` : window.location.pathname;
+  window.location.assign(target);
+}
+
 export default function BodyContent() {
   return (
 <div>
@@ -429,11 +454,7 @@ export default function BodyContent() {
         const res = await fetch('/api/dev/test-user?offset=1');
         if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '⬅ Prev'; }, 1500); return; }
         const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
-        const { createClient } = await import('@/lib/supabase/client');
-        const sb = createClient();
-        await sb.auth.signInWithPassword({ email: data.email, password: data.password });
-        if (data.shareSlug) { window.location.href = `/r/${data.shareSlug}`; return; }
-        window.location.reload();
+        await devSignInAndGo(data);
       } catch { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = '⬅ Prev'; }, 1500); }
     }}>⬅ Prev</button>
     <button className="dev-btn" id="devLastUser" onClick={async (e) => {
@@ -444,11 +465,7 @@ export default function BodyContent() {
         if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
         const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
         if (!data.email || !data.password) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
-        const { createClient } = await import('@/lib/supabase/client');
-        const sb = createClient();
-        await sb.auth.signInWithPassword({ email: data.email, password: data.password });
-        if (data.shareSlug) { window.location.href = `/r/${data.shareSlug}`; return; }
-        window.location.reload();
+        await devSignInAndGo(data);
       } catch { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); }
     }}>🔁 Last</button>
   </div>
