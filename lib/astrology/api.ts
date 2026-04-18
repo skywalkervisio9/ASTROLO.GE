@@ -25,8 +25,8 @@ export async function getChartData(birthData: BirthData): Promise<{
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-RapidAPI-Host': RAPIDAPI_HOST,
-        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY!,
+        'x-rapidapi-host': RAPIDAPI_HOST,
+        'x-rapidapi-key': process.env.RAPIDAPI_KEY!,
       },
       body: JSON.stringify({ subject: birthData }),
     }

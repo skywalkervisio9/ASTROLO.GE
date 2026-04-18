@@ -82,9 +82,22 @@ export function buildPlanetTableForReading(
   }));
 }
 
+// Georgian planet names → English (for aspect interpretation key matching)
+const KA_TO_EN_PLANET: Record<string, string> = {
+  მზე: 'Sun', მთვარე: 'Moon', მერკური: 'Mercury', ვენერა: 'Venus', მარსი: 'Mars',
+  იუპიტერი: 'Jupiter', სატურნი: 'Saturn', ურანი: 'Uranus', ნეპტუნი: 'Neptune',
+  პლუტონი: 'Pluto', ჩრდილოეთი_კვანძი: 'North Node', სამხრეთი_კვანძი: 'South Node',
+  ლილითი: 'Lilith', ქირონი: 'Chiron',
+};
+
+function normalizePlanetName(name: string): string {
+  return KA_TO_EN_PLANET[name] ?? name;
+}
+
 /**
  * Merge chart_data aspects with AI-generated interpretations.
  * Adds symbol fields, matches by planet1+planet2+aspect key.
+ * Normalizes Georgian planet names to English before matching.
  */
 export function mergeAspectsForReading(
   aspects: StoredAspect[] | null,
@@ -95,9 +108,11 @@ export function mergeAspectsForReading(
   const interpMap = new Map<string, SingleLangInterp>();
   for (const interp of interpretations) {
     const asp = interp.aspect.toLowerCase();
-    const key = `${interp.planet1}+${interp.planet2}+${asp}`;
+    const p1 = normalizePlanetName(interp.planet1);
+    const p2 = normalizePlanetName(interp.planet2);
+    const key = `${p1}+${p2}+${asp}`;
     interpMap.set(key, interp);
-    interpMap.set(`${interp.planet2}+${interp.planet1}+${asp}`, interp);
+    interpMap.set(`${p2}+${p1}+${asp}`, interp);
   }
 
   return aspects.map(a => {

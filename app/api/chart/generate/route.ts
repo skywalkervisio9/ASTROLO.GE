@@ -330,17 +330,7 @@ export async function POST(req: NextRequest) {
 
       let generated: { context: string; chartData: unknown };
       if (process.env.RAPIDAPI_KEY) {
-        try {
-          generated = await getChartData(birthData);
-        } catch (apiErr) {
-          const msg = apiErr instanceof Error ? apiErr.message : String(apiErr);
-          if (msg.includes('429')) {
-            console.warn('[chart/generate] RapidAPI quota exceeded — falling back to test chart data');
-            generated = { context: LUKA_CHART_CONTEXT, chartData: LUKA_CHART_DATA };
-          } else {
-            throw apiErr;
-          }
-        }
+        generated = await getChartData(birthData);
       } else {
         generated = { context: LUKA_CHART_CONTEXT, chartData: LUKA_CHART_DATA };
       }
