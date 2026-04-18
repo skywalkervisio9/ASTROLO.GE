@@ -1593,7 +1593,8 @@ function handleBirthData() {
   const m = document.getElementById('birth-month');
   months.forEach((n, i) => { const o = document.createElement('option'); o.value = i + 1; o.textContent = n; m.appendChild(o); });
   const y = document.getElementById('birth-year');
-  for (let i = 2010; i >= 1930; i--) { const o = document.createElement('option'); o.value = i; o.textContent = i; y.appendChild(o); }
+  const currentYear = new Date().getFullYear();
+  for (let i = currentYear; i >= 1930; i--) { const o = document.createElement('option'); o.value = i; o.textContent = i; y.appendChild(o); }
   const h = document.getElementById('birth-hour');
   for (let i = 0; i < 24; i++) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); h.appendChild(o); }
   const mn = document.getElementById('birth-min');
