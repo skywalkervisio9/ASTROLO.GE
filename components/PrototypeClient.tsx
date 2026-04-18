@@ -5,6 +5,7 @@ import BodyContent from "@/components/BodyContent";
 import AuthBridge from "@/components/AuthBridge";
 import HydrationBridge from "@/components/HydrationBridge";
 import SettingsBridge from "@/components/SettingsBridge";
+import ReadingRenderer from "@/components/reading/ReadingRenderer";
 
 export default function PrototypeClient() {
   return (
@@ -14,6 +15,7 @@ export default function PrototypeClient() {
       <AuthBridge />
       <HydrationBridge />
       <SettingsBridge />
+      <ReadingRenderer />
     </>
   );
 }
