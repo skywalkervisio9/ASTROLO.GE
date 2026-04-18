@@ -52,7 +52,16 @@ async function devSignInAndGo(data: {
 }) {
   const { createClient } = await import('@/lib/supabase/client');
   const sb = createClient();
-  await sb.auth.signInWithPassword({ email: data.email, password: data.password });
+  const { data: signInData, error } = await sb.auth.signInWithPassword({
+    email: data.email,
+    password: data.password,
+  });
+  if (error || !signInData.session) {
+    console.error('[dev] sign-in failed', { email: data.email, error });
+    alert(`Dev sign-in failed for ${data.email}: ${error?.message ?? 'no session'}\n\nThe password in /api/dev/test-user may not match this account.`);
+    return;
+  }
+  console.log('[dev] signed in as', data.email, 'user_id:', signInData.session.user.id);
 
   // Poll getSession() briefly — @supabase/ssr writes the cookie as part
   // of signInWithPassword, but the storage adapter resolves a tick later.
