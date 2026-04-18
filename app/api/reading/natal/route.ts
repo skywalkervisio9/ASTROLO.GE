@@ -47,6 +47,13 @@ export async function GET(req: NextRequest) {
       .eq('user_id', authUser.id)
       .maybeSingle();
 
+    // No chart yet → user hasn't completed DOB entry. Returning a static reading
+    // here would cause HydrationBridge to force-switch the view to "natal" and
+    // hide the /auth?step=birth onboarding form.
+    if (!chartRow) {
+      return NextResponse.json({ reading: null, hasFullReading: false });
+    }
+
     // ── FREE / INVITED: no AI reading — return static placeholder ──
     if (!hasFullReading(user)) {
       const staticReading = buildStaticReading(lang, chartRow);
