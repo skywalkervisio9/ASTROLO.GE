@@ -9,6 +9,10 @@ export default async function PostAuthPage({
 }) {
   const sp = await searchParams;
   const invite = typeof sp.invite === 'string' ? sp.invite : undefined;
+  // `?new=1` is set by client-side signup — the user was just created, so we
+  // already know they have no birth data and no reading. Skip the extra DB
+  // round-trips and send them straight to the birth form.
+  const isNew = sp.new === '1';
 
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
@@ -17,6 +21,10 @@ export default async function PostAuthPage({
   }
 
   await ensureUserProfileRow({ user });
+
+  if (isNew) {
+    redirect(invite ? `/auth?step=birth&invite=${invite}` : '/auth?step=birth');
+  }
 
   // If profile row isn't there yet (or RLS blocks read), treat as "needs onboarding".
   const { data: profile } = await supabase

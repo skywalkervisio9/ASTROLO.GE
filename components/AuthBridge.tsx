@@ -23,6 +23,22 @@ export default function AuthBridge() {
     const debugLog = (...args: unknown[]) => {
       if (AUTH_DEBUG) console.log("[AUTH_DEBUG]", ...args);
     };
+    // Warm the post-signup route chain so the browser has /post-auth and the
+    // birth form already compiled/cached by the time the user clicks Register.
+    // Cuts the perceptible delay between signup and DOB form.
+    (() => {
+      const prefetch = (href: string) => {
+        if (document.head.querySelector(`link[rel="prefetch"][href="${href}"]`)) return;
+        const link = document.createElement("link");
+        link.rel = "prefetch";
+        link.href = href;
+        link.as = "document";
+        document.head.appendChild(link);
+      };
+      prefetch("/post-auth?new=1");
+      prefetch("/auth?step=birth");
+    })();
+
     const isEn = () => document.body.classList.contains("lang-en");
     const t = (key: string) => {
       const ka: Record<string, string> = {
@@ -200,8 +216,12 @@ export default function AuthBridge() {
         // Route through the server-side /post-auth gate — same path Google OAuth uses.
         // It authoritatively decides where to go (birth form / loading / reading) based
         // on DB state, avoiding client-side race conditions with the prototype runtime.
+        // `new=1` tells /post-auth to skip the profile + natal_readings DB queries
+        // (we already know this user has neither) and redirect straight to the birth form.
         const invite = urlParams.get("invite");
-        window.location.href = invite ? `/post-auth?invite=${encodeURIComponent(invite)}` : "/post-auth";
+        const params = new URLSearchParams({ new: "1" });
+        if (invite) params.set("invite", invite);
+        window.location.href = `/post-auth?${params.toString()}`;
       };
 
       // ─── Forgot Password ───
