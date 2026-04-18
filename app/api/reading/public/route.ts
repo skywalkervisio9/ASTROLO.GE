@@ -22,12 +22,19 @@ export async function GET(req: NextRequest) {
     // Fetch reading by share_slug
     const { data: row, error } = await admin
       .from('natal_readings')
-      .select('reading_ka, reading_en, user_id')
+      .select('reading_ka, reading_en, user_id, is_public')
       .eq('share_slug', slug)
       .single();
 
     if (error || !row) {
       return NextResponse.json({ error: 'Reading not found' }, { status: 404 });
+    }
+
+    // Private readings are not served via the public endpoint.
+    // The page-level route (/r/[slug]) handles the redirect for UI;
+    // this guard protects direct API hits.
+    if (!row.is_public) {
+      return NextResponse.json({ error: 'Reading is private' }, { status: 403 });
     }
 
     // Inject chart data (planet table, aspects, points) into overview
