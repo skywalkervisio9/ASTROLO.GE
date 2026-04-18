@@ -855,7 +855,8 @@ function toggleExp(btn) {
   if (!btn._origText) btn._origText = btn.textContent;
   const el = btn.nextElementSibling;
   const open = el.classList.toggle('open');
-  btn.textContent = open ? 'ნაკლები ↑' : btn._origText;
+  const collapseLabel = _hydrateLang === 'en' ? 'Less ↑' : 'ნაკლები ↑';
+  btn.textContent = open ? collapseLabel : btn._origText;
 }
 
 function openAspInterp(row) {
@@ -867,7 +868,7 @@ function openAspInterp(row) {
   if (!ce.classList.contains('open')) {
     if (!btn._origText) btn._origText = btn.textContent;
     ce.classList.add('open');
-    btn.textContent = 'ნაკლები ↑';
+    btn.textContent = _hydrateLang === 'en' ? 'Less ↑' : 'ნაკლები ↑';
   }
   var entry = ce.querySelector('[data-asp-key="' + key + '"]');
   if (!entry) return;
@@ -1599,68 +1600,441 @@ function handleBirthData() {
   for (let i = 0; i < 60; i += 5) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); mn.appendChild(o); }
 })();
 
-// Place suggestions
+// Enter key → click the step's primary submit button
 (function() {
-  const cities = [
-    { name: 'Tbilisi', ka: 'თბილისი', country: 'Georgia', lat: 41.72, lng: 44.79, tz: 'Asia/Tbilisi' },
-    { name: 'Batumi', ka: 'ბათუმი', country: 'Georgia', lat: 41.64, lng: 41.64, tz: 'Asia/Tbilisi' },
-    { name: 'Kutaisi', ka: 'ქუთაისი', country: 'Georgia', lat: 42.27, lng: 42.70, tz: 'Asia/Tbilisi' },
-    { name: 'Rustavi', ka: 'რუსთავი', country: 'Georgia', lat: 41.55, lng: 45.00, tz: 'Asia/Tbilisi' },
-    { name: 'Gori', ka: 'გორი', country: 'Georgia', lat: 41.98, lng: 44.11, tz: 'Asia/Tbilisi' },
-    { name: 'Zugdidi', ka: 'ზუგდიდი', country: 'Georgia', lat: 42.51, lng: 41.87, tz: 'Asia/Tbilisi' },
-    { name: 'Dubai', ka: 'დუბაი', country: 'UAE', lat: 25.20, lng: 55.27, tz: 'Asia/Dubai' },
-    { name: 'London', ka: 'ლონდონი', country: 'UK', lat: 51.51, lng: -0.12, tz: 'Europe/London' },
-    { name: 'Moscow', ka: 'მოსკოვი', country: 'Russia', lat: 55.75, lng: 37.62, tz: 'Europe/Moscow' },
-    { name: 'Istanbul', ka: 'სტამბოლი', country: 'Turkey', lat: 41.01, lng: 28.98, tz: 'Europe/Istanbul' },
-    { name: 'Berlin', ka: 'ბერლინი', country: 'Germany', lat: 52.52, lng: 13.40, tz: 'Europe/Berlin' },
-    { name: 'Paris', ka: 'პარიზი', country: 'France', lat: 48.86, lng: 2.35, tz: 'Europe/Paris' },
-    { name: 'New York', ka: 'ნიუ-იორქი', country: 'USA', lat: 40.71, lng: -74.01, tz: 'America/New_York' },
-    { name: 'Los Angeles', ka: 'ლოს-ანჯელესი', country: 'USA', lat: 34.05, lng: -118.24, tz: 'America/Los_Angeles' },
-    { name: 'Kyiv', ka: 'კიევი', country: 'Ukraine', lat: 50.45, lng: 30.52, tz: 'Europe/Kyiv' },
-    { name: 'Yerevan', ka: 'ერევანი', country: 'Armenia', lat: 40.18, lng: 44.51, tz: 'Asia/Yerevan' },
-    { name: 'Baku', ka: 'ბაქო', country: 'Azerbaijan', lat: 40.41, lng: 49.87, tz: 'Asia/Baku' },
-    { name: 'Tel Aviv', ka: 'თელ-ავივი', country: 'Israel', lat: 32.08, lng: 34.78, tz: 'Asia/Jerusalem' },
-    { name: 'Rome', ka: 'რომი', country: 'Italy', lat: 41.90, lng: 12.50, tz: 'Europe/Rome' },
-    { name: 'Madrid', ka: 'მადრიდი', country: 'Spain', lat: 40.42, lng: -3.70, tz: 'Europe/Madrid' },
-    { name: 'Warsaw', ka: 'ვარშავა', country: 'Poland', lat: 52.23, lng: 21.01, tz: 'Europe/Warsaw' },
-    { name: 'Amsterdam', ka: 'ამსტერდამი', country: 'Netherlands', lat: 52.37, lng: 4.90, tz: 'Europe/Amsterdam' },
-    { name: 'Vienna', ka: 'ვენა', country: 'Austria', lat: 48.21, lng: 16.37, tz: 'Europe/Vienna' },
-    { name: 'Prague', ka: 'პრაღა', country: 'Czech Republic', lat: 50.08, lng: 14.44, tz: 'Europe/Prague' },
-    { name: 'Stockholm', ka: 'სტოკჰოლმი', country: 'Sweden', lat: 59.33, lng: 18.07, tz: 'Europe/Stockholm' },
-    { name: 'Lisbon', ka: 'ლისაბონი', country: 'Portugal', lat: 38.72, lng: -9.14, tz: 'Europe/Lisbon' },
-    { name: 'Athens', ka: 'ათენი', country: 'Greece', lat: 37.98, lng: 23.73, tz: 'Europe/Athens' },
-    { name: 'Toronto', ka: 'ტორონტო', country: 'Canada', lat: 43.65, lng: -79.38, tz: 'America/Toronto' },
-    { name: 'Sydney', ka: 'სიდნეი', country: 'Australia', lat: -33.87, lng: 151.21, tz: 'Australia/Sydney' },
-    { name: 'Tokyo', ka: 'ტოკიო', country: 'Japan', lat: 35.68, lng: 139.69, tz: 'Asia/Tokyo' },
-  ];
+  function onEnter(ids, btnSelector) {
+    ids.forEach(function(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const btn = document.querySelector(btnSelector);
+        if (btn) btn.click();
+      });
+    });
+  }
+  onEnter(['login-email','login-pw'], '#page-login .auth-btn');
+  onEnter(['signup-name','signup-email','signup-pw'], '#page-signup .auth-btn');
+  onEnter(['birth-place'], '#page-birth .auth-btn:not(.auth-btn-ghost)');
+})();
+
+// Place suggestions — Nominatim (OpenStreetMap) global city search
+(function() {
   const placeInput = document.getElementById('birth-place');
   const sugBox = document.getElementById('placeSuggestions');
   if (!placeInput || !sugBox) return;
-  placeInput.addEventListener('input', function() {
-    const q = this.value.toLowerCase();
-    if (q.length < 2) { sugBox.classList.remove('open'); return; }
-    const matches = cities.filter(c => c.name.toLowerCase().includes(q) || c.ka.includes(q));
-    if (!matches.length) { sugBox.classList.remove('open'); return; }
+
+  let _debounceTimer = null;
+  let _currentQuery = '';
+
+  // Georgian prefix seed — Nominatim doesn't prefix-match Georgian script
+  const GEO_CITIES = [
+    { ka:'თბილისი', en:'Tbilisi', cc:'ge', lat:41.6941, lng:44.8337 },
+    { ka:'ბათუმი', en:'Batumi', cc:'ge', lat:41.6417, lng:41.6356 },
+    { ka:'ქუთაისი', en:'Kutaisi', cc:'ge', lat:42.2679, lng:42.6878 },
+    { ka:'რუსთავი', en:'Rustavi', cc:'ge', lat:41.5500, lng:44.9997 },
+    { ka:'გორი', en:'Gori', cc:'ge', lat:41.9818, lng:44.1118 },
+    { ka:'ზუგდიდი', en:'Zugdidi', cc:'ge', lat:42.5087, lng:41.8708 },
+    { ka:'ფოთი', en:'Poti', cc:'ge', lat:42.1500, lng:41.6667 },
+    { ka:'ხაშური', en:'Khashuri', cc:'ge', lat:41.9951, lng:43.5977 },
+    { ka:'სამტრედია', en:'Samtredia', cc:'ge', lat:42.1500, lng:42.3500 },
+    { ka:'სენაკი', en:'Senaki', cc:'ge', lat:42.2667, lng:42.0667 },
+    { ka:'ზესტაფონი', en:'Zestaponi', cc:'ge', lat:42.1081, lng:43.0481 },
+    { ka:'მარნეული', en:'Marneuli', cc:'ge', lat:41.4667, lng:44.8000 },
+    { ka:'თელავი', en:'Telavi', cc:'ge', lat:41.9183, lng:45.4731 },
+    { ka:'ახალციხე', en:'Akhaltsikhe', cc:'ge', lat:41.6411, lng:42.9839 },
+    { ka:'ქობულეთი', en:'Kobuleti', cc:'ge', lat:41.8228, lng:41.7881 },
+    { ka:'ხონი', en:'Khoni', cc:'ge', lat:42.3167, lng:42.9500 },
+    { ka:'ბორჯომი', en:'Borjomi', cc:'ge', lat:41.8364, lng:43.3906 },
+    { ka:'ახალქალაქი', en:'Akhalkalaki', cc:'ge', lat:41.4000, lng:43.4833 },
+    { ka:'ამბროლაური', en:'Ambrolauri', cc:'ge', lat:42.5167, lng:43.1500 },
+    { ka:'ოზურგეთი', en:'Ozurgeti', cc:'ge', lat:41.9378, lng:42.0064 },
+    { ka:'სიღნაღი', en:'Sighnaghi', cc:'ge', lat:41.6167, lng:45.9167 },
+    { ka:'მცხეთა', en:'Mtskheta', cc:'ge', lat:41.8461, lng:44.7200 },
+    { ka:'ლანჩხუთი', en:'Lanchkhuti', cc:'ge', lat:41.9833, lng:42.0667 },
+    { ka:'ვანი', en:'Vani', cc:'ge', lat:42.1000, lng:42.5000 },
+    { ka:'ბოლნისი', en:'Bolnisi', cc:'ge', lat:41.4500, lng:44.5167 },
+    { ka:'დმანისი', en:'Dmanisi', cc:'ge', lat:41.3333, lng:44.2000 },
+    { ka:'კასპი', en:'Kaspi', cc:'ge', lat:41.9167, lng:44.4167 },
+    { ka:'მესტია', en:'Mestia', cc:'ge', lat:43.0456, lng:42.7256 },
+    { ka:'ანაკლია', en:'Anaklia', cc:'ge', lat:42.3833, lng:41.5667 },
+    // Major world cities
+    { ka:'მოსკოვი', en:'Moscow', cc:'ru', lat:55.7558, lng:37.6176 },
+    { ka:'სანქტ-პეტერბურგი', en:'Saint Petersburg', cc:'ru', lat:59.9343, lng:30.3351 },
+    { ka:'კიევი', en:'Kyiv', cc:'ua', lat:50.4501, lng:30.5234 },
+    { ka:'მინსკი', en:'Minsk', cc:'by', lat:53.9045, lng:27.5615 },
+    { ka:'ერევანი', en:'Yerevan', cc:'am', lat:40.1872, lng:44.5152 },
+    { ka:'ბაქო', en:'Baku', cc:'az', lat:40.4093, lng:49.8671 },
+    { ka:'სტამბოლი', en:'Istanbul', cc:'tr', lat:41.0082, lng:28.9784 },
+    { ka:'ანკარა', en:'Ankara', cc:'tr', lat:39.9334, lng:32.8597 },
+    { ka:'ბერლინი', en:'Berlin', cc:'de', lat:52.5200, lng:13.4050 },
+    { ka:'მიუნხენი', en:'Munich', cc:'de', lat:48.1351, lng:11.5820 },
+    { ka:'ჰამბურგი', en:'Hamburg', cc:'de', lat:53.5753, lng:10.0153 },
+    { ka:'პარიზი', en:'Paris', cc:'fr', lat:48.8566, lng:2.3522 },
+    { ka:'ლიონი', en:'Lyon', cc:'fr', lat:45.7640, lng:4.8357 },
+    { ka:'ლონდონი', en:'London', cc:'gb', lat:51.5074, lng:-0.1278 },
+    { ka:'მანჩესტერი', en:'Manchester', cc:'gb', lat:53.4808, lng:-2.2426 },
+    { ka:'რომი', en:'Rome', cc:'it', lat:41.9028, lng:12.4964 },
+    { ka:'მილანი', en:'Milan', cc:'it', lat:45.4642, lng:9.1900 },
+    { ka:'მადრიდი', en:'Madrid', cc:'es', lat:40.4168, lng:-3.7038 },
+    { ka:'ბარსელონა', en:'Barcelona', cc:'es', lat:41.3851, lng:2.1734 },
+    { ka:'ამსტერდამი', en:'Amsterdam', cc:'nl', lat:52.3676, lng:4.9041 },
+    { ka:'ბრიუსელი', en:'Brussels', cc:'be', lat:50.8503, lng:4.3517 },
+    { ka:'ვენა', en:'Vienna', cc:'at', lat:48.2082, lng:16.3738 },
+    { ka:'ვარშავა', en:'Warsaw', cc:'pl', lat:52.2297, lng:21.0122 },
+    { ka:'პრაღა', en:'Prague', cc:'cz', lat:50.0755, lng:14.4378 },
+    { ka:'ბუდაპეშტი', en:'Budapest', cc:'hu', lat:47.4979, lng:19.0402 },
+    { ka:'ბუქარესტი', en:'Bucharest', cc:'ro', lat:44.4268, lng:26.1025 },
+    { ka:'სოფია', en:'Sofia', cc:'bg', lat:42.6977, lng:23.3219 },
+    { ka:'ათენი', en:'Athens', cc:'gr', lat:37.9838, lng:23.7275 },
+    { ka:'ლისაბონი', en:'Lisbon', cc:'pt', lat:38.7169, lng:-9.1395 },
+    { ka:'სტოკჰოლმი', en:'Stockholm', cc:'se', lat:59.3293, lng:18.0686 },
+    { ka:'კოპენჰაგენი', en:'Copenhagen', cc:'dk', lat:55.6761, lng:12.5683 },
+    { ka:'ოსლო', en:'Oslo', cc:'no', lat:59.9139, lng:10.7522 },
+    { ka:'ჰელსინკი', en:'Helsinki', cc:'fi', lat:60.1699, lng:24.9384 },
+    { ka:'ციურიხი', en:'Zurich', cc:'ch', lat:47.3769, lng:8.5417 },
+    { ka:'ნიუ-იორკი', en:'New York', cc:'us', lat:40.7128, lng:-74.0060 },
+    { ka:'ლოს-ანჯელესი', en:'Los Angeles', cc:'us', lat:34.0522, lng:-118.2437 },
+    { ka:'შიკაგო', en:'Chicago', cc:'us', lat:41.8781, lng:-87.6298 },
+    { ka:'მაიამი', en:'Miami', cc:'us', lat:25.7617, lng:-80.1918 },
+    { ka:'ვაშინგტონი', en:'Washington', cc:'us', lat:38.9072, lng:-77.0369 },
+    { ka:'ტორონტო', en:'Toronto', cc:'ca', lat:43.6532, lng:-79.3832 },
+    { ka:'მონრეალი', en:'Montreal', cc:'ca', lat:45.5017, lng:-73.5673 },
+    { ka:'დუბაი', en:'Dubai', cc:'ae', lat:25.2048, lng:55.2708 },
+    { ka:'აბუ-დაბი', en:'Abu Dhabi', cc:'ae', lat:24.4539, lng:54.3773 },
+    { ka:'თელ-ავივი', en:'Tel Aviv', cc:'il', lat:32.0853, lng:34.7818 },
+    { ka:'იერუსალიმი', en:'Jerusalem', cc:'il', lat:31.7683, lng:35.2137 },
+    { ka:'ბეირუთი', en:'Beirut', cc:'lb', lat:33.8938, lng:35.5018 },
+    { ka:'ამანი', en:'Amman', cc:'jo', lat:31.9539, lng:35.9106 },
+    { ka:'კაირო', en:'Cairo', cc:'eg', lat:30.0444, lng:31.2357 },
+    { ka:'ნაირობი', en:'Nairobi', cc:'ke', lat:-1.2921, lng:36.8219 },
+    { ka:'ლაგოსი', en:'Lagos', cc:'ng', lat:6.5244, lng:3.3792 },
+    { ka:'იოჰანესბურგი', en:'Johannesburg', cc:'za', lat:-26.2041, lng:28.0473 },
+    { ka:'მუმბაი', en:'Mumbai', cc:'in', lat:19.0760, lng:72.8777 },
+    { ka:'დელი', en:'Delhi', cc:'in', lat:28.7041, lng:77.1025 },
+    { ka:'ბანგალორი', en:'Bangalore', cc:'in', lat:12.9716, lng:77.5946 },
+    { ka:'პეკინი', en:'Beijing', cc:'cn', lat:39.9042, lng:116.4074 },
+    { ka:'შანხაი', en:'Shanghai', cc:'cn', lat:31.2304, lng:121.4737 },
+    { ka:'ტოკიო', en:'Tokyo', cc:'jp', lat:35.6762, lng:139.6503 },
+    { ka:'სეული', en:'Seoul', cc:'kr', lat:37.5665, lng:126.9780 },
+    { ka:'სინგაპური', en:'Singapore', cc:'sg', lat:1.3521, lng:103.8198 },
+    { ka:'სიდნეი', en:'Sydney', cc:'au', lat:-33.8688, lng:151.2093 },
+    { ka:'მელბურნი', en:'Melbourne', cc:'au', lat:-37.8136, lng:144.9631 },
+    { ka:'სან-პაულო', en:'São Paulo', cc:'br', lat:-23.5505, lng:-46.6333 },
+    { ka:'ბუენოს-აირესი', en:'Buenos Aires', cc:'ar', lat:-34.6037, lng:-58.3816 },
+    { ka:'მეხიკო', en:'Mexico City', cc:'mx', lat:19.4326, lng:-99.1332 },
+    { ka:'ალმათი', en:'Almaty', cc:'kz', lat:43.2220, lng:76.8512 },
+    { ka:'ტაშკენტი', en:'Tashkent', cc:'uz', lat:41.2995, lng:69.2401 },
+    // Americas
+    { ka:'ოტავა', en:'Ottawa', cc:'ca', lat:45.4215, lng:-75.6972 },
+    { ka:'ვანკუვერი', en:'Vancouver', cc:'ca', lat:49.2827, lng:-123.1207 },
+    { ka:'კალგარი', en:'Calgary', cc:'ca', lat:51.0447, lng:-114.0719 },
+    { ka:'მანაგუა', en:'Managua', cc:'ni', lat:12.1364, lng:-86.2514 },
+    { ka:'გუატემალა', en:'Guatemala City', cc:'gt', lat:14.6349, lng:-90.5069 },
+    { ka:'სან-სალვადორი', en:'San Salvador', cc:'sv', lat:13.6929, lng:-89.2182 },
+    { ka:'ტეგუსიგალპა', en:'Tegucigalpa', cc:'hn', lat:14.0723, lng:-87.2068 },
+    { ka:'სან-ხოსე', en:'San José', cc:'cr', lat:9.9281, lng:-84.0907 },
+    { ka:'პანამა', en:'Panama City', cc:'pa', lat:8.9936, lng:-79.5197 },
+    { ka:'ჰავანა', en:'Havana', cc:'cu', lat:23.1136, lng:-82.3666 },
+    { ka:'სანტო-დომინგო', en:'Santo Domingo', cc:'do', lat:18.4861, lng:-69.9312 },
+    { ka:'პორტ-ო-პრენსი', en:'Port-au-Prince', cc:'ht', lat:18.5432, lng:-72.3395 },
+    { ka:'კინგსტონი', en:'Kingston', cc:'jm', lat:17.9970, lng:-76.7936 },
+    { ka:'ბოგოტა', en:'Bogotá', cc:'co', lat:4.7110, lng:-74.0721 },
+    { ka:'კარაკასი', en:'Caracas', cc:'ve', lat:10.4806, lng:-66.9036 },
+    { ka:'კიტო', en:'Quito', cc:'ec', lat:-0.1807, lng:-78.4678 },
+    { ka:'ლიმა', en:'Lima', cc:'pe', lat:-12.0464, lng:-77.0428 },
+    { ka:'ლა-პასი', en:'La Paz', cc:'bo', lat:-16.5000, lng:-68.1500 },
+    { ka:'სანტიაგო', en:'Santiago', cc:'cl', lat:-33.4489, lng:-70.6693 },
+    { ka:'მონტევიდეო', en:'Montevideo', cc:'uy', lat:-34.9011, lng:-56.1645 },
+    { ka:'ასუნსიონი', en:'Asunción', cc:'py', lat:-25.2867, lng:-57.6470 },
+    { ka:'ბრაზილია', en:'Brasília', cc:'br', lat:-15.7975, lng:-47.8919 },
+    { ka:'რიო-დე-ჟანეირო', en:'Rio de Janeiro', cc:'br', lat:-22.9068, lng:-43.1729 },
+    // Europe extras
+    { ka:'დუბლინი', en:'Dublin', cc:'ie', lat:53.3498, lng:-6.2603 },
+    { ka:'რეიკიავიკი', en:'Reykjavik', cc:'is', lat:64.1466, lng:-21.9426 },
+    { ka:'ვილნიუსი', en:'Vilnius', cc:'lt', lat:54.6872, lng:25.2797 },
+    { ka:'რიგა', en:'Riga', cc:'lv', lat:56.9496, lng:24.1052 },
+    { ka:'ტალინი', en:'Tallinn', cc:'ee', lat:59.4370, lng:24.7536 },
+    { ka:'ლიუბლიანა', en:'Ljubljana', cc:'si', lat:46.0569, lng:14.5058 },
+    { ka:'ბრატისლავა', en:'Bratislava', cc:'sk', lat:48.1486, lng:17.1077 },
+    { ka:'ზაგრები', en:'Zagreb', cc:'hr', lat:45.8150, lng:15.9819 },
+    { ka:'სარაევო', en:'Sarajevo', cc:'ba', lat:43.8476, lng:18.3564 },
+    { ka:'ბელგრადი', en:'Belgrade', cc:'rs', lat:44.7866, lng:20.4489 },
+    { ka:'პოდგორიცა', en:'Podgorica', cc:'me', lat:42.4304, lng:19.2594 },
+    { ka:'ტირანა', en:'Tirana', cc:'al', lat:41.3275, lng:19.8187 },
+    { ka:'სკოპიე', en:'Skopje', cc:'mk', lat:41.9981, lng:21.4254 },
+    { ka:'ნიქოზია', en:'Nicosia', cc:'cy', lat:35.1856, lng:33.3823 },
+    { ka:'ბერნი', en:'Bern', cc:'ch', lat:46.9480, lng:7.4474 },
+    { ka:'ლუქსემბურგი', en:'Luxembourg City', cc:'lu', lat:49.6116, lng:6.1319 },
+    { ka:'ვადუცი', en:'Vaduz', cc:'li', lat:47.1410, lng:9.5215 },
+    // Middle East & Asia extras
+    { ka:'თეირანი', en:'Tehran', cc:'ir', lat:35.6892, lng:51.3890 },
+    { ka:'ბაღდადი', en:'Baghdad', cc:'iq', lat:33.3152, lng:44.3661 },
+    { ka:'დამასკი', en:'Damascus', cc:'sy', lat:33.5138, lng:36.2765 },
+    { ka:'რიადი', en:'Riyadh', cc:'sa', lat:24.7136, lng:46.6753 },
+    { ka:'დოჰა', en:'Doha', cc:'qa', lat:25.2854, lng:51.5310 },
+    { ka:'მასკატი', en:'Muscat', cc:'om', lat:23.5880, lng:58.3829 },
+    { ka:'ქუვეითი', en:'Kuwait City', cc:'kw', lat:29.3759, lng:47.9774 },
+    { ka:'ისლამაბადი', en:'Islamabad', cc:'pk', lat:33.7294, lng:73.0931 },
+    { ka:'კარაჩი', en:'Karachi', cc:'pk', lat:24.8608, lng:67.0104 },
+    { ka:'ლაჰორი', en:'Lahore', cc:'pk', lat:31.5497, lng:74.3436 },
+    { ka:'ქაბული', en:'Kabul', cc:'af', lat:34.5553, lng:69.2075 },
+    { ka:'კატმანდუ', en:'Kathmandu', cc:'np', lat:27.7172, lng:85.3240 },
+    { ka:'კოლომბო', en:'Colombo', cc:'lk', lat:6.9271, lng:79.8612 },
+    { ka:'დაქა', en:'Dhaka', cc:'bd', lat:23.8103, lng:90.4125 },
+    { ka:'ბანგკოკი', en:'Bangkok', cc:'th', lat:13.7563, lng:100.5018 },
+    { ka:'ჯაკარტა', en:'Jakarta', cc:'id', lat:-6.2088, lng:106.8456 },
+    { ka:'კუალა-ლუმპური', en:'Kuala Lumpur', cc:'my', lat:3.1390, lng:101.6869 },
+    { ka:'მანილა', en:'Manila', cc:'ph', lat:14.5995, lng:120.9842 },
+    { ka:'ჰანოი', en:'Hanoi', cc:'vn', lat:21.0285, lng:105.8542 },
+    { ka:'ჰო-ში-მინი', en:'Ho Chi Minh City', cc:'vn', lat:10.8231, lng:106.6297 },
+    { ka:'პნომ-პენი', en:'Phnom Penh', cc:'kh', lat:11.5564, lng:104.9282 },
+    { ka:'ულან-ბატორი', en:'Ulaanbaatar', cc:'mn', lat:47.8864, lng:106.9057 },
+    { ka:'ტაიბეი', en:'Taipei', cc:'tw', lat:25.0330, lng:121.5654 },
+    { ka:'ჰონგ-კონგი', en:'Hong Kong', cc:'hk', lat:22.3193, lng:114.1694 },
+    { ka:'ოსაკა', en:'Osaka', cc:'jp', lat:34.6937, lng:135.5023 },
+    // Africa extras
+    { ka:'ადის-აბება', en:'Addis Ababa', cc:'et', lat:9.0320, lng:38.7469 },
+    { ka:'აკრა', en:'Accra', cc:'gh', lat:5.6037, lng:-0.1870 },
+    { ka:'დაკარი', en:'Dakar', cc:'sn', lat:14.7167, lng:-17.4677 },
+    { ka:'აბუჯა', en:'Abuja', cc:'ng', lat:9.0579, lng:7.4951 },
+    { ka:'კინშასა', en:'Kinshasa', cc:'cd', lat:-4.3217, lng:15.3222 },
+    { ka:'ხარტუმი', en:'Khartoum', cc:'sd', lat:15.5007, lng:32.5599 },
+    { ka:'ლუანდა', en:'Luanda', cc:'ao', lat:-8.8368, lng:13.2343 },
+    { ka:'რაბათი', en:'Rabat', cc:'ma', lat:34.0209, lng:-6.8416 },
+    { ka:'კასაბლანკა', en:'Casablanca', cc:'ma', lat:33.5731, lng:-7.5898 },
+    { ka:'თუნისი', en:'Tunis', cc:'tn', lat:36.8190, lng:10.1658 },
+    { ka:'ტრიპოლი', en:'Tripoli', cc:'ly', lat:32.9020, lng:13.1800 },
+    { ka:'კამპალა', en:'Kampala', cc:'ug', lat:0.3476, lng:32.5825 },
+    { ka:'კიგალი', en:'Kigali', cc:'rw', lat:-1.9441, lng:30.0619 },
+    { ka:'ჰარარე', en:'Harare', cc:'zw', lat:-17.8292, lng:31.0522 },
+    { ka:'ლუსაკა', en:'Lusaka', cc:'zm', lat:-15.3875, lng:28.3228 },
+    { ka:'მაპუტო', en:'Maputo', cc:'mz', lat:-25.9692, lng:32.5732 },
+    { ka:'კეიპტაუნი', en:'Cape Town', cc:'za', lat:-33.9249, lng:18.4241 },
+    { ka:'დარ-ეს-სალამი', en:'Dar es Salaam', cc:'tz', lat:-6.7924, lng:39.2083 },
+    // Oceania
+    { ka:'კანბერა', en:'Canberra', cc:'au', lat:-35.2809, lng:149.1300 },
+    { ka:'ბრიზბენი', en:'Brisbane', cc:'au', lat:-27.4698, lng:153.0251 },
+    { ka:'ველინგტონი', en:'Wellington', cc:'nz', lat:-41.2865, lng:174.7762 },
+    { ka:'ოკლენდი', en:'Auckland', cc:'nz', lat:-36.8485, lng:174.7633 },
+  ];
+
+  const KA_COUNTRIES = {
+    ge:'საქართველო', ru:'რუსეთი', us:'აშშ', gb:'გაერთიანებული სამეფო', de:'გერმანია',
+    fr:'საფრანგეთი', tr:'თურქეთი', ua:'უკრაინა', am:'სომხეთი', az:'აზერბაიჯანი',
+    il:'ისრაელი', it:'იტალია', es:'ესპანეთი', pl:'პოლონეთი', nl:'ნიდერლანდები',
+    at:'ავსტრია', cz:'ჩეხეთი', se:'შვედეთი', pt:'პორტუგალია', gr:'საბერძნეთი',
+    ca:'კანადა', au:'ავსტრალია', jp:'იაპონია', cn:'ჩინეთი', in:'ინდოეთი',
+    ae:'არაბეთის გაერთიანებული საამიროები', br:'ბრაზილია', mx:'მექსიკა',
+    ar:'არგენტინა', za:'სამხრეთ აფრიკა', eg:'ეგვიპტე', ng:'ნიგერია',
+    ke:'კენია', et:'ეთიოპია', gh:'განა', bf:'ბურკინა-ფასო', bj:'ბენინი',
+    ro:'რუმინეთი', hu:'უნგრეთი', bg:'ბულგარეთი', rs:'სერბია', hr:'ხორვატია',
+    sk:'სლოვაკეთი', si:'სლოვენია', fi:'ფინეთი', no:'ნორვეგია', dk:'დანია',
+    be:'ბელგია', ch:'შვეიცარია', by:'ბელარუსი', kz:'ყაზახეთი', uz:'უზბეკეთი',
+    kg:'ყირგიზეთი', tj:'ტაჯიკეთი', tm:'თურქმენეთი',
+    lb:'ლიბანი', jo:'იორდანია', kr:'სამხრეთ კორეა', sg:'სინგაპური',
+    ni:'ნიკარაგუა', gt:'გუატემალა', sv:'სალვადორი', hn:'ჰონდურასი',
+    cr:'კოსტა-რიკა', pa:'პანამა', cu:'კუბა', do:'დომინიკის რესპუბლიკა',
+    ht:'ჰაიტი', jm:'იამაიკა', co:'კოლუმბია', ve:'ვენესუელა',
+    ec:'ეკვადორი', pe:'პერუ', bo:'ბოლივია', cl:'ჩილე', uy:'ურუგვაი',
+    py:'პარაგვაი', ie:'ირლანდია', is:'ისლანდია', lt:'ლიტვა', lv:'ლატვია',
+    ee:'ესტონეთი', ba:'ბოსნია და ჰერცეგოვინა', me:'მონტენეგრო', al:'ალბანეთი',
+    mk:'ჩრდილოეთ მაკედონია', cy:'კვიპროსი', lu:'ლუქსემბურგი', li:'ლიხტენშტაინი',
+    ir:'ირანი', iq:'ირაქი', sy:'სირია', sa:'საუდის არაბეთი', qa:'კატარი',
+    om:'ომანი', kw:'ქუვეითი', pk:'პაკისტანი', af:'ავღანეთი', np:'ნეპალი',
+    lk:'შრი-ლანკა', bd:'ბანგლადეში', th:'თაილანდი', id:'ინდონეზია',
+    my:'მალაიზია', ph:'ფილიპინები', vn:'ვიეტნამი', kh:'კამბოჯა',
+    mn:'მონღოლეთი', tw:'ტაივანი', hk:'ჰონგ კონგი',
+    et:'ეთიოპია', sn:'სენეგალი', cd:'კონგოს დემ. რესპ.', sd:'სუდანი',
+    ao:'ანგოლა', ma:'მაროკო', tn:'ტუნისი', ly:'ლიბია', ug:'უგანდა',
+    rw:'რუანდა', zw:'ზიმბაბვე', zm:'ზამბია', mz:'მოზამბიკი', tz:'ტანზანია',
+    nz:'ახალი ზელანდია',
+  };
+  const EN_COUNTRIES = {
+    ge:'Georgia', ru:'Russia', us:'USA', gb:'United Kingdom', de:'Germany',
+    fr:'France', tr:'Turkey', ua:'Ukraine', am:'Armenia', az:'Azerbaijan',
+    il:'Israel', it:'Italy', es:'Spain', pl:'Poland', nl:'Netherlands',
+    at:'Austria', cz:'Czech Republic', se:'Sweden', pt:'Portugal', gr:'Greece',
+    ca:'Canada', au:'Australia', jp:'Japan', cn:'China', in:'India',
+    ae:'UAE', br:'Brazil', mx:'Mexico', ar:'Argentina', za:'South Africa',
+    eg:'Egypt', ng:'Nigeria', ke:'Kenya', ro:'Romania', hu:'Hungary',
+    bg:'Bulgaria', rs:'Serbia', hr:'Croatia', fi:'Finland', no:'Norway',
+    dk:'Denmark', be:'Belgium', ch:'Switzerland', by:'Belarus', kz:'Kazakhstan',
+    uz:'Uzbekistan', lb:'Lebanon', jo:'Jordan', kr:'South Korea', sg:'Singapore',
+    ni:'Nicaragua', gt:'Guatemala', sv:'El Salvador', hn:'Honduras',
+    cr:'Costa Rica', pa:'Panama', cu:'Cuba', do:'Dominican Republic',
+    ht:'Haiti', jm:'Jamaica', co:'Colombia', ve:'Venezuela',
+    ec:'Ecuador', pe:'Peru', bo:'Bolivia', cl:'Chile', uy:'Uruguay',
+    py:'Paraguay', ie:'Ireland', is:'Iceland', lt:'Lithuania', lv:'Latvia',
+    ee:'Estonia', ba:'Bosnia & Herzegovina', me:'Montenegro', al:'Albania',
+    mk:'North Macedonia', cy:'Cyprus', lu:'Luxembourg', li:'Liechtenstein',
+    ir:'Iran', iq:'Iraq', sy:'Syria', sa:'Saudi Arabia', qa:'Qatar',
+    om:'Oman', kw:'Kuwait', pk:'Pakistan', af:'Afghanistan', np:'Nepal',
+    lk:'Sri Lanka', bd:'Bangladesh', th:'Thailand', id:'Indonesia',
+    my:'Malaysia', ph:'Philippines', vn:'Vietnam', kh:'Cambodia',
+    mn:'Mongolia', tw:'Taiwan', hk:'Hong Kong',
+    et:'Ethiopia', sn:'Senegal', cd:'DR Congo', sd:'Sudan',
+    ao:'Angola', ma:'Morocco', tn:'Tunisia', ly:'Libya', ug:'Uganda',
+    rw:'Rwanda', zw:'Zimbabwe', zm:'Zambia', mz:'Mozambique', tz:'Tanzania',
+    nz:'New Zealand',
+  };
+
+  function getGeoSeed(q) {
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+    const ql = q.toLowerCase();
+    return GEO_CITIES
+      .filter(function(c) { return c.ka.startsWith(q) || c.en.toLowerCase().startsWith(ql); })
+      .map(function(c) {
+        const label = lang === 'ka' ? c.ka : c.en;
+        const country = lang === 'ka' ? (KA_COUNTRIES[c.cc] || c.cc) : (EN_COUNTRIES[c.cc] || c.cc);
+        return { label: label, country: country, en: c.en, lat: c.lat, lng: c.lng, cc: c.cc };
+      });
+  }
+
+  function renderSuggestions(results, seeds) {
     sugBox.innerHTML = '';
-    matches.slice(0, 5).forEach(c => {
-      const d = document.createElement('div'); d.className = 'place-item';
-      const cityLabel = lang === 'en' ? c.name : c.ka;
-      d.innerHTML = cityLabel + '<small>' + c.country + ' · ' + c.lat.toFixed(2) + '°N, ' + c.lng.toFixed(2) + '°E</small>';
-      d.onclick = () => {
-        placeInput.value = cityLabel;
-        // Store minimal geo context for server-side chart generation.
-        // This is a dev fallback when Google Places isn't wired yet.
-        placeInput.dataset.lat = String(c.lat);
-        placeInput.dataset.lng = String(c.lng);
-        placeInput.dataset.tz = c.tz;
+    // Only keep place/boundary class results (filter out airports, landmarks, buildings, etc.)
+    results = results.filter(function(r) { return r.class === 'place' || r.class === 'boundary'; });
+    // Filter out subdivisions (arrondissements, suburbs, quarters, neighbourhoods)
+    const SUBDIVISION_TYPES = new Set(['suburb','quarter','neighbourhood','city_district','borough','district']);
+    results = results.filter(function(r) { return !SUBDIVISION_TYPES.has(r.type) && !SUBDIVISION_TYPES.has(r.addresstype); });
+    // Filter out obscure hamlets/villages by importance score
+    results = results.filter(function(r) { return parseFloat(r.importance || 0) > 0.25; });
+    // Sort by importance descending so the main city appears first
+    results.sort(function(a, b) { return parseFloat(b.importance || 0) - parseFloat(a.importance || 0); });
+    // Remove Nominatim results already covered by seed entries
+    var seedLabels = new Set((seeds || []).map(function(s) { return s.en.toLowerCase(); }));
+    results = results.filter(function(r) {
+      var en = (r.namedetails && r.namedetails['name:en']) || r.name || '';
+      return !seedLabels.has(en.toLowerCase());
+    });
+    // Deduplicate by rounded coords OR same city+country label
+    const seenCoords = new Set();
+    const seenLabels = new Set();
+    results = results.filter(function(r) {
+      const coordKey = parseFloat(r.lat).toFixed(1) + ',' + parseFloat(r.lon).toFixed(1);
+      const addr = r.address || {};
+      const names = r.namedetails || {};
+      const city = names['name:en'] || r.name || '';
+      const country = addr.country_code || '';
+      const labelKey = city.toLowerCase() + '|' + country;
+      if (seenCoords.has(coordKey) || seenLabels.has(labelKey)) return false;
+      seenCoords.add(coordKey);
+      seenLabels.add(labelKey);
+      return true;
+    });
+    // Drop results where city name === country name (country-level entities slipping through)
+    results = results.filter(function(r) {
+      const addr = r.address || {};
+      const names = r.namedetails || {};
+      const cityEn = names['name:en'] || r.name || '';
+      const countryEn = addr.country || '';
+      return cityEn.toLowerCase() !== countryEn.toLowerCase();
+    });
+    if (!results.length && !(seeds && seeds.length)) { sugBox.classList.remove('open'); return; }
+    const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+    // Render seed entries first
+    if (seeds && seeds.length) {
+      seeds.forEach(function(s) {
+        const d = document.createElement('div');
+        d.className = 'place-item';
+        const label = s.label + ', ' + s.country;
+        d.innerHTML = label + '<small>' + s.lat.toFixed(4) + '°, ' + s.lng.toFixed(4) + '°</small>';
+        d.onclick = function() {
+          placeInput.value = label;
+          placeInput.dataset.lat = String(s.lat);
+          placeInput.dataset.lng = String(s.lng);
+          placeInput.dataset.tz = s.cc === 'ge' ? 'Asia/Tbilisi' : '';
+          sugBox.classList.remove('open');
+        };
+        sugBox.appendChild(d);
+      });
+    }
+    results.forEach(function(r) {
+      const d = document.createElement('div');
+      d.className = 'place-item';
+      const lat = parseFloat(r.lat);
+      const lng = parseFloat(r.lon);
+      const addr = r.address || {};
+      const names = r.namedetails || {};
+      const cityEn = names['name:en'] || addr.city || addr.town || addr.village || addr.municipality || addr.county || r.name || (r.display_name || '').split(',')[0];
+      const cityKa = names['name:ka'] || r.name || addr.city || addr.town || addr.village || addr.municipality || addr.county || cityEn;
+      const cc = (addr.country_code || '').toLowerCase();
+      const countryEn = addr.country || '';
+      const countryKa = KA_COUNTRIES[cc] || countryEn;
+      const cityLabel = lang === 'ka' ? cityKa : cityEn;
+      const countryLabel = lang === 'ka' ? countryKa : countryEn;
+      const label = cityLabel + (countryLabel ? ', ' + countryLabel : '');
+      d.innerHTML = label + '<small>' + lat.toFixed(4) + '°, ' + lng.toFixed(4) + '°</small>';
+      d.onclick = function() {
+        placeInput.value = label;
+        placeInput.dataset.lat = String(lat);
+        placeInput.dataset.lng = String(lng);
+        placeInput.dataset.tz = '';
         sugBox.classList.remove('open');
+        fetch('https://timeapi.io/api/timezone/coordinate?latitude=' + lat + '&longitude=' + lng)
+          .then(function(res) { return res.json(); })
+          .then(function(tz) { if (tz && tz.timeZone) placeInput.dataset.tz = tz.timeZone; })
+          .catch(function() {});
       };
       sugBox.appendChild(d);
     });
     sugBox.classList.add('open');
+  }
+
+  function renderSeedResults(seeds) {
+    sugBox.innerHTML = '';
+    if (!seeds.length) { sugBox.classList.remove('open'); return; }
+    seeds.forEach(function(s) {
+      const d = document.createElement('div');
+      d.className = 'place-item';
+      const label = s.label + ', ' + s.country;
+      d.innerHTML = label + '<small>' + s.lat.toFixed(4) + '°, ' + s.lng.toFixed(4) + '°</small>';
+      d.onclick = function() {
+        placeInput.value = label;
+        placeInput.dataset.lat = String(s.lat);
+        placeInput.dataset.lng = String(s.lng);
+        placeInput.dataset.tz = s.cc === 'ge' ? 'Asia/Tbilisi' : '';
+        sugBox.classList.remove('open');
+        if (!placeInput.dataset.tz) {
+          fetch('https://timeapi.io/api/timezone/coordinate?latitude=' + s.lat + '&longitude=' + s.lng)
+            .then(function(res) { return res.json(); })
+            .then(function(tz) { if (tz && tz.timeZone) placeInput.dataset.tz = tz.timeZone; })
+            .catch(function() {});
+        }
+      };
+      sugBox.appendChild(d);
+    });
+    sugBox.classList.add('open');
+  }
+
+  function fetchCities(q) {
+    if (q !== _currentQuery) return;
+    // Show Georgian seed results immediately while API loads
+    const seeds = getGeoSeed(q);
+    if (seeds.length) renderSeedResults(seeds);
+    const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+    const url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q)
+      + '&format=json&limit=10&addressdetails=1&namedetails=1&featuretype=settlement';
+    fetch(url, { headers: { 'Accept-Language': lang + ',en;q=0.8' } })
+      .then(function(res) { return res.json(); })
+      .then(function(data) { if (q === _currentQuery) renderSuggestions(data, seeds); })
+      .catch(function() { if (!seeds.length) sugBox.classList.remove('open'); });
+  }
+
+  placeInput.addEventListener('input', function() {
+    const q = this.value.trim();
+    _currentQuery = q;
+    if (q.length < 2) { sugBox.classList.remove('open'); clearTimeout(_debounceTimer); return; }
+    // Show seed results immediately (no debounce)
+    const seedsNow = getGeoSeed(q);
+    if (seedsNow.length) renderSeedResults(seedsNow);
+    clearTimeout(_debounceTimer);
+    _debounceTimer = setTimeout(function() { fetchCities(q); }, 350);
   });
-  document.addEventListener('click', e => { if (!e.target.closest('.field')) sugBox.classList.remove('open'); });
+
+  document.addEventListener('click', function(e) { if (!e.target.closest('.field')) sugBox.classList.remove('open'); });
 })();
 
 // Loading screen
