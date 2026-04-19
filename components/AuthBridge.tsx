@@ -35,7 +35,6 @@ export default function AuthBridge() {
         link.as = "document";
         document.head.appendChild(link);
       };
-      prefetch("/post-auth?new=1");
       prefetch("/auth?step=birth");
     })();
 
@@ -191,33 +190,31 @@ export default function AuthBridge() {
           },
         });
 
-        if (btn) btn.classList.remove("loading");
-
         if (error) {
+          if (btn) btn.classList.remove("loading");
           showError("signup-error", error.message);
           return;
         }
 
-        // Ensure profile row exists server-side and full_name is persisted idempotently.
+        // Fire-and-forget bootstrap — /post-auth calls ensureUserProfileRow
+        // server-side anyway, so blocking the user on this HTTP round-trip
+        // just adds latency before the DOB form appears.
         if (data.user) {
-          try {
-            const init = await withCsrfHeaders({
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ full_name: name }),
-            });
-            await fetch("/api/user/profile/bootstrap", init);
-          } catch (bootstrapErr) {
-            console.warn("Profile bootstrap failed after signup:", bootstrapErr);
-          }
+          withCsrfHeaders({
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ full_name: name }),
+          }).then((init) => fetch("/api/user/profile/bootstrap", init))
+            .catch((err) => console.warn("Profile bootstrap failed after signup:", err));
         }
 
-        // Route through server gate with ?new=1 fast path. The /post-auth page
-        // short-circuits DB reads for new signups and redirects straight to
-        // /auth?step=birth. Both destinations are prefetched at mount time.
+        // Skip the /post-auth server round-trip for new signups — we already
+        // know the user has no birth data, and the bootstrap call above
+        // (fire-and-forget) handles profile row creation. Navigate straight
+        // to the birth form. Loading spinner stays on until the page swaps.
         const inviteParam = new URLSearchParams(window.location.search).get("invite");
-        const dest = `/post-auth?new=1${inviteParam ? `&invite=${encodeURIComponent(inviteParam)}` : ""}`;
+        const dest = `/auth?step=birth${inviteParam ? `&invite=${encodeURIComponent(inviteParam)}` : ""}`;
         window.location.href = dest;
       };
 
