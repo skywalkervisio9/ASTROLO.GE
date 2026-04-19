@@ -55,13 +55,48 @@ function cleanPlanetName(raw: string): string {
   return map[raw] || raw.replace(/_/g, ' ');
 }
 
-const MAIN_PLANETS = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
-const POINT_KEYS: Record<string, string> = {
-  Ascendant: 'ascendant', Descendant: 'descendant',
-  Medium_Coeli: 'midheaven', Imum_Coeli: 'ic',
-  True_North_Lunar_Node: 'northNode', True_South_Lunar_Node: 'southNode',
-  Mean_Lilith: 'lilith',
-};
+// Canonical planet order — also the output order in the planets[] array
+const MAIN_PLANETS = ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'] as const;
+
+// Astrologer v5 subject keys → display planet name
+const PLANET_SUBJECT_KEYS: Array<[string, typeof MAIN_PLANETS[number]]> = [
+  ['sun', 'Sun'], ['moon', 'Moon'], ['mercury', 'Mercury'], ['venus', 'Venus'], ['mars', 'Mars'],
+  ['jupiter', 'Jupiter'], ['saturn', 'Saturn'], ['uranus', 'Uranus'], ['neptune', 'Neptune'], ['pluto', 'Pluto'],
+];
+
+// Astrologer v5 subject keys → output key for the points{} object
+// NOTE: the output keys (`ascendant`, `midheaven`, `northNode`, etc.) are the
+// contract consumed by lib/chart/reading-helpers.ts and lib/chart/static-reading.ts.
+// Do NOT rename without updating those consumers.
+const POINT_SUBJECT_KEYS: Array<[string, string]> = [
+  ['ascendant', 'ascendant'],
+  ['descendant', 'descendant'],
+  ['medium_coeli', 'midheaven'],
+  ['imum_coeli', 'ic'],
+  ['true_north_lunar_node', 'northNode'],
+  ['true_south_lunar_node', 'southNode'],
+  ['mean_lilith', 'lilith'],
+];
+
+// Astrologer v5 subject keys for the 12 house cusps, in order 1..12
+const HOUSE_SUBJECT_KEYS = [
+  'first_house', 'second_house', 'third_house', 'fourth_house',
+  'fifth_house', 'sixth_house', 'seventh_house', 'eighth_house',
+  'ninth_house', 'tenth_house', 'eleventh_house', 'twelfth_house',
+] as const;
+
+const ROMAN_HOUSE = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+
+// API house-name string ("Eleventh_House") → 1-based index
+const HOUSE_NAME_TO_INDEX: Record<string, number> = HOUSE_SUBJECT_KEYS.reduce(
+  (acc, key, i) => {
+    // "first_house" → "First_House"
+    const apiName = key.split('_').map(s => s[0].toUpperCase() + s.slice(1)).join('_');
+    acc[apiName] = i;
+    return acc;
+  },
+  {} as Record<string, number>
+);
 
 interface RawAspect {
   p1_name?: string; p2_name?: string; p1_abs_pos?: number; p2_abs_pos?: number;
@@ -70,6 +105,35 @@ interface RawAspect {
   [key: string]: unknown;
 }
 
+interface SubjectPoint {
+  abs_pos?: number;
+  position?: number;
+  sign?: string;
+  house?: string | null;
+  speed?: number;
+  retrograde?: boolean;
+  element?: string;
+}
+
+/**
+ * Normalize Astrologer v5 birth-chart response into the stored chart_data shape.
+ *
+ * Downstream contract (DO NOT BREAK — see lib/chart/reading-helpers.ts):
+ *   planets: [{ name, sign, degree: "Xo°YY'", house: "I".."XII", element, retrograde }]
+ *   points:  { ascendant?, descendant?, midheaven?, ic?, northNode?, southNode?, lilith? }
+ *             each value: { sign, degree }
+ *   aspects: [{ planet1, planet2, aspect, orb }]  — top 15 tightest major aspects
+ *   houses:  [{ number: 1..12, sign, degree }]
+ *
+ * Input shape (from lib/astrology/api.ts getChartData, the `chart_data` field):
+ *   {
+ *     chart_type, aspects: RawAspect[],
+ *     subject: { sun, moon, ..., ascendant, first_house, ..., twelfth_house, ... },
+ *     element_distribution, quality_distribution, active_points, active_aspects
+ *   }
+ *
+ * Passes through LUKA_CHART_DATA-style clean format unchanged (dev seed path).
+ */
 function normalizeChartData(raw: unknown): {
   planets: unknown[] | null;
   aspects: unknown[] | null;
@@ -79,84 +143,65 @@ function normalizeChartData(raw: unknown): {
   if (!raw || typeof raw !== 'object') return { planets: null, aspects: null, points: null, houses: null };
   const data = raw as Record<string, unknown>;
 
-  // If already in clean format (e.g., LUKA_CHART_DATA), pass through
+  // Clean-format passthrough (dev fixtures like LUKA_CHART_DATA already match the stored shape)
   if (Array.isArray(data.planets) && data.planets[0] && 'name' in (data.planets[0] as Record<string, unknown>)) {
     return {
       planets: data.planets as unknown[],
-      aspects: data.aspects as unknown[] ?? null,
-      points: data.points as Record<string, unknown> ?? null,
-      houses: data.houses as unknown[] ?? null,
+      aspects: (data.aspects as unknown[]) ?? null,
+      points: (data.points as Record<string, unknown>) ?? null,
+      houses: (data.houses as unknown[]) ?? null,
     };
   }
 
-  // Transform Astrologer API format
-  const rawAspects = Array.isArray(data.aspects) ? data.aspects as RawAspect[] : [];
+  // Locate the subject. v5 birth-chart returns `subject`; some variants may use `first_subject`.
+  const subject: Record<string, unknown> =
+    (data.subject as Record<string, unknown>) ||
+    (data.first_subject as Record<string, unknown>) ||
+    data;
 
-  // Build planets from unique planet positions in aspects data
-  const planetPositions = new Map<string, { absPos: number; speed: number }>();
-  for (const asp of rawAspects) {
-    if (asp.p1_name && asp.p1_abs_pos != null && MAIN_PLANETS.includes(asp.p1_name)) {
-      if (!planetPositions.has(asp.p1_name)) {
-        planetPositions.set(asp.p1_name, { absPos: asp.p1_abs_pos, speed: asp.p1_speed ?? 0 });
-      }
-    }
-    if (asp.p2_name && asp.p2_abs_pos != null && MAIN_PLANETS.includes(asp.p2_name)) {
-      if (!planetPositions.has(asp.p2_name)) {
-        planetPositions.set(asp.p2_name, { absPos: asp.p2_abs_pos, speed: asp.p2_speed ?? 0 });
-      }
-    }
+  const rawAspects = Array.isArray(data.aspects) ? (data.aspects as RawAspect[]) : [];
+
+  // ── Planets: read each one directly from the subject ──
+  // This is the fix for "missing Sun" — planets with no aspects are no longer dropped
+  // because we never tried to reconstruct them from the aspect list in the first place.
+  const planets: Array<{ name: string; sign: string; degree: string; house: string; element: string; retrograde: boolean }> = [];
+  for (const [subjectKey, displayName] of PLANET_SUBJECT_KEYS) {
+    const p = subject[subjectKey] as SubjectPoint | undefined;
+    if (!p || typeof p.abs_pos !== 'number') continue;
+
+    const { sign, degree, element } = absToSign(p.abs_pos);
+    // API returns house as "Eleventh_House"; map to Roman numeral "XI".
+    const houseIdx = typeof p.house === 'string' ? HOUSE_NAME_TO_INDEX[p.house] : undefined;
+    const houseRoman = houseIdx != null ? ROMAN_HOUSE[houseIdx] : '';
+    // Prefer explicit `retrograde` flag; fall back to negative speed.
+    const retrograde = p.retrograde === true || (typeof p.speed === 'number' && p.speed < 0);
+
+    planets.push({ name: displayName, sign, degree, house: houseRoman, element, retrograde });
   }
 
-  // Build house cusps array for planet house assignment
-  // API may return houses as { abs_pos } or { sign, degree } — convert both to absolute ecliptic
+  // ── Houses: read each cusp from subject.first_house … subject.twelfth_house ──
+  // This is the fix for "houses stored as null" — the API has never returned a top-level
+  // data.houses array; the old code was reading an undefined field.
   const houseCusps: number[] = [];
-  if (Array.isArray(data.houses)) {
-    for (const h of data.houses as Record<string, unknown>[]) {
-      if (typeof h.abs_pos === 'number') {
-        houseCusps.push(h.abs_pos);
-      } else if (h.sign && h.degree != null) {
-        // sign+degree format (0-30 within sign) → absolute ecliptic (0-360)
-        const signIdx = ZODIAC_SIGNS.indexOf(h.sign as string);
-        if (signIdx !== -1) houseCusps.push(signIdx * 30 + Number(h.degree));
-      }
-    }
+  const normalizedHousesArr: Array<{ number: number; sign: string; degree: string }> = [];
+  for (let i = 0; i < HOUSE_SUBJECT_KEYS.length; i++) {
+    const h = subject[HOUSE_SUBJECT_KEYS[i]] as SubjectPoint | undefined;
+    if (!h || typeof h.abs_pos !== 'number') continue;
+    houseCusps.push(h.abs_pos);
+    const { sign, degree } = absToSign(h.abs_pos);
+    normalizedHousesArr.push({ number: i + 1, sign, degree });
   }
 
-  function getHouse(absPos: number): string {
-    if (houseCusps.length < 12) return '';
-    const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-    for (let i = 0; i < 12; i++) {
-      const next = (i + 1) % 12;
-      let start = houseCusps[i];
-      let end = houseCusps[next];
-      if (end < start) end += 360; // wrap around
-      let pos = absPos;
-      if (pos < start) pos += 360;
-      if (pos >= start && pos < end) return ROMAN[i];
-    }
-    return '';
-  }
-
-  const planets = MAIN_PLANETS
-    .filter(name => planetPositions.has(name))
-    .map(name => {
-      const pos = planetPositions.get(name)!;
-      const { sign, degree, element } = absToSign(pos.absPos);
-      return { name, sign, degree, house: getHouse(pos.absPos), element, retrograde: pos.speed < 0 };
-    });
-
-  // Build points from non-planet positions
+  // ── Points: ascendant, midheaven, nodes, lilith, etc. ──
   const points: Record<string, { sign: string; degree: string }> = {};
-  for (const asp of rawAspects) {
-    for (const [pName, pAbsPos] of [[asp.p1_name, asp.p1_abs_pos], [asp.p2_name, asp.p2_abs_pos]] as [string, number][]) {
-      if (pName && pAbsPos != null && POINT_KEYS[pName] && !points[POINT_KEYS[pName]]) {
-        const { sign, degree } = absToSign(pAbsPos);
-        points[POINT_KEYS[pName]] = { sign, degree };
-      }
-    }
+  for (const [subjectKey, outKey] of POINT_SUBJECT_KEYS) {
+    const pt = subject[subjectKey] as SubjectPoint | undefined;
+    if (!pt || typeof pt.abs_pos !== 'number') continue;
+    const { sign, degree } = absToSign(pt.abs_pos);
+    points[outKey] = { sign, degree };
   }
 
-  // Normalize aspects: only keep major planet-to-planet aspects with tight orbs
+  // ── Aspects: unchanged filtering/shaping (this path has always worked) ──
   const majorAspectTypes = ['conjunction', 'opposition', 'trine', 'square', 'sextile'];
   const normalizedAspects = rawAspects
     .filter(a => a.p1_name && a.p2_name && a.aspect && majorAspectTypes.includes(a.aspect) && (a.orbit ?? 99) < 8)
@@ -167,24 +212,13 @@ function normalizeChartData(raw: unknown): {
       orb: Math.round((a.orbit ?? a.diff ?? 0) * 100) / 100,
     }))
     .sort((a, b) => a.orb - b.orb)
-    .slice(0, 15); // Top 15 tightest
-
-  // Normalize houses to { number, sign, degree } format
-  let normalizedHouses: unknown[] | null = null;
-  if (houseCusps.length >= 12) {
-    normalizedHouses = houseCusps.map((absPos, i) => {
-      const { sign, degree } = absToSign(absPos);
-      return { number: i + 1, sign, degree };
-    });
-  } else if (Array.isArray(data.houses)) {
-    normalizedHouses = data.houses as unknown[];
-  }
+    .slice(0, 15);
 
   return {
     planets: planets.length > 0 ? planets : null,
     aspects: normalizedAspects.length > 0 ? normalizedAspects : null,
     points: Object.keys(points).length > 0 ? points : null,
-    houses: normalizedHouses,
+    houses: normalizedHousesArr.length === 12 ? normalizedHousesArr : null,
   };
 }
 
