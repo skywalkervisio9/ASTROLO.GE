@@ -23,6 +23,21 @@ export default function AuthBridge() {
     const debugLog = (...args: unknown[]) => {
       if (AUTH_DEBUG) console.log("[AUTH_DEBUG]", ...args);
     };
+    // Warm the post-signup route chain so the browser has /post-auth and the
+    // birth form already compiled/cached by the time the user clicks Register.
+    // Cuts the perceptible delay between signup and DOB form.
+    (() => {
+      const prefetch = (href: string) => {
+        if (document.head.querySelector(`link[rel="prefetch"][href="${href}"]`)) return;
+        const link = document.createElement("link");
+        link.rel = "prefetch";
+        link.href = href;
+        link.as = "document";
+        document.head.appendChild(link);
+      };
+      prefetch("/auth?step=birth");
+    })();
+
     const isEn = () => document.body.classList.contains("lang-en");
     const t = (key: string) => {
       const ka: Record<string, string> = {
@@ -175,30 +190,32 @@ export default function AuthBridge() {
           },
         });
 
-        if (btn) btn.classList.remove("loading");
-
         if (error) {
+          if (btn) btn.classList.remove("loading");
           showError("signup-error", error.message);
           return;
         }
 
-        // Ensure profile row exists server-side and full_name is persisted idempotently.
+        // Fire-and-forget bootstrap — /post-auth calls ensureUserProfileRow
+        // server-side anyway, so blocking the user on this HTTP round-trip
+        // just adds latency before the DOB form appears.
         if (data.user) {
-          try {
-            const init = await withCsrfHeaders({
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({ full_name: name }),
-            });
-            await fetch("/api/user/profile/bootstrap", init);
-          } catch (bootstrapErr) {
-            console.warn("Profile bootstrap failed after signup:", bootstrapErr);
-          }
+          withCsrfHeaders({
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ full_name: name }),
+          }).then((init) => fetch("/api/user/profile/bootstrap", init))
+            .catch((err) => console.warn("Profile bootstrap failed after signup:", err));
         }
 
-        // Success → birth data step
-        onAuthSuccess();
+        // Skip the /post-auth server round-trip for new signups — we already
+        // know the user has no birth data, and the bootstrap call above
+        // (fire-and-forget) handles profile row creation. Navigate straight
+        // to the birth form. Loading spinner stays on until the page swaps.
+        const inviteParam = new URLSearchParams(window.location.search).get("invite");
+        const dest = `/auth?step=birth${inviteParam ? `&invite=${encodeURIComponent(inviteParam)}` : ""}`;
+        window.location.href = dest;
       };
 
       // ─── Forgot Password ───
@@ -274,6 +291,11 @@ export default function AuthBridge() {
           return showError("birth-error", t("birthPlacePickRequired"));
         }
 
+        // Lock the button in loading state the moment we know submit is proceeding.
+        // It stays loading through navigation so the user sees continuous feedback.
+        const birthSubmitBtn = document.querySelector("#page-birth .auth-btn") as HTMLElement | null;
+        if (birthSubmitBtn) birthSubmitBtn.classList.add("loading");
+
         console.log("✅ [AB] All validation passed — reading local session (no network)");
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user ?? null;
@@ -324,37 +346,26 @@ export default function AuthBridge() {
             body: JSON.stringify({ language: uiLang }),
           }).then((init: RequestInit) => fetch("/api/user/language", init)).catch(() => {});
 
-          try {
-            const init = await withCsrfHeaders({
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify(payload),
-            });
-            const startRes = await fetch("/api/onboarding/start", init);
-            if (!startRes.ok) {
-              const text = await startRes.text();
-              throw new Error(text || "Failed to start onboarding");
-            }
-            const startData = await startRes.json() as { requestId?: string };
-            const requestId = startData.requestId;
-            console.log("🧾 [AB] Onboarding queued:", { requestId });
-            console.log("🚀 [AB] Navigating to /loading...");
-            // requestId is tracked server-side; keep URL clean for users.
-            window.location.href = inviteCode ? `/loading?invite=${inviteCode}` : "/loading";
-            return;
-          } catch (queueErr) {
-            console.error("💥 [AB] Failed to queue onboarding:", queueErr);
-            // Incremental rollout fallback: preserve legacy localStorage handoff.
-            try {
-              localStorage.setItem(LEGACY_LS_KEY, JSON.stringify(payload));
-              window.location.href = inviteCode ? `/loading?invite=${inviteCode}` : "/loading";
-              return;
-            } catch {
-              showError("birth-error", queueErr instanceof Error ? queueErr.message : t("generationFailed"));
-              return;
-            }
-          }
+          // Store payload in localStorage so /loading has it immediately — this
+          // is the proven legacy handoff path and it doesn't depend on the
+          // onboarding/start round-trip completing first. Prevents the birth
+          // page from lingering long enough for HydrationBridge to flash the
+          // natal view while we wait for the server.
+          try { localStorage.setItem(LEGACY_LS_KEY, JSON.stringify(payload)); } catch { /* quota */ }
+
+          // Fire-and-forget onboarding/start. /loading's polling picks up
+          // whichever path finishes first (pending queue or localStorage).
+          withCsrfHeaders({
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(payload),
+          }).then((init: RequestInit) => fetch("/api/onboarding/start", init))
+            .catch((err) => console.warn("[AB] onboarding/start failed (localStorage fallback will be used):", err));
+
+          console.log("🚀 [AB] Navigating to /loading immediately (no server wait)");
+          window.location.href = inviteCode ? `/loading?invite=${inviteCode}` : "/loading";
+          return;
         } catch (err) {
           console.error("💥 [AB] Pre-navigation error:", err);
           showError("birth-error", err instanceof Error ? err.message : t("generationFailed"));
@@ -495,6 +506,14 @@ export default function AuthBridge() {
         const switchView = w.switchView as ((view: string, btn?: HTMLElement) => void) | undefined;
         const showAuthPage = w.showAuthPage as ((id: string) => void) | undefined;
 
+        // On /loading, the page is responsible for its own view (LoadingRouteClient
+        // calls startLoading()). If we switch to "natal" here the user sees a
+        // brief flash of the unloaded natal view before LoadingRouteClient takes over.
+        if (window.location.pathname === "/loading") {
+          console.log("[AB] applyView: on /loading — skipping view switch (owned by LoadingRouteClient)");
+          return true;
+        }
+
         if (!switchView || !goAuthStep || !showAuthPage) {
           console.log("[AB] applyView: runtime not ready yet", { hasSwitchView: !!switchView, hasGoAuthStep: !!goAuthStep, hasShowAuthPage: !!showAuthPage });
           return false;
@@ -543,8 +562,11 @@ export default function AuthBridge() {
       console.log("[AB] Session user:", user ? `${user.email} (${user.id})` : "none");
       if (user) {
         // /auth is the login page — sign out and stay on the form.
+        // Exception: when ?step=birth or ?invite=... is present, the user was sent here
+        // by /post-auth to complete onboarding and MUST keep their session.
         // Dev buttons do their own signOut before signIn, so no race.
-        if (window.location.pathname === '/auth') {
+        const hasOnboardingIntent = forceBirthStep || urlParams.get('invite');
+        if (window.location.pathname === '/auth' && !hasOnboardingIntent) {
           console.log("[AB] On /auth with active session — signing out");
           await supabase.auth.signOut();
           return;
