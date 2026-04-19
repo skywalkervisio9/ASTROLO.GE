@@ -80,7 +80,10 @@ export default function LoadingRouteClient() {
           const res = await fetch('/api/reading/generate-full', init);
           if (!res.ok) {
             const message = await res.text();
-            setErrorText('Full reading generation failed. Please retry.');
+            // Surface status + message directly so we can diagnose prod failures
+            // without DevTools. Trim to keep the banner readable.
+            const trimmed = message.length > 240 ? message.slice(0, 240) + '…' : message;
+            setErrorText(`Full reading generation failed (${res.status}): ${trimmed || 'no body'}`);
             console.error('[loading] generate-full failed', res.status, message);
           }
         } catch {
