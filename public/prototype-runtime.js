@@ -84,6 +84,17 @@ function setTier(tier, btn) {
       body: JSON.stringify({ tier: tier }),
     }).then(function() {
       window.dispatchEvent(new CustomEvent('profile-changed'));
+      // Premium upgrade: redirect to loading if no full reading exists yet.
+      // Runs unconditionally (doesn't require _currentUser to be set).
+      if (tier === 'premium' || tier === 'premium-plus') {
+        return fetch('/api/onboarding/status', { credentials: 'include' })
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(status) {
+            if (status && !(status.status === 'complete' && status.shareSlug)) {
+              window.location.href = '/loading?mode=generate-full';
+            }
+          });
+      }
     }).catch(function() {});
   }
 
