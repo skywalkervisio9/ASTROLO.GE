@@ -278,13 +278,13 @@ span.pt{color:var(--gold);font-family:'Outfit',sans-serif;letter-spacing:.07em;f
 .tip{position:relative;cursor:help}.tip::after{content:attr(data-tip);position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:var(--sf2);color:var(--silver);padding:5px 10px;border-radius:6px;font-size:.68rem;font-family:var(--fb);font-weight:400;font-style:normal;letter-spacing:.02em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .25s;border:1px solid rgba(201,168,76,.12);z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.4)}
 .tip:hover::after{opacity:1}
 .pt.tip::after{color:var(--gold)}
-/* Element pills: allow tooltip text to wrap and tint to element color */
-.gel.tip::after{white-space:normal;width:max-content;max-width:220px;text-align:center;line-height:1.35;font-weight:500}
+.retro.tip::after{color:var(--gold)}
+/* Element pills: single-line tooltip tinted to element color */
+.gel.tip::after{font-weight:500}
 .gel-fire.tip::after{color:var(--fire);border-color:rgba(212,100,74,.3)}
 .gel-earth.tip::after{color:var(--earth);border-color:rgba(107,154,107,.3)}
 .gel-air.tip::after{color:var(--air);border-color:rgba(107,143,181,.3)}
 .gel-water.tip::after{color:var(--water);border-color:rgba(123,107,170,.3)}
-@media(max-width:720px){.gel.tip::after{max-width:180px;font-size:.62rem}}
 
 /* Element info popup */
 .el-popup{position:fixed;width:260px;background:var(--sf);border:1px solid rgba(201,168,76,.1);border-radius:12px;padding:14px 16px;z-index:500;opacity:0;pointer-events:none;transition:all .25s var(--ease);box-shadow:0 12px 40px rgba(0,0,0,.6),0 0 1px rgba(201,168,76,.1);transform:translateY(4px)}
@@ -409,6 +409,11 @@ span.pt{color:var(--gold);font-family:'Outfit',sans-serif;letter-spacing:.07em;f
 .gi svg{width:100%;height:100%;display:block}
 .gi-pl svg{color:var(--gold)}
 .gi-fire svg{color:var(--fire)}.gi-earth svg{color:var(--earth)}.gi-air svg{color:var(--air)}.gi-water svg{color:var(--water)}
+.gi-fire svg,.gi-earth svg,.gi-air svg,.gi-water svg{transition:filter .2s}
+.gi-fire:hover svg{filter:drop-shadow(0 0 5px var(--fire))}
+.gi-earth:hover svg{filter:drop-shadow(0 0 5px var(--earth))}
+.gi-air:hover svg{filter:drop-shadow(0 0 5px var(--air))}
+.gi-water:hover svg{filter:drop-shadow(0 0 5px var(--water))}
 .b .gi{width:12px;height:12px;flex-shrink:0;min-width:12px}
 /* Neutralise span.pt size/spacing overrides inside label badge */
 .b span.pt{font-size:inherit;letter-spacing:inherit;font-family:inherit;font-weight:inherit}

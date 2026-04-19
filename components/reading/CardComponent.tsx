@@ -41,11 +41,7 @@ export default function CardComponent({ card, lang }: Props) {
         )}
       </div>
 
-      <h3>
-        <span className="cl-dl"><i/><i/><i/></span>
-        {card.title}
-        <span className="cl-dr"><i/><i/><i/></span>
-      </h3>
+      <h3>{card.title}</h3>
 
       {card.body?.map((p, i) => <p key={i}>{renderSimpleBody(p)}</p>)}
 
