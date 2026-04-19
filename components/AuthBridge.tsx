@@ -213,15 +213,12 @@ export default function AuthBridge() {
           }
         }
 
-        // Route through the server-side /post-auth gate — same path Google OAuth uses.
-        // It authoritatively decides where to go (birth form / loading / reading) based
-        // on DB state, avoiding client-side race conditions with the prototype runtime.
-        // `new=1` tells /post-auth to skip the profile + natal_readings DB queries
-        // (we already know this user has neither) and redirect straight to the birth form.
-        const invite = urlParams.get("invite");
-        const params = new URLSearchParams({ new: "1" });
-        if (invite) params.set("invite", invite);
-        window.location.href = `/post-auth?${params.toString()}`;
+        // Route through server gate with ?new=1 fast path. The /post-auth page
+        // short-circuits DB reads for new signups and redirects straight to
+        // /auth?step=birth. Both destinations are prefetched at mount time.
+        const inviteParam = new URLSearchParams(window.location.search).get("invite");
+        const dest = `/post-auth?new=1${inviteParam ? `&invite=${encodeURIComponent(inviteParam)}` : ""}`;
+        window.location.href = dest;
       };
 
       // ─── Forgot Password ───
