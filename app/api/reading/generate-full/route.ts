@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
-import { runNatalCall1, runNatalCall2 } from '@/lib/AIgeneration/pipeline';
+import { runNatalCall2 } from '@/lib/AIgeneration/pipeline';
 import { PROMPT_VERSION } from '@/lib/AIgeneration/prompts/natal';
 import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonServerError } from '@/lib/auth/http';
@@ -78,36 +78,19 @@ export async function POST() {
     const storedPoints = chartRow.points as StoredPoints | null;
     const storedAspects = chartRow.aspects as StoredAspect[] | null;
 
-    // Call 1: run if missing (free users don't have it, invited users do)
-    let analysis: string;
-    let call1Model = 'cached';
-    let call1Tokens = 0;
+    // Call 1 must already exist — run /api/reading/generate-call1 first
+    const { data: analysisRow } = await admin
+      .from('natal_readings')
+      .select('analysis_en, model_call1, tokens_call1')
+      .eq('user_id', authUser.id)
+      .maybeSingle();
 
-    if (existingReading?.reading_ka === null && existingReading?.id) {
-      // natal_readings row exists with analysis_en (invited user) — reuse it
-      const { data: analysisRow } = await admin
-        .from('natal_readings')
-        .select('analysis_en, model_call1, tokens_call1')
-        .eq('user_id', authUser.id)
-        .single();
-
-      analysis = analysisRow?.analysis_en ?? '';
-      call1Model = analysisRow?.model_call1 ?? 'cached';
-      call1Tokens = analysisRow?.tokens_call1 ?? 0;
-    } else {
-      // Free user — no natal_readings row yet, run Call 1
-      const call1 = await runNatalCall1(context);
-      analysis = call1.analysis;
-      call1Model = call1.model;
-      call1Tokens = call1.tokens;
-    }
+    const analysis = analysisRow?.analysis_en ?? '';
+    const call1Model = analysisRow?.model_call1 ?? 'cached';
+    const call1Tokens = analysisRow?.tokens_call1 ?? 0;
 
     if (!analysis) {
-      // Fallback: re-run Call 1
-      const call1 = await runNatalCall1(context);
-      analysis = call1.analysis;
-      call1Model = call1.model;
-      call1Tokens = call1.tokens;
+      return NextResponse.json({ error: 'Call 1 analysis not found — call /api/reading/generate-call1 first' }, { status: 400 });
     }
 
     // Call 2: KA + EN in parallel

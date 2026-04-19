@@ -73,18 +73,27 @@ export default function LoadingRouteClient() {
         }
       }
 
-      // ── POST-PAYMENT MODE: trigger generate-full ──
+      // ── POST-PAYMENT MODE: trigger generate-full (two-step to stay within 300s) ──
       if (isGenerateFull) {
         try {
-          const init = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
-          const res = await fetch('/api/reading/generate-full', init);
-          if (!res.ok) {
-            const message = await res.text();
-            // Surface status + message directly so we can diagnose prod failures
-            // without DevTools. Trim to keep the banner readable.
+          // Step 1: Call 1 — chart analysis (idempotent, skipped if already cached)
+          const init1 = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
+          const res1 = await fetch('/api/reading/generate-call1', init1);
+          if (!res1.ok) {
+            const message = await res1.text();
             const trimmed = message.length > 240 ? message.slice(0, 240) + '…' : message;
-            setErrorText(`Full reading generation failed (${res.status}): ${trimmed || 'no body'}`);
-            console.error('[loading] generate-full failed', res.status, message);
+            setErrorText(`Full reading generation failed (${res1.status}): ${trimmed || 'no body'}`);
+            console.error('[loading] generate-call1 failed', res1.status, message);
+          } else {
+            // Step 2: Call 2 — full reading (KA + EN)
+            const init2 = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
+            const res2 = await fetch('/api/reading/generate-full', init2);
+            if (!res2.ok) {
+              const message = await res2.text();
+              const trimmed = message.length > 240 ? message.slice(0, 240) + '…' : message;
+              setErrorText(`Full reading generation failed (${res2.status}): ${trimmed || 'no body'}`);
+              console.error('[loading] generate-full failed', res2.status, message);
+            }
           }
         } catch {
           setErrorText('Network error starting full generation. Retrying...');
