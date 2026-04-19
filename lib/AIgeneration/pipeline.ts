@@ -172,7 +172,7 @@ async function generateSingleReading(
   const prompt = getNatalCall2Prompt(language);
   // Georgian is ~2 chars/token (Mkhedruli script); English is ~4 chars/token.
   // Full KA reading ≈ 35K tokens; EN ≈ 10K tokens. Add headroom for JSON structure + aspects.
-  const maxTokens = language === 'ka' ? 64000 : 36000;
+  const maxTokens = language === 'ka' ? 56000 : 32000;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {

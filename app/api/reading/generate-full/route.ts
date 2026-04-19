@@ -25,7 +25,7 @@ import {
 } from '@/lib/chart/reading-helpers';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 export async function POST() {
   try {
