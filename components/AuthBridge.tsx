@@ -291,6 +291,11 @@ export default function AuthBridge() {
           return showError("birth-error", t("birthPlacePickRequired"));
         }
 
+        // Lock the button in loading state the moment we know submit is proceeding.
+        // It stays loading through navigation so the user sees continuous feedback.
+        const birthSubmitBtn = document.querySelector("#page-birth .auth-btn") as HTMLElement | null;
+        if (birthSubmitBtn) birthSubmitBtn.classList.add("loading");
+
         console.log("✅ [AB] All validation passed — reading local session (no network)");
         const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user ?? null;
@@ -341,37 +346,26 @@ export default function AuthBridge() {
             body: JSON.stringify({ language: uiLang }),
           }).then((init: RequestInit) => fetch("/api/user/language", init)).catch(() => {});
 
-          try {
-            const init = await withCsrfHeaders({
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify(payload),
-            });
-            const startRes = await fetch("/api/onboarding/start", init);
-            if (!startRes.ok) {
-              const text = await startRes.text();
-              throw new Error(text || "Failed to start onboarding");
-            }
-            const startData = await startRes.json() as { requestId?: string };
-            const requestId = startData.requestId;
-            console.log("🧾 [AB] Onboarding queued:", { requestId });
-            console.log("🚀 [AB] Navigating to /loading...");
-            // requestId is tracked server-side; keep URL clean for users.
-            window.location.href = inviteCode ? `/loading?invite=${inviteCode}` : "/loading";
-            return;
-          } catch (queueErr) {
-            console.error("💥 [AB] Failed to queue onboarding:", queueErr);
-            // Incremental rollout fallback: preserve legacy localStorage handoff.
-            try {
-              localStorage.setItem(LEGACY_LS_KEY, JSON.stringify(payload));
-              window.location.href = inviteCode ? `/loading?invite=${inviteCode}` : "/loading";
-              return;
-            } catch {
-              showError("birth-error", queueErr instanceof Error ? queueErr.message : t("generationFailed"));
-              return;
-            }
-          }
+          // Store payload in localStorage so /loading has it immediately — this
+          // is the proven legacy handoff path and it doesn't depend on the
+          // onboarding/start round-trip completing first. Prevents the birth
+          // page from lingering long enough for HydrationBridge to flash the
+          // natal view while we wait for the server.
+          try { localStorage.setItem(LEGACY_LS_KEY, JSON.stringify(payload)); } catch { /* quota */ }
+
+          // Fire-and-forget onboarding/start. /loading's polling picks up
+          // whichever path finishes first (pending queue or localStorage).
+          withCsrfHeaders({
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(payload),
+          }).then((init: RequestInit) => fetch("/api/onboarding/start", init))
+            .catch((err) => console.warn("[AB] onboarding/start failed (localStorage fallback will be used):", err));
+
+          console.log("🚀 [AB] Navigating to /loading immediately (no server wait)");
+          window.location.href = inviteCode ? `/loading?invite=${inviteCode}` : "/loading";
+          return;
         } catch (err) {
           console.error("💥 [AB] Pre-navigation error:", err);
           showError("birth-error", err instanceof Error ? err.message : t("generationFailed"));
