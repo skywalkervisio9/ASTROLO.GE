@@ -506,6 +506,14 @@ export default function AuthBridge() {
         const switchView = w.switchView as ((view: string, btn?: HTMLElement) => void) | undefined;
         const showAuthPage = w.showAuthPage as ((id: string) => void) | undefined;
 
+        // On /loading, the page is responsible for its own view (LoadingRouteClient
+        // calls startLoading()). If we switch to "natal" here the user sees a
+        // brief flash of the unloaded natal view before LoadingRouteClient takes over.
+        if (window.location.pathname === "/loading") {
+          console.log("[AB] applyView: on /loading — skipping view switch (owned by LoadingRouteClient)");
+          return true;
+        }
+
         if (!switchView || !goAuthStep || !showAuthPage) {
           console.log("[AB] applyView: runtime not ready yet", { hasSwitchView: !!switchView, hasGoAuthStep: !!goAuthStep, hasShowAuthPage: !!showAuthPage });
           return false;
