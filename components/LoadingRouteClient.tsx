@@ -10,9 +10,9 @@ import type { Gender } from '@/types/user';
 const LEGACY_LS_KEY = 'astrolo:lastGenerateRequest';
 
 // Free users: astrologer API only — quick (≤20s, 4 attempts at 5s).
-// Invited & premium-generate-full: Call 1 + synastry / full reading — up to 5 min.
+// Invited & premium-generate-full: up to 7 min of polling at 5s intervals.
 const FREE_MAX_ATTEMPTS = 4;   // 4 × 5s = 20s
-const FULL_MAX_ATTEMPTS = 80;  // 80 × adaptive ≈ 5 min
+const FULL_MAX_ATTEMPTS = 84;  // 84 × 5s = 7 min
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -52,8 +52,8 @@ export default function LoadingRouteClient() {
 
       whenRuntimeReady().then(() => {
         const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string, durationMs?: number) => void) | undefined;
-        // 20s for free (Astrologer API only), 5 min for generate-full (AI reading)
-        if (fn) fn(userLang, isFree ? 20000 : 300000);
+        // 20s for free (Astrologer API only), 7 min for generate-full (AI reading)
+        if (fn) fn(userLang, isFree ? 20000 : 420000);
       });
 
       const { data: auth } = await supabase.auth.getUser();
@@ -76,7 +76,7 @@ export default function LoadingRouteClient() {
       // ── POST-PAYMENT MODE: trigger generate-full (two-step to stay within 300s) ──
       if (isGenerateFull) {
         try {
-          // Step 1: Call 1 — chart analysis (idempotent, skipped if already cached)
+          // Step 1: Call 1 — chart analysis (idempotent, quick ~20-30s)
           const init1 = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
           const res1 = await fetch('/api/reading/generate-call1', init1);
           if (!res1.ok) {
@@ -85,20 +85,19 @@ export default function LoadingRouteClient() {
             setErrorText(`Full reading generation failed (${res1.status}): ${trimmed || 'no body'}`);
             console.error('[loading] generate-call1 failed', res1.status, message);
           } else {
-            // Step 2: Call 2 — full reading (KA + EN)
-            const init2 = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
-            const res2 = await fetch('/api/reading/generate-full', init2);
-            if (!res2.ok) {
-              const message = await res2.text();
-              const trimmed = message.length > 240 ? message.slice(0, 240) + '…' : message;
-              setErrorText(`Full reading generation failed (${res2.status}): ${trimmed || 'no body'}`);
-              console.error('[loading] generate-full failed', res2.status, message);
-            }
+            // Step 2: fire generate-full without awaiting — it can run up to 300s on the
+            // server and write to DB even if the HTTP connection drops before it responds.
+            // Completion is detected entirely by the polling loop below.
+            withCsrfHeaders({ method: 'POST', credentials: 'include' }).then((init2) => {
+              fetch('/api/reading/generate-full', init2).catch((err) =>
+                console.error('[loading] generate-full network error (expected on long runs):', err)
+              );
+            });
           }
         } catch {
-          setErrorText('Network error starting full generation. Retrying...');
+          console.error('[loading] error starting full generation');
         }
-        // Fall through to polling loop
+        // Fall through to polling loop — it will detect DB completion regardless of HTTP timing
       } else {
         // ── INITIAL ONBOARDING: chart/generate ──
         let reqBody: GenerateChartRequest | null = null;
@@ -175,7 +174,7 @@ export default function LoadingRouteClient() {
           setCanReturnToBirth(true);
           return;
         }
-        const interval = isFree ? 5000 : attempts <= 5 ? 5000 : attempts <= 10 ? 3000 : 1500;
+        const interval = isFree ? 5000 : 5000;
         await sleep(interval);
 
         const statusRes = await fetch('/api/onboarding/status', { credentials: 'include' });
