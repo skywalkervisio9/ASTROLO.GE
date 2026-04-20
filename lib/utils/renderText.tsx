@@ -39,12 +39,13 @@ const SIGN_ELEMENT: Record<string, string> = {
 //   7: element word itself       (e.g. "ცეცხლი", "Water")
 //   8: optional percentage       (e.g. "48")
 //   9: retrograde word (English "retrograde" or Georgian core "რეტროგრად") → rendered as ℞; Georgian suffix stays as plain text
+//  10: AI-output "(R)" shorthand → rendered as ℞
 //
 // Georgian stems: ცეცხლ (fire) / მიწ (earth) / ჰაერ (air) / წყალ (water)
 // Matches any Georgian ending [ა-ჰ]* after the stem — so ცეცხლი / ცეცხლის / წყალში all work.
 // Water has two stems in Georgian: წყალ (nominative) and წყლ (genitive — წყლის, წყლისა, წყლით…)
 // Order matters: წყალ before წყლ so the longer match wins on "წყალისა".
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)/giu;
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)|(\(R\))/giu;
 
 /** Classify the stem of an element word to its CSS modifier */
 function getElementClass(word: string): string | null {
@@ -87,6 +88,35 @@ const PT_TIPS_KA: Record<string, string> = {
   MC: 'ცის შუაწერტილი — კარიერა და საჯარო როლი',
   IC: 'ცის ფსკერი — ფესვები და შინაგანი სამყარო',
   DSC: 'დესცენდენტი — სარკე და პარტნიორობა',
+};
+
+const SIGN_TIPS_EN: Record<string, string> = {
+  aries:       'Aries — initiative, courage, raw drive',
+  taurus:      'Taurus — stability, sensuality, persistence',
+  gemini:      'Gemini — intellect, duality, curiosity',
+  cancer:      'Cancer — feeling, memory, nurturing',
+  leo:         'Leo — radiance, pride, creative fire',
+  virgo:       'Virgo — precision, service, discernment',
+  libra:       'Libra — balance, beauty, partnership',
+  scorpio:     'Scorpio — depth, transformation, intensity',
+  sagittarius: 'Sagittarius — expansion, truth, freedom',
+  capricorn:   'Capricorn — ambition, structure, mastery',
+  aquarius:    'Aquarius — innovation, ideals, community',
+  pisces:      'Pisces — compassion, dissolution, the dream',
+};
+const SIGN_TIPS_KA: Record<string, string> = {
+  aries:       'ვერძი — ინიციატივა, სიმამაცე, ძალა',
+  taurus:      'კურო — სტაბილურობა, სიამოვნება, გამძლეობა',
+  gemini:      'ტყუპები — ინტელექტი, ორმაგობა, ცნობისმოყვარეობა',
+  cancer:      'კირჩხიბი — გრძნობა, მეხსიერება, ზრუნვა',
+  leo:         'ლომი — სხივოსნება, სიამაყე, შემოქმედება',
+  virgo:       'ქალწული — სიზუსტე, სამსახური, გამჭრიახობა',
+  libra:       'სასწორი — ბალანსი, სილამაზე, პარტნიორობა',
+  scorpio:     'მორიელი — სიღრმე, ტრანსფორმაცია, ინტენსიობა',
+  sagittarius: 'მშვილდოსანი — გაფართოება, ჭეშმარიტება, თავისუფლება',
+  capricorn:   'თხის რქა — ამბიცია, სტრუქტურა, დაოსტატება',
+  aquarius:    'მერწყული — სიახლე, იდეალები, თემი',
+  pisces:      'თევზები — თანაგრძნობა, გახსნა, ოცნება',
 };
 
 export type RenderLang = 'ka' | 'en';
@@ -133,8 +163,16 @@ export function renderText(text: string): React.ReactNode {
     } else if (m[5] !== undefined) {
       const ch = m[5]; const glyph = SYMBOL_TO_GLYPH[ch];
       if (glyph) {
-        const cls = (PLANET_SET.has(ch) || ASPECT_SET.has(ch)) ? 'gi gi-pl' : `gi gi-${SIGN_ELEMENT[glyph] || ''}`;
-        nodes.push(<span key={k++} className={cls}><svg><use href={`#gl-${glyph}`}/></svg></span>);
+        const isSign = !PLANET_SET.has(ch) && !ASPECT_SET.has(ch);
+        const elKey = SIGN_ELEMENT[glyph] || '';
+        const cls = isSign ? `gi gi-${elKey}` : 'gi gi-pl';
+        if (isSign) {
+          const signTips = _renderLang === 'ka' ? SIGN_TIPS_KA : SIGN_TIPS_EN;
+          const tip = signTips[glyph];
+          nodes.push(<span key={k++} className={`${cls} tip`} data-tip={tip} style={{cursor:'help'}}><svg><use href={`#gl-${glyph}`}/></svg></span>);
+        } else {
+          nodes.push(<span key={k++} className={cls}><svg><use href={`#gl-${glyph}`}/></svg></span>);
+        }
       } else nodes.push(ch);
     } else if (m[6] !== undefined) {
       const rawWord = (m[7] ?? '').trim();
@@ -154,6 +192,8 @@ export function renderText(text: string): React.ReactNode {
     } else if (m[9] !== undefined) {
       nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
       if (/[ა-ჰ]/u.test(text[m.index + m[0].length] ?? '')) nodes.push('-');
+    } else if (m[10] !== undefined) {
+      nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
     }
     last = m.index + m[0].length;
   }
