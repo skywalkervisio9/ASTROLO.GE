@@ -2502,8 +2502,8 @@ function _buildPlanetRow(row) {
   const elKa = _hydrateLang === 'ka' ? (elLabel[elLower] || row.element) : row.element;
   return '<tr>' +
     '<td class="pl-btn pl-' + planetKey + '" data-pl="' + planetKey + '">' +
-      _planetGlyph(planet) + ' ' + _esc(planetKa) + '</td>' +
-    '<td>' + _esc(signKa) + ' ' + _signGlyph(row.sign, row.element) + '</td>' +
+      _planetGlyph(planet) + '</td>' +
+    '<td>' + _signGlyph(row.sign, row.element) + '</td>' +
     '<td' + retro + '>' + _esc(row.degree) + retroBadge + '</td>' +
     '<td>' + _esc(row.house) + '</td>' +
     '<td><span class="et ' + elClass + '">' + _esc(elKa) + '</span></td>' +
@@ -2661,7 +2661,7 @@ function _buildSectionContent(sectionKey, section) {
       // Points row (ASC, MC, North Node, Lilith)
       if (section.points && typeof section.points === 'object') {
         var pts = section.points;
-        html += '<div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:4px">';
+        html += '<div class="pts-row" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:4px">';
         if (pts.ascendant) html += '<span class="pb2">ASC ' + _signGlyph(pts.ascendant.sign) + ' ' + _esc(pts.ascendant.degree) + '</span>';
         if (pts.midheaven) html += '<span class="pb2">MC ' + _signGlyph(pts.midheaven.sign) + ' ' + _esc(pts.midheaven.degree) + '</span>';
         if (pts.northNode) html += '<span class="pb2">' + _planetGlyph('node') + ' ' + _signGlyph(pts.northNode.sign) + ' ' + _esc(pts.northNode.degree) + '</span>';
