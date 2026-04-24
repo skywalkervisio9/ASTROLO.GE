@@ -425,6 +425,8 @@ export default function BodyContent() {
 
 
 <div className="dev-panel" id="devPanel">
+  <button className="dev-toggle" onClick={() => { document.getElementById('devPanel')?.classList.toggle('open'); }}>⚙ DEV</button>
+  <div className="dev-panel-body">
   <div className="dev-label">VIEW</div>
   <button className="dev-btn" onClick={() => { window.location.href = "/auth"; }} id="devAuth">☽ AUTH</button>
   <button className="dev-btn active" onClick={() => { window.location.href = "/"; }} id="devNatal">⊙ NATAL</button>
@@ -478,6 +480,7 @@ export default function BodyContent() {
       } catch { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); }
     }}>🔁 Last</button>
   </div>
+  </div>{/* dev-panel-body */}
 </div>
 </div>
   );
