@@ -1190,6 +1190,35 @@ document.addEventListener('click', e => {
     return;
   }
 
+  // Zodiac sign cell popups in planet table (.sign-td)
+  const signTd = _closest(e.target, '.sign-td');
+  if (signTd) {
+    e.stopPropagation();
+    if (activeTag === signTd) { closePopup(); return; }
+    const si = parseInt(signTd.getAttribute('data-si'), 10);
+    if (isNaN(si)) return;
+    const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+    const d = _SIGN_DATA[lang][si];
+    if (!d) return;
+    _showPopup(signTd, 'sign-pop', _signPopupSvg(si) + d.t, d.b);
+    return;
+  }
+
+  // House cell popups (.house-td)
+  const houseTd = _closest(e.target, '.house-td');
+  if (houseTd) {
+    e.stopPropagation();
+    if (activeTag === houseTd) { closePopup(); return; }
+    const houseStr = houseTd.getAttribute('data-house');
+    const houseIdx = _ROMAN_TO_INT[houseStr];
+    if (!houseIdx) return;
+    const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+    const d = _HOUSE_DATA[lang][houseIdx - 1];
+    if (!d) return;
+    _showPopup(houseTd, 'house-pop', _housePopupBadge(houseStr) + d.t, d.b);
+    return;
+  }
+
   // Aspect tag popups (.aspect-tag)
   const aspTag = _closest(e.target, '.aspect-tag');
   if (aspTag) {
@@ -1212,10 +1241,24 @@ document.addEventListener('click', e => {
 
 // Close popup on mouseleave from popup trigger tags (delegated)
 document.addEventListener('mouseleave', e => {
-  var tag = _closest(e.target, '.et') || _closest(e.target, '.pl-btn') || _closest(e.target, '.aspect-tag');
-  if (tag && activePopup) {
-    setTimeout(() => { if (activePopup && !activePopup.matches(':hover')) closePopup(); }, 150);
+  var tag = _closest(e.target, '.et') || _closest(e.target, '.pl-btn') || _closest(e.target, '.aspect-tag')
+         || _closest(e.target, '.sign-td') || _closest(e.target, '.mc-sign-btn') || _closest(e.target, '.house-td');
+  if (tag && activePopup && activeTag === tag) {
+    setTimeout(() => { if (activePopup && !activePopup.matches(':hover')) closePopup(); }, 200);
   }
+}, true);
+
+
+// Nudge .tip tooltip left/right to stay within viewport edges
+document.addEventListener('mouseover', function(e) {
+  var tip = _closest(e.target, '.tip');
+  if (!tip || !tip.hasAttribute('data-tip')) return;
+  var r = tip.getBoundingClientRect();
+  var mid = r.left + r.width / 2;
+  var vw = window.innerWidth;
+  tip.classList.remove('tip--el', 'tip--er');
+  if (mid < vw * 0.3) tip.classList.add('tip--el');
+  else if (mid > vw * 0.7) tip.classList.add('tip--er');
 }, true);
 
 // ═══ MINI NATAL CHART ═══
@@ -1273,6 +1316,82 @@ var _DEMO_PLANETS = [
   { n: 'პლუტონი', g: '♇', deg: 246.3, si: 8, sd: "6°18'", h: 'V', r: 2.5, c: '#9a6b6b' }
 ];
 
+// ── Module-level sign constants (shared by mini-chart and planet table) ──
+const _SIGN_IDS = ['gl-aries','gl-taurus','gl-gemini','gl-cancer','gl-leo','gl-virgo','gl-libra','gl-scorpio','gl-sagittarius','gl-capricorn','gl-aquarius','gl-pisces'];
+const _SIGN_IDX = {aries:0,taurus:1,gemini:2,cancer:3,leo:4,virgo:5,libra:6,scorpio:7,sagittarius:8,capricorn:9,aquarius:10,pisces:11};
+// Element cycle: fire, earth, air, water repeated × 3
+const _SIGN_EL_COLOR = ['#d4644a','#6b9a6b','#6b8fb5','#7b6baa','#d4644a','#6b9a6b','#6b8fb5','#7b6baa','#d4644a','#6b9a6b','#6b8fb5','#7b6baa'];
+function _signPopupSvg(si) {
+  var color = _SIGN_EL_COLOR[si] || 'currentColor';
+  return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:6px;color:' + color + '"><use href="#' + _SIGN_IDS[si] + '"/></svg>';
+}
+const _SIGN_DATA = {
+  ka: [
+    { t: 'ვერძი', b: 'პიონერი. ცეცხლის პირველი ნიშანი — იმპულსი, თამამობა, ახლის დაწყება. მარსი მართავს. ენერგია: „მე ვარ." ყველაფერი იწყება ვერძით — პირველი ნაბიჯი, პირველი სუნთქვა.' },
+    { t: 'კურო', b: 'მშენებელი. მიწის პირველი ნიშანი — სტაბილურობა, სენსორული სიამოვნება, ღირებულებები. ვენერა მართავს. ენერგია: „მე მაქვს." სხეული, ქონება, სილამაზე — ხელშესახები სამყარო.' },
+    { t: 'ტყუპი', b: 'კომუნიკატორი. ჰაერის პირველი ნიშანი — ცნობისმოყვარეობა, ადაპტაცია, ინფორმაციის გაცვლა. მერკური მართავს. ენერგია: „მე ვფიქრობ." ორადობა, სიჩქარე, კავშირები.' },
+    { t: 'კირჩხიბი', b: 'მზრუნველი. წყლის პირველი ნიშანი — ემოცია, ოჯახი, დაცვა. მთვარე მართავს. ენერგია: „მე ვგრძნობ." შინაგანი სამყარო, მეხსიერება, ინტუიცია.' },
+    { t: 'ლომი', b: 'შემოქმედი. ცეცხლის მეორე ნიშანი — თვითგამოხატვა, სიხარული, ლიდერობა. მზე მართავს. ენერგია: „მე ვქმნი." გულუხვობა, დრამა, ავთენტურობა.' },
+    { t: 'ქალწული', b: 'ანალიტიკოსი. მიწის მეორე ნიშანი — სიზუსტე, მსახურება, სრულყოფა. მერკური მართავს. ენერგია: „მე ვაანალიზებ." დეტალი, ხელობა, განკურნება.' },
+    { t: 'სასწორი', b: 'დიპლომატი. ჰაერის მეორე ნიშანი — ბალანსი, ურთიერთობა, სამართლიანობა. ვენერა მართავს. ენერგია: „მე ვაბალანსებ." ჰარმონია, ესთეტიკა, პარტნიორობა.' },
+    { t: 'მორიელი', b: 'ტრანსფორმატორი. წყლის მეორე ნიშანი — სიღრმე, ძალაუფლება, აღდგენა. პლუტონი მართავს. ენერგია: „მე ვარდაქმნი." ინტენსივობა, საიდუმლო, სიკვდილ-აღდგომა.' },
+    { t: 'მშვილდოსანი', b: 'მკვლევარი. ცეცხლის მესამე ნიშანი — ფილოსოფია, თავისუფლება, ჰორიზონტი. იუპიტერი მართავს. ენერგია: „მე ვეძებ." მოგზაურობა, სიბრძნე, ოპტიმიზმი.' },
+    { t: 'თხის რქა', b: 'არქიტექტორი. მიწის მესამე ნიშანი — ამბიცია, სტრუქტურა, მოწიფულობა. სატურნი მართავს. ენერგია: „მე ვაშენებ." დისციპლინა, დრო, მემკვიდრეობა.' },
+    { t: 'მერწყული', b: 'ინოვატორი. ჰაერის მესამე ნიშანი — თავისუფლება, ორიგინალობა, კოლექტივი. ურანი მართავს. ენერგია: „მე ვცვლი." მომავალი, ტექნოლოგია, ჰუმანიზმი.' },
+    { t: 'თევზები', b: 'მისტიკოსი. წყლის მესამე ნიშანი — ტრანსცენდენცია, თანაგრძნობა, ოცნება. ნეპტუნი მართავს. ენერგია: „მე ვწუხვარ." ხელოვნება, სულიერება, საზღვრების გაქრობა.' }
+  ],
+  en: [
+    { t: 'Aries', b: 'The Pioneer. First fire sign — impulse, courage, new beginnings. Ruled by Mars. Energy: "I am." Everything starts with Aries.' },
+    { t: 'Taurus', b: 'The Builder. First earth sign — stability, sensory pleasure, values. Ruled by Venus. Energy: "I have." The tangible world.' },
+    { t: 'Gemini', b: 'The Communicator. First air sign — curiosity, adaptation, information exchange. Ruled by Mercury. Energy: "I think."' },
+    { t: 'Cancer', b: 'The Nurturer. First water sign — emotion, family, protection. Ruled by the Moon. Energy: "I feel." Inner world, memory, intuition.' },
+    { t: 'Leo', b: 'The Creator. Second fire sign — self-expression, joy, leadership. Ruled by the Sun. Energy: "I create." Generosity, drama, authenticity.' },
+    { t: 'Virgo', b: 'The Analyst. Second earth sign — precision, service, refinement. Ruled by Mercury. Energy: "I analyze." Detail, craft, healing.' },
+    { t: 'Libra', b: 'The Diplomat. Second air sign — balance, relationship, justice. Ruled by Venus. Energy: "I balance." Harmony, aesthetics, partnership.' },
+    { t: 'Scorpio', b: 'The Transformer. Second water sign — depth, power, regeneration. Ruled by Pluto. Energy: "I transform." Intensity, secrets, death-rebirth.' },
+    { t: 'Sagittarius', b: 'The Explorer. Third fire sign — philosophy, freedom, horizon. Ruled by Jupiter. Energy: "I seek." Travel, wisdom, optimism.' },
+    { t: 'Capricorn', b: 'The Architect. Third earth sign — ambition, structure, maturity. Ruled by Saturn. Energy: "I build." Discipline, time, legacy.' },
+    { t: 'Aquarius', b: 'The Innovator. Third air sign — freedom, originality, collective. Ruled by Uranus. Energy: "I change." Future, technology, humanism.' },
+    { t: 'Pisces', b: 'The Mystic. Third water sign — transcendence, compassion, dreams. Ruled by Neptune. Energy: "I dream." Art, spirituality, dissolving boundaries.' }
+  ]
+};
+
+// ── House constants (12 houses) ──
+var _ROMAN_TO_INT = {I:1,II:2,III:3,IV:4,V:5,VI:6,VII:7,VIII:8,IX:9,X:10,XI:11,XII:12};
+function _housePopupBadge(houseStr) {
+  return '<span style="display:inline-block;min-width:26px;height:18px;line-height:18px;text-align:center;padding:0 5px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.25);border-radius:3px;font-size:.72rem;color:var(--gold);margin-right:8px;font-family:Outfit,sans-serif;letter-spacing:.06em;vertical-align:-2px">' + houseStr + '</span>';
+}
+const _HOUSE_DATA = {
+  ka: [
+    { t: 'სახლი — პიროვნება', b: 'ასცენდენტი. სხეული, გარეგნობა, ინდივიდუალობა — ვინ ხარ პირველი შეხვედრისას. თვითგამოხატვა, სტილი, ნიღაბი. ენერგია: „მე ვარ."' },
+    { t: 'სახლი — ქონება', b: 'ფინანსები, მატერიალური რესურსები, თვითშეფასება. ის, რაც გაქვს და გაძლევს კომფორტს. ფული, ხელშესახები სიამოვნება, ღირებულებათა სისტემა. ენერგია: „მე მაქვს."' },
+    { t: 'სახლი — კომუნიკაცია', b: 'გონება, და-ძმები, მეზობლები, ახლო მოგზაურობა. ყოველდღიური გაცვლა — სიტყვა, შეხვედრა, ინფორმაცია. ადვილი კავშირები. ენერგია: „მე ვფიქრობ."' },
+    { t: 'სახლი — სახლი & ფესვები', b: 'IC (ცის ფსკერი). ოჯახი, ბავშვობა, ფსიქოლოგიური ფუძე. სად გრძნობ თავს შინ — ფესვები, წინაპრები, ინტიმური სამყარო. ენერგია: „მე ვგრძნობ."' },
+    { t: 'სახლი — შემოქმედება', b: 'გართობა, რომანტიკა, ბავშვები, ხელოვნება, თამაში. სიხარული, პირველი სიყვარული, ავთენტური თვითგამოხატვა. ენერგია: „მე ვქმნი."' },
+    { t: 'სახლი — ჯანმრთელობა', b: 'ყოველდღიური რუტინა, სამსახური, ჯანმრთელობა, მსახურება. ეფექტური ყოფა, სხეულის მოვლა, პრაქტიკული ყოველდღიურობა. ენერგია: „მე ვემსახურები."' },
+    { t: 'სახლი — პარტნიორობა', b: 'DSC (დესცენდენტი). ქორწინება, ბიზნეს პარტნიორები, ღია მეტოქეები. ის, რასაც სხვაში ეძებ — სარკე, შემავსებელი, ურთიერთობა. ენერგია: „ჩვენ ვართ."' },
+    { t: 'სახლი — ტრანსფორმაცია', b: 'სიკვდილი, აღდგომა, სექსი, გაზიარებული ფინანსები, ოკულტი. სიღრმე, ფარული ძალა. ყველაფერი, რაც გარდაქმნის. ენერგია: „მე ვარდაქმნი."' },
+    { t: 'სახლი — ფილოსოფია', b: 'სარწმუნოება, უცხო კულტურა, შორი მოგზაურობა, უმაღლესი განათლება. ჰორიზონტი, იდეოლოგია, სიბრძნის ძიება. ენერგია: „მე ვეძებ."' },
+    { t: 'სახლი — კარიერა', b: 'MC (ცის შუაწერტილი). პროფესია, საჯარო ცხოვრება, რეპუტაცია, ავტორიტეტი. შენი ადგილი სამყაროში, ლეგასი. ენერგია: „მე ვაშენებ."' },
+    { t: 'სახლი — ოცნებები', b: 'მეგობრები, ჯგუფები, სოციალური წრე, კოლექტიური სასოება. ოცნება მომავლის შესახებ, სოლიდარობა, ჰუმანიზმი. ენერგია: „მე ვოცნებობ."' },
+    { t: 'სახლი — ფარული სამყარო', b: 'ქვეცნობიერი, სულიერება, მარტოობა, ფარული მტრები. ის, რაც ღრმად იმალება — უუნარობა, ტყვეობა, ან სულიერი ძიება. ენერგია: „მე ვატარებ."' }
+  ],
+  en: [
+    { t: 'House — Self', b: 'The Ascendant. Body, appearance, identity — who you are at first meeting. Your self-presentation, style, the mask. Energy: "I am."' },
+    { t: 'House — Possessions', b: 'Finances, material resources, self-worth. What you own and value for comfort. Money, tangible pleasures, your value system. Energy: "I have."' },
+    { t: 'House — Communication', b: 'Mind, siblings, neighbors, short journeys. Everyday exchange — words, meetings, information. Quick connections and local movement. Energy: "I think."' },
+    { t: 'House — Home & Roots', b: 'IC (Imum Coeli). Family, childhood, psychological foundation. Where you feel at home — roots, ancestry, the private self. Energy: "I feel."' },
+    { t: 'House — Creativity', b: 'Play, romance, children, art, pleasure. Joy, first love, authentic self-expression. The heart\'s delight. Energy: "I create."' },
+    { t: 'House — Health', b: 'Daily routines, work, health, service. Efficient living, body care, the practical realm. Craft and healing. Energy: "I serve."' },
+    { t: 'House — Partnership', b: 'DSC (Descendant). Marriage, business partners, open enemies. What you seek in others — the mirror, complement, relationship. Energy: "We are."' },
+    { t: 'House — Transformation', b: 'Death, rebirth, sex, shared resources, occult. Depth, hidden power. Everything that transforms you. Energy: "I transform."' },
+    { t: 'House — Philosophy', b: 'Beliefs, foreign cultures, long travel, higher education. Horizon, ideology, the pursuit of wisdom and meaning. Energy: "I seek."' },
+    { t: 'House — Career', b: 'MC (Midheaven). Profession, public life, reputation, authority. Your place in the world, legacy, ambition. Energy: "I build."' },
+    { t: 'House — Dreams', b: 'Friends, groups, social circle, collective hopes. Dreams about the future, solidarity, humanitarian causes. Energy: "I dream."' },
+    { t: 'House — Hidden Realm', b: 'Subconscious, spirituality, isolation, hidden enemies. What lies beneath — weakness, confinement, or deep spiritual seeking. Energy: "I surrender."' }
+  ]
+};
+
 function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
   const svg = document.getElementById('miniChart');
   if (!svg) return;
@@ -1280,7 +1399,7 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
   const tip = document.getElementById('chartTip');
   const CX = 210, CY = 210, R = 190, RI = 150, RP = 118;
   const SIGN_KA = ['ვერძი','კურო','ტყუპი','კირჩხიბი','ლომი','ქალწული','სასწორი','მორიელი','მშვილდოსანი','თხის რქა','მერწყული','თევზები'];
-  const SIGN_IDS = ['gl-aries','gl-taurus','gl-gemini','gl-cancer','gl-leo','gl-virgo','gl-libra','gl-scorpio','gl-sagittarius','gl-capricorn','gl-aquarius','gl-pisces'];
+  const SIGN_IDS = _SIGN_IDS;
   const ASC_ECL = (ascEclIn != null) ? ascEclIn : 137.33;
   const MC_ECL  = (mcEclIn  != null) ? mcEclIn  : 37.65;
   const planets = planetsIn || _DEMO_PLANETS;
@@ -1378,60 +1497,15 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
   });
 
   // Zodiac sign popup data
-  const signData = {
-    ka: [
-      { t: 'ვერძი', b: 'პიონერი. ცეცხლის პირველი ნიშანი — იმპულსი, თამამობა, ახლის დაწყება. მარსი მართავს. ენერგია: „მე ვარ." ყველაფერი იწყება ვერძით — პირველი ნაბიჯი, პირველი სუნთქვა.' },
-      { t: 'კურო', b: 'მშენებელი. მიწის პირველი ნიშანი — სტაბილურობა, სენსორული სიამოვნება, ღირებულებები. ვენერა მართავს. ენერგია: „მე მაქვს." სხეული, ქონება, სილამაზე — ხელშესახები სამყარო.' },
-      { t: 'ტყუპი', b: 'კომუნიკატორი. ჰაერის პირველი ნიშანი — ცნობისმოყვარეობა, ადაპტაცია, ინფორმაციის გაცვლა. მერკური მართავს. ენერგია: „მე ვფიქრობ." ორადობა, სიჩქარე, კავშირები.' },
-      { t: 'კირჩხიბი', b: 'მზრუნველი. წყლის პირველი ნიშანი — ემოცია, ოჯახი, დაცვა. მთვარე მართავს. ენერგია: „მე ვგრძნობ." შინაგანი სამყარო, მეხსიერება, ინტუიცია.' },
-      { t: 'ლომი', b: 'შემოქმედი. ცეცხლის მეორე ნიშანი — თვითგამოხატვა, სიხარული, ლიდერობა. მზე მართავს. ენერგია: „მე ვქმნი." გულუხვობა, დრამა, ავთენტურობა.' },
-      { t: 'ქალწული', b: 'ანალიტიკოსი. მიწის მეორე ნიშანი — სიზუსტე, მსახურება, სრულყოფა. მერკური მართავს. ენერგია: „მე ვაანალიზებ." დეტალი, ხელობა, განკურნება.' },
-      { t: 'სასწორი', b: 'დიპლომატი. ჰაერის მეორე ნიშანი — ბალანსი, ურთიერთობა, სამართლიანობა. ვენერა მართავს. ენერგია: „მე ვაბალანსებ." ჰარმონია, ესთეტიკა, პარტნიორობა.' },
-      { t: 'მორიელი', b: 'ტრანსფორმატორი. წყლის მეორე ნიშანი — სიღრმე, ძალაუფლება, აღდგენა. პლუტონი მართავს. ენერგია: „მე ვარდაქმნი." ინტენსივობა, საიდუმლო, სიკვდილ-აღდგომა.' },
-      { t: 'მშვილდოსანი', b: 'მკვლევარი. ცეცხლის მესამე ნიშანი — ფილოსოფია, თავისუფლება, ჰორიზონტი. იუპიტერი მართავს. ენერგია: „მე ვეძებ." მოგზაურობა, სიბრძნე, ოპტიმიზმი.' },
-      { t: 'თხის რქა', b: 'არქიტექტორი. მიწის მესამე ნიშანი — ამბიცია, სტრუქტურა, მოწიფულობა. სატურნი მართავს. ენერგია: „მე ვაშენებ." დისციპლინა, დრო, მემკვიდრეობა.' },
-      { t: 'მერწყული', b: 'ინოვატორი. ჰაერის მესამე ნიშანი — თავისუფლება, ორიგინალობა, კოლექტივი. ურანი მართავს. ენერგია: „მე ვცვლი." მომავალი, ტექნოლოგია, ჰუმანიზმი.' },
-      { t: 'თევზები', b: 'მისტიკოსი. წყლის მესამე ნიშანი — ტრანსცენდენცია, თანაგრძნობა, ოცნება. ნეპტუნი მართავს. ენერგია: „მე ვწუხვარ." ხელოვნება, სულიერება, საზღვრების გაქრობა.' }
-    ],
-    en: [
-      { t: 'Aries', b: 'The Pioneer. First fire sign — impulse, courage, new beginnings. Ruled by Mars. Energy: "I am." Everything starts with Aries.' },
-      { t: 'Taurus', b: 'The Builder. First earth sign — stability, sensory pleasure, values. Ruled by Venus. Energy: "I have." The tangible world.' },
-      { t: 'Gemini', b: 'The Communicator. First air sign — curiosity, adaptation, information exchange. Ruled by Mercury. Energy: "I think."' },
-      { t: 'Cancer', b: 'The Nurturer. First water sign — emotion, family, protection. Ruled by the Moon. Energy: "I feel." Inner world, memory, intuition.' },
-      { t: 'Leo', b: 'The Creator. Second fire sign — self-expression, joy, leadership. Ruled by the Sun. Energy: "I create." Generosity, drama, authenticity.' },
-      { t: 'Virgo', b: 'The Analyst. Second earth sign — precision, service, refinement. Ruled by Mercury. Energy: "I analyze." Detail, craft, healing.' },
-      { t: 'Libra', b: 'The Diplomat. Second air sign — balance, relationship, justice. Ruled by Venus. Energy: "I balance." Harmony, aesthetics, partnership.' },
-      { t: 'Scorpio', b: 'The Transformer. Second water sign — depth, power, regeneration. Ruled by Pluto. Energy: "I transform." Intensity, secrets, death-rebirth.' },
-      { t: 'Sagittarius', b: 'The Explorer. Third fire sign — philosophy, freedom, horizon. Ruled by Jupiter. Energy: "I seek." Travel, wisdom, optimism.' },
-      { t: 'Capricorn', b: 'The Architect. Third earth sign — ambition, structure, maturity. Ruled by Saturn. Energy: "I build." Discipline, time, legacy.' },
-      { t: 'Aquarius', b: 'The Innovator. Third air sign — freedom, originality, collective. Ruled by Uranus. Energy: "I change." Future, technology, humanism.' },
-      { t: 'Pisces', b: 'The Mystic. Third water sign — transcendence, compassion, dreams. Ruled by Neptune. Energy: "I dream." Art, spirituality, dissolving boundaries.' }
-    ]
-  };
-
-  // Sign click handlers — show on click, close on mouseleave
+  // Sign click handlers — same popup style as body text (.et / .pl-btn)
   svg.querySelectorAll('.mc-sign-btn').forEach(g => {
     g.addEventListener('click', e => {
       e.stopPropagation();
       const si = +g.getAttribute('data-sign');
       if (activeTag === g) { closePopup(); return; }
-      closePopup();
       const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-      const d = signData[lang][si];
-      const signSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" style="vertical-align:-2px;margin-right:4px"><use href="#' + SIGN_IDS[si] + '"/></svg>';
-      const pop = document.createElement('div');
-      pop.className = 'el-popup planet-pop';
-      pop.innerHTML = '<div class="el-popup-title">' + signSvg + d.t + '</div><div class="el-popup-body">' + d.b + '</div>';
-      document.body.appendChild(pop);
-      const r = g.getBoundingClientRect();
-      pop.style.left = Math.min(r.left + r.width / 2, window.innerWidth - 275) + 'px';
-      pop.style.top = (r.top - pop.offsetHeight - 8) + 'px';
-      if (r.top - pop.offsetHeight - 8 < 60) pop.style.top = (r.bottom + 8) + 'px';
-      requestAnimationFrame(() => pop.classList.add('show'));
-      activePopup = pop; activeTag = g;
-    });
-    g.addEventListener('mouseleave', () => {
-      setTimeout(() => { if (activePopup && !activePopup.matches(':hover')) closePopup(); }, 200);
+      const d = _SIGN_DATA[lang][si];
+      _showPopup(g, 'sign-pop', _signPopupSvg(si) + d.t, d.b);
     });
   });
 }
@@ -2500,12 +2574,21 @@ function _buildPlanetRow(row) {
   const elClass = ELEMENT_LABEL_CLASS[elLower] || '';
   const elLabel = { fire: 'ცეცხლი', earth: 'მიწა', air: 'ჰაერი', water: 'წყალი' };
   const elKa = _hydrateLang === 'ka' ? (elLabel[elLower] || row.element) : row.element;
+  // Resolve sign index for hover tooltip
+  const signLower = (row.sign || '').toLowerCase();
+  let signIdx = _SIGN_IDX[signLower];
+  if (signIdx === undefined) {
+    for (const [k, v] of Object.entries(_SIGN_IDX)) {
+      if (signLower.includes(k) || k.includes(signLower)) { signIdx = v; break; }
+    }
+  }
+  const siAttr = signIdx !== undefined ? ' data-si="' + signIdx + '"' : '';
   return '<tr>' +
     '<td class="pl-btn pl-' + planetKey + '" data-pl="' + planetKey + '">' +
-      _planetGlyph(planet) + ' ' + _esc(planetKa) + '</td>' +
-    '<td>' + _esc(signKa) + ' ' + _signGlyph(row.sign, row.element) + '</td>' +
+      _planetGlyph(planet) + '<span class="pt-name">' + _esc(planetKa) + '</span></td>' +
+    '<td class="sign-td"' + siAttr + '>' + _signGlyph(row.sign, row.element) + '<span class="pt-name">' + _esc(signKa) + '</span></td>' +
     '<td' + retro + '>' + _esc(row.degree) + retroBadge + '</td>' +
-    '<td>' + _esc(row.house) + '</td>' +
+    '<td class="house-td" data-house="' + _esc(row.house) + '">' + _esc(row.house) + '</td>' +
     '<td><span class="et ' + elClass + '">' + _esc(elKa) + '</span></td>' +
     '</tr>';
 }
@@ -2661,7 +2744,7 @@ function _buildSectionContent(sectionKey, section) {
       // Points row (ASC, MC, North Node, Lilith)
       if (section.points && typeof section.points === 'object') {
         var pts = section.points;
-        html += '<div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:4px">';
+        html += '<div class="pts-row" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:4px">';
         if (pts.ascendant) html += '<span class="pb2">ASC ' + _signGlyph(pts.ascendant.sign) + ' ' + _esc(pts.ascendant.degree) + '</span>';
         if (pts.midheaven) html += '<span class="pb2">MC ' + _signGlyph(pts.midheaven.sign) + ' ' + _esc(pts.midheaven.degree) + '</span>';
         if (pts.northNode) html += '<span class="pb2">' + _planetGlyph('node') + ' ' + _signGlyph(pts.northNode.sign) + ' ' + _esc(pts.northNode.degree) + '</span>';
@@ -2878,6 +2961,24 @@ function hydrateReading(reading, user) {
 }
 
 window.hydrateReading = hydrateReading;
+
+// ═══ HINT-BOX STAR SCROLL ROTATION ═══
+// Rotate the sparkle SVG in each .h box whenever the box crosses the viewport middle.
+// Reuses the same 90° transform defined on .h:hover — see globals.css `.h.h-active .ht svg`.
+(function() {
+  if (typeof IntersectionObserver === 'undefined') return;
+  var _hObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(en) { en.target.classList.toggle('h-active', en.isIntersecting); });
+  }, { rootMargin: '-45% 0px -45% 0px' }); // ~10% band around viewport vertical center
+  function attachHintObservers() {
+    document.querySelectorAll('.h:not([data-h-obs])').forEach(function(el) {
+      el.setAttribute('data-h-obs', '1');
+      _hObs.observe(el);
+    });
+  }
+  window.addEventListener('reading:hydrated', function() { setTimeout(attachHintObservers, 150); });
+  document.addEventListener('DOMContentLoaded', attachHintObservers);
+})();
 
 // ═══ INIT ═══
 initObservers();
