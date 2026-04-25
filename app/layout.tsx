@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
+
+const gafiya = localFont({
+  src: "./fonts/Gafiya-Regular.otf",
+  variable: "--f-brand",
+  display: "swap",
+  weight: "400",
+});
 
 export const metadata: Metadata = {
   title: "ASTROLO.GE — ნატალური რუკა & სინასტრია",
@@ -12,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ka">
+    <html lang="ka" className={gafiya.variable}>
       <head>
         <link
           rel="stylesheet"

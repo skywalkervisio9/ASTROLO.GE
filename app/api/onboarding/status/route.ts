@@ -48,7 +48,7 @@ export async function GET() {
     // Load natal_readings row
     const { data: reading } = await admin
       .from('natal_readings')
-      .select('id, analysis_en, reading_ka, share_slug')
+      .select('id, analysis_en, reading_ka, share_slug, generation_status, generation_error')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -57,6 +57,13 @@ export async function GET() {
       if (reading?.reading_ka) {
         const shareSlug = await ensureShareSlug(admin, reading.id, reading.share_slug);
         return jsonOk({ status: 'complete', complete: true, readingId: reading.id, shareSlug });
+      }
+      if (reading?.generation_status === 'failed') {
+        return jsonOk({
+          status: 'failed',
+          complete: false,
+          error: reading.generation_error ?? 'Generation failed',
+        });
       }
       return jsonOk({ status: 'generating', complete: false });
     }

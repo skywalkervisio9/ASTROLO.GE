@@ -89,6 +89,7 @@ export default function BodyContent() {
 <symbol id="gl-venus" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5" fill="none" stroke="currentColor" strokeWidth="1.5"/><line x1="12" y1="14" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="19" x2="15" y2="19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></symbol>
 <symbol id="gl-mars" viewBox="0 0 24 24"><circle cx="10" cy="14" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.5"/><line x1="14" y1="10" x2="20" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><polyline points="15,4 20,4 20,9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></symbol>
 <symbol id="gl-sparkle" viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" fill="currentColor" opacity=".8"/></symbol>
+<symbol id="gl-brand-sparkle" viewBox="0 0 24 24"><path d="M12 1.5l2.6 7.8L22.5 12l-7.9 2.7L12 22.5l-2.6-7.8L1.5 12l7.9-2.7z" fill="currentColor"/></symbol>
 <symbol id="gl-node" viewBox="0 0 24 24"><circle cx="8" cy="16" r="4" fill="none" stroke="currentColor" strokeWidth="1.5"/><circle cx="16" cy="16" r="4" fill="none" stroke="currentColor" strokeWidth="1.5"/><path d="M8 12V6M16 12V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></symbol>
 <symbol id="gl-diamond" viewBox="0 0 24 24"><path d="M12 2L22 12L12 22L2 12Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></symbol>
 
@@ -199,7 +200,7 @@ export default function BodyContent() {
 
 
 <nav className="tb">
-<a className="tbl" href="#"><div className="lm"><svg style={{width: '14px', height: '14px', color: '#f0ead6', fill: '#f0ead6'}}><use href="#gl-sparkle"/></svg></div><span className="lt">ASTROLO.GE</span></a>
+<a className="tbl" href="#" aria-label="ASTROLO.GE"><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-dot">.</span>GE</span></a>
 <div className="tbr"><div className="lg"><button className="lo active" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("ka", e.currentTarget); }}>ქარ</button><button className="lo" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("en", e.currentTarget); }}>EN</button></div>
 <button type="button" className="pb" onClick={() => { (window as unknown as ProtoGlobals).openSidebar?.(); }}><div className="pa"></div><span className="pn"></span></button></div></nav>
 

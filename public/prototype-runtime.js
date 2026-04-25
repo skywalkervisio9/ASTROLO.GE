@@ -966,6 +966,39 @@ function initObservers() {
     _calcSecBounds();
     window.addEventListener('resize', _calcSecBounds);
 
+    // Auto-center the active .nbtn within its horizontal scroll container.
+    // Manual horizontal scroll on the nav suspends centering for ~2.5s.
+    var _navCt = document.querySelector('.nb .ct');
+    var _prevActiveIdx = -1;
+    var _navUserOverrideUntil = 0;
+    var _navIsProgrammatic = false;
+    var _navProgTimer;
+    var _navAnimId;
+    function _navSmoothScrollTo(target, dur) {
+      if (!_navCt) return;
+      if (_navAnimId) cancelAnimationFrame(_navAnimId);
+      var startSL = _navCt.scrollLeft;
+      var delta = target - startSL;
+      if (Math.abs(delta) < 1) return;
+      var startT;
+      // easeInOutQuad
+      function ease(t) { return t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+      function step(t) {
+        if (!startT) startT = t;
+        var p = Math.min(1, (t - startT) / dur);
+        _navCt.scrollLeft = startSL + delta * ease(p);
+        if (p < 1) _navAnimId = requestAnimationFrame(step);
+        else _navAnimId = null;
+      }
+      _navAnimId = requestAnimationFrame(step);
+    }
+    if (_navCt) {
+      _navCt.addEventListener('scroll', function() {
+        if (_navIsProgrammatic) return;
+        _navUserOverrideUntil = Date.now() + 2500;
+      }, { passive: true });
+    }
+
     window._syncNavProgress = function() {
       var offset = 130; // px from top to consider a section "in view"
       var activeNavIdx = 0;
@@ -974,6 +1007,21 @@ function initObservers() {
       }
       nbs.forEach(function(b) { b.classList.remove('active'); });
       if (nbs[activeNavIdx]) nbs[activeNavIdx].classList.add('active');
+
+      // Center the active pill — only when active idx changes and user isn't dragging the nav
+      if (activeNavIdx !== _prevActiveIdx && _navCt && nbs[activeNavIdx] && Date.now() >= _navUserOverrideUntil) {
+        var btn = nbs[activeNavIdx];
+        var ctRect = _navCt.getBoundingClientRect();
+        var bRect = btn.getBoundingClientRect();
+        var desired = _navCt.scrollLeft + (bRect.left - ctRect.left) + bRect.width / 2 - ctRect.width / 2;
+        if (Math.abs(desired - _navCt.scrollLeft) > 2) {
+          _navIsProgrammatic = true;
+          _navSmoothScrollTo(desired, 380);
+          if (_navProgTimer) clearTimeout(_navProgTimer);
+          _navProgTimer = setTimeout(function() { _navIsProgrammatic = false; }, 500);
+        }
+      }
+      _prevActiveIdx = activeNavIdx;
 
       // Progress bar: 0 = top of first section, 100 = bottom of last section scrolled into view
       var scrollable = (_lastSecBottom || 0) - window.innerHeight - (_firstSecTop || 0);
@@ -1151,7 +1199,9 @@ function getElType(el) {
 // All popup interactions use event delegation so they work on dynamically hydrated content.
 
 function _showPopup(anchor, className, titleHtml, bodyHtml) {
-  closePopup();
+  // Replace synchronously — closePopup() defers removal 250ms (fade-out),
+  // which would briefly stack the old popup over the new one ("glitches for a second").
+  if (activePopup) { activePopup.remove(); activePopup = null; activeTag = null; }
   const pop = document.createElement('div');
   pop.className = 'el-popup ' + className;
   pop.innerHTML = '<div class="el-popup-title">' + titleHtml + '</div><div class="el-popup-body">' + bodyHtml + '</div>';
@@ -1239,14 +1289,25 @@ document.addEventListener('click', e => {
   if (activePopup && !_closest(e.target, '.el-popup') && !_closest(e.target, '.mc-sign-btn')) closePopup();
 });
 
-// Close popup on mouseleave from popup trigger tags (delegated)
-document.addEventListener('mouseleave', e => {
-  var tag = _closest(e.target, '.et') || _closest(e.target, '.pl-btn') || _closest(e.target, '.aspect-tag')
-         || _closest(e.target, '.sign-td') || _closest(e.target, '.mc-sign-btn') || _closest(e.target, '.house-td');
-  if (tag && activePopup && activeTag === tag) {
-    setTimeout(() => { if (activePopup && !activePopup.matches(':hover')) closePopup(); }, 200);
-  }
+// iOS Safari only fires `click` on elements that look interactive (links, buttons,
+// role=button, onclick handlers). Taps on plain divs / page background never reach
+// the close-elsewhere handler above. `pointerdown` fires on any element, so use it
+// purely for outside-close. Triggers handle their own toggle via the click handler.
+const _POPUP_TRIGGER_SEL = '.et,.pl-btn,.sign-td,.house-td,.aspect-tag,.mc-sign-btn,.el-popup';
+document.addEventListener('pointerdown', e => {
+  if (!activePopup) return;
+  if (_closest(e.target, _POPUP_TRIGGER_SEL)) return;
+  closePopup();
 }, true);
+
+// Click-driven popups (.et / .pl-btn / .sign-td / .house-td / .aspect-tag)
+// dismiss only on click — clicking the trigger again toggles, clicking
+// elsewhere triggers the close-elsewhere paths above. We previously closed
+// on mouseleave with a 200 ms grace, but for popups positioned BELOW the
+// anchor (when the anchor is near the top of the viewport) users moving
+// the cursor to read the popup would race the timer and the popup would
+// close mid-animation. The hover-driven .mc-sign-btn case has its own
+// pointerleave handler in renderMiniChart.
 
 
 // Nudge .tip tooltip left/right to stay within viewport edges
@@ -1475,11 +1536,13 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
       tip.querySelector('.tip-planet').textContent = p.g + ' ' + p.n;
       tip.querySelector('.tip-sign').textContent = SIGN_KA[p.si] + ' ' + p.sd;
       tip.querySelector('.tip-house').textContent = p.h + ' სახლი';
-      const pp = pos(p.deg, placed.find(x => x.i === i)?.pr || RP);
-      const sr = svg.getBoundingClientRect();
+      // Use the actual rendered position of the planet dot — viewBox padding
+      // (-40 -40 500 500) means viewBox math doesn't match svg pixel space.
+      const core = g.querySelector('.p-core');
+      const cr = core.getBoundingClientRect();
       const wr = wrap.getBoundingClientRect();
-      tip.style.left = ((pp.x / 420) * sr.width + sr.left - wr.left) + 'px';
-      tip.style.top = ((pp.y / 420) * sr.height + sr.top - wr.top) + 'px';
+      tip.style.left = (cr.left + cr.width / 2 - wr.left) + 'px';
+      tip.style.top = (cr.top + cr.height / 2 - wr.top) + 'px';
       tip.classList.add('show');
     });
     g.addEventListener('mouseleave', () => {
@@ -1499,13 +1562,31 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
   // Zodiac sign popup data
   // Sign click handlers — same popup style as body text (.et / .pl-btn)
   svg.querySelectorAll('.mc-sign-btn').forEach(g => {
-    g.addEventListener('click', e => {
-      e.stopPropagation();
+    const openSignPopup = () => {
       const si = +g.getAttribute('data-sign');
-      if (activeTag === g) { closePopup(); return; }
       const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
       const d = _SIGN_DATA[lang][si];
       _showPopup(g, 'sign-pop', _signPopupSvg(si) + d.t, d.b);
+    };
+    g.addEventListener('click', e => {
+      e.stopPropagation();
+      if (activeTag === g) { closePopup(); return; }
+      openSignPopup();
+    });
+    // Desktop hover — show popup without click. Skip touch (relies on click).
+    // The document-level mouseleave handler can't reach SVG nodes (its _closest
+    // helper only walks HTMLElement ancestors), so close directly here.
+    g.addEventListener('pointerenter', e => {
+      if (e.pointerType === 'touch') return;
+      if (activeTag === g) return;
+      openSignPopup();
+    });
+    g.addEventListener('pointerleave', e => {
+      if (e.pointerType === 'touch') return;
+      if (activeTag !== g) return;
+      setTimeout(() => {
+        if (activeTag === g && activePopup && !activePopup.matches(':hover')) closePopup();
+      }, 200);
     });
   });
 }
@@ -2978,6 +3059,27 @@ window.hydrateReading = hydrateReading;
   }
   window.addEventListener('reading:hydrated', function() { setTimeout(attachHintObservers, 150); });
   document.addEventListener('DOMContentLoaded', attachHintObservers);
+})();
+
+// ═══ MOBILE: SCROLL-ACTIVATE CARDS ═══
+// On mobile, hover doesn't work — instead, mark a card "active" (mirrors :hover
+// styles via .c.c-active / .card.c-active in globals.css) when it crosses the
+// viewport vertical center band. Pattern mirrors the .h-active observer above.
+(function() {
+  if (typeof IntersectionObserver === 'undefined') return;
+  if (typeof matchMedia === 'undefined' || !matchMedia('(max-width: 720px)').matches) return;
+  var _cObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(en) { en.target.classList.toggle('c-active', en.isIntersecting); });
+  }, { rootMargin: '-45% 0px -45% 0px' }); // ~10% band around viewport vertical center
+  function attachCardObservers() {
+    document.querySelectorAll('.c:not([data-c-obs]),.card:not([data-c-obs])').forEach(function(el) {
+      el.setAttribute('data-c-obs', '1');
+      _cObs.observe(el);
+    });
+  }
+  window.addEventListener('reading:hydrated', function() { setTimeout(attachCardObservers, 150); });
+  document.addEventListener('DOMContentLoaded', attachCardObservers);
+  attachCardObservers();
 })();
 
 // ═══ INIT ═══

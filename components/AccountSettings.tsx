@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { withCsrfHeaders } from '@/lib/auth/client';
 import type { User, AccountType } from '@/types/user';
 
 /* ── Tier display config ── */
@@ -133,25 +134,32 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
     }
     setNameSaving(true);
     try {
-      await fetch('/api/user/profile', {
+      const init = await withCsrfHeaders({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ full_name: trimmed }),
       });
-      // Update sidebar name
-      const sbName = document.querySelector('.sb-name');
-      if (sbName) sbName.textContent = trimmed;
-      const sbAvatar = document.querySelector('.sb-avatar');
-      if (sbAvatar) sbAvatar.textContent = trimmed.charAt(0).toUpperCase();
-    } catch { /* silent */ }
+      const res = await fetch('/api/user/profile', init);
+      if (res.ok) {
+        const sbName = document.querySelector('.sb-name');
+        if (sbName) sbName.textContent = trimmed;
+        const sbAvatar = document.querySelector('.sb-avatar');
+        if (sbAvatar) sbAvatar.textContent = trimmed.charAt(0).toUpperCase();
+      } else {
+        setNameValue(user.full_name || '');
+      }
+    } catch {
+      setNameValue(user.full_name || '');
+    }
     setNameSaving(false);
     setEditingName(false);
   };
 
   /* ── Switch language ── */
-  const switchLang = (lang: 'ka' | 'en') => {
+  const switchLang = async (lang: 'ka' | 'en') => {
     if (lang === activeLang) return;
+    const prev = activeLang;
     setActiveLang(lang);
     // Fire the runtime lang-switch event
     const w = window as unknown as Record<string, unknown>;
@@ -160,13 +168,22 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
       ? document.querySelectorAll('.lo')[1] as HTMLElement
       : document.querySelectorAll('.lo')[0] as HTMLElement;
     if (setLangFn && btn) setLangFn(lang, btn);
-    // Persist to DB
-    fetch('/api/user/language', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ language: lang }),
-    }).catch(() => {});
+    try {
+      const init = await withCsrfHeaders({
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ language: lang }),
+      });
+      const res = await fetch('/api/user/language', init);
+      if (!res.ok) {
+        setActiveLang(prev);
+        if (setLangFn && btn) setLangFn(prev, btn);
+      }
+    } catch {
+      setActiveLang(prev);
+      if (setLangFn && btn) setLangFn(prev, btn);
+    }
   };
 
   return (

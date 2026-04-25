@@ -30,6 +30,35 @@ export default function LoadingRouteClient() {
   useEffect(() => {
     const supabase = createClient();
 
+    // Mobile browsers throttle/suspend background tabs, freezing the polling
+    // loop. When the tab becomes visible again, force-check status so a
+    // completed reading redirects immediately instead of waiting for the
+    // (possibly stalled) loop to resume.
+    let navigated = false;
+    const checkOnVisible = async () => {
+      if (document.visibilityState !== 'visible' || navigated) return;
+      try {
+        const res = await fetch('/api/onboarding/status', { credentials: 'include' });
+        if (!res.ok) return;
+        const status = await res.json() as { status: string; complete?: boolean; shareSlug?: string; error?: string };
+        if (status.status === 'failed') {
+          const detail = status.error ? `: ${status.error.slice(0, 240)}` : '';
+          setErrorText(`Generation failed${detail}`);
+          setCanReturnToBirth(false);
+          return;
+        }
+        if (status.status !== 'complete') return;
+        navigated = true;
+        if (status.shareSlug) {
+          window.location.href = `/r/${status.shareSlug}`;
+        } else {
+          const finish = (window as unknown as { finishLoading?: () => void }).finishLoading;
+          if (finish) finish();
+        }
+      } catch { /* ignore — polling loop will retry */ }
+    };
+    document.addEventListener('visibilitychange', checkOnVisible);
+
     const run = async () => {
       const w = window as unknown as Record<string, unknown>;
       w.__ASTROLO_LIVE_LOADING = true;
@@ -179,9 +208,18 @@ export default function LoadingRouteClient() {
 
         const statusRes = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (!statusRes.ok) continue;
-        const status = await statusRes.json() as { status: string; complete?: boolean; readingId?: string | null; shareSlug?: string };
+        const status = await statusRes.json() as { status: string; complete?: boolean; readingId?: string | null; shareSlug?: string; error?: string };
+
+        if (status.status === 'failed') {
+          const detail = status.error ? `: ${status.error.slice(0, 240)}` : '';
+          setErrorText(`Generation failed${detail}`);
+          setCanReturnToBirth(false);
+          return;
+        }
 
         if (status.status === 'complete') {
+          if (navigated) return;
+          navigated = true;
           if (status.shareSlug) {
             window.location.href = `/r/${status.shareSlug}`;
           } else {
@@ -194,6 +232,10 @@ export default function LoadingRouteClient() {
     };
 
     run();
+
+    return () => {
+      document.removeEventListener('visibilitychange', checkOnVisible);
+    };
   }, []);
 
   const goBirth = () => {

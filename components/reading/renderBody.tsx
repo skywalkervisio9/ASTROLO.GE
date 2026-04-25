@@ -158,10 +158,14 @@ export function renderExpanded(arr: string[]): ReactNode[] {
       continue;
     }
 
-    // .cl-intro divider: line ending with ':', 4-65 chars, optionally bold-wrapped
-    const bare = s.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
-    if (/^[^.\n]{4,65}:\s*$/.test(bare)) {
-      const cleanText = renderText(bare.replace(/:\s*$/, ''));
+    // .cl-intro divider: line ending with ':' (4-65 chars), or any fully **…**-wrapped standalone line
+    const trimmed = s.trim();
+    const bare = trimmed.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
+    const isColonHeader = /^[^.\n]{4,65}:\s*$/.test(bare);
+    const isBoldHeader = /^\*\*[^*\n]+\*\*$/.test(trimmed) && bare.length >= 4 && bare.length <= 100;
+    if (isColonHeader || isBoldHeader) {
+      const headerText = isColonHeader ? bare.replace(/:\s*$/, '') : bare;
+      const cleanText = renderText(headerText);
       if (prevIntro) {
         nodes.push(<p key={key++} className="cl-intro-sub">{cleanText}</p>);
         prevIntro = false;
@@ -169,7 +173,7 @@ export function renderExpanded(arr: string[]): ReactNode[] {
         nodes.push(
           <p key={key++} className="cl-intro">
             <span className="cl-dl"><i/><i/><i/></span>
-            {cleanText}
+            <span>{cleanText}</span>
             <span className="cl-dr"><i/><i/><i/></span>
           </p>
         );

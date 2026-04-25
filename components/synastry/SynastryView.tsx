@@ -134,6 +134,8 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
   const [activeSection, setActiveSection] = useState(0);
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
   const navRef = useRef<HTMLElement>(null);
+  const isProgrammaticNavScroll = useRef(false);
+  const userOverrideUntil = useRef(0);
 
   // Scroll-aware active-section tracking (mirrors the nbtn behaviour in natal)
   useEffect(() => {
@@ -151,6 +153,60 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
     sectionRefs.current.forEach((ref) => ref && observer.observe(ref));
     return () => observer.disconnect();
   }, [reading]);
+
+  // Auto-center the active .snb pill within the .snav bar.
+  // A manual horizontal scroll on the nav suspends centering for ~2.5s so
+  // the user's position is preserved until the next section change.
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    if (Date.now() < userOverrideUntil.current) return;
+
+    const target = nav.querySelectorAll<HTMLButtonElement>('.snb')[activeSection];
+    if (!target) return;
+
+    const navRect = nav.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const offset = (targetRect.left - navRect.left) + targetRect.width / 2 - navRect.width / 2;
+    const desired = nav.scrollLeft + offset;
+    if (Math.abs(desired - nav.scrollLeft) < 2) return;
+
+    // rAF-based smooth scroll — Element.scrollTo({behavior:'smooth'}) silently
+    // no-ops on some flex containers, so animate scrollLeft directly.
+    isProgrammaticNavScroll.current = true;
+    const startSL = nav.scrollLeft;
+    const delta = desired - startSL;
+    const dur = 380;
+    let startT: number | undefined;
+    let rafId: number;
+    const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    const step = (t: number) => {
+      if (startT === undefined) startT = t;
+      const p = Math.min(1, (t - startT) / dur);
+      nav.scrollLeft = startSL + delta * ease(p);
+      if (p < 1) rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
+    const releaseTimer = window.setTimeout(() => {
+      isProgrammaticNavScroll.current = false;
+    }, dur + 120);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.clearTimeout(releaseTimer);
+    };
+  }, [activeSection]);
+
+  // Detect user-initiated horizontal scroll on the nav and arm an override window
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const onScroll = () => {
+      if (isProgrammaticNavScroll.current) return;
+      userOverrideUntil.current = Date.now() + 2500;
+    };
+    nav.addEventListener('scroll', onScroll, { passive: true });
+    return () => nav.removeEventListener('scroll', onScroll);
+  }, []);
 
   const scrollToSection = useCallback((idx: number) => {
     setActiveSection(idx);
