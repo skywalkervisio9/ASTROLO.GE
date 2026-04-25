@@ -1488,11 +1488,13 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
       tip.querySelector('.tip-planet').textContent = p.g + ' ' + p.n;
       tip.querySelector('.tip-sign').textContent = SIGN_KA[p.si] + ' ' + p.sd;
       tip.querySelector('.tip-house').textContent = p.h + ' სახლი';
-      const pp = pos(p.deg, placed.find(x => x.i === i)?.pr || RP);
-      const sr = svg.getBoundingClientRect();
+      // Use the actual rendered position of the planet dot — viewBox padding
+      // (-40 -40 500 500) means viewBox math doesn't match svg pixel space.
+      const core = g.querySelector('.p-core');
+      const cr = core.getBoundingClientRect();
       const wr = wrap.getBoundingClientRect();
-      tip.style.left = ((pp.x / 420) * sr.width + sr.left - wr.left) + 'px';
-      tip.style.top = ((pp.y / 420) * sr.height + sr.top - wr.top) + 'px';
+      tip.style.left = (cr.left + cr.width / 2 - wr.left) + 'px';
+      tip.style.top = (cr.top + cr.height / 2 - wr.top) + 'px';
       tip.classList.add('show');
     });
     g.addEventListener('mouseleave', () => {
@@ -1512,13 +1514,22 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
   // Zodiac sign popup data
   // Sign click handlers — same popup style as body text (.et / .pl-btn)
   svg.querySelectorAll('.mc-sign-btn').forEach(g => {
-    g.addEventListener('click', e => {
-      e.stopPropagation();
+    const openSignPopup = () => {
       const si = +g.getAttribute('data-sign');
-      if (activeTag === g) { closePopup(); return; }
       const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
       const d = _SIGN_DATA[lang][si];
       _showPopup(g, 'sign-pop', _signPopupSvg(si) + d.t, d.b);
+    };
+    g.addEventListener('click', e => {
+      e.stopPropagation();
+      if (activeTag === g) { closePopup(); return; }
+      openSignPopup();
+    });
+    // Desktop hover — show popup without click. Skip touch (relies on click).
+    g.addEventListener('pointerenter', e => {
+      if (e.pointerType === 'touch') return;
+      if (activeTag === g) return;
+      openSignPopup();
     });
   });
 }
