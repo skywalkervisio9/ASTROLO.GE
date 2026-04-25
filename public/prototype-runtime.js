@@ -1252,14 +1252,14 @@ document.addEventListener('pointerdown', e => {
   closePopup();
 }, true);
 
-// Close popup on mouseleave from popup trigger tags (delegated)
-document.addEventListener('mouseleave', e => {
-  var tag = _closest(e.target, '.et') || _closest(e.target, '.pl-btn') || _closest(e.target, '.aspect-tag')
-         || _closest(e.target, '.sign-td') || _closest(e.target, '.mc-sign-btn') || _closest(e.target, '.house-td');
-  if (tag && activePopup && activeTag === tag) {
-    setTimeout(() => { if (activePopup && !activePopup.matches(':hover')) closePopup(); }, 200);
-  }
-}, true);
+// Click-driven popups (.et / .pl-btn / .sign-td / .house-td / .aspect-tag)
+// dismiss only on click — clicking the trigger again toggles, clicking
+// elsewhere triggers the close-elsewhere paths above. We previously closed
+// on mouseleave with a 200 ms grace, but for popups positioned BELOW the
+// anchor (when the anchor is near the top of the viewport) users moving
+// the cursor to read the popup would race the timer and the popup would
+// close mid-animation. The hover-driven .mc-sign-btn case has its own
+// pointerleave handler in renderMiniChart.
 
 
 // Nudge .tip tooltip left/right to stay within viewport edges

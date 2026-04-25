@@ -299,6 +299,7 @@ span.pt{color:var(--gold);font-family:'Outfit',sans-serif;letter-spacing:.07em;f
 .el-popup.fire-pop{border-color:rgba(212,100,74,.2)}.el-popup.fire-pop .el-popup-title{color:var(--fire)}
 .el-popup.earth-pop{border-color:rgba(107,154,107,.2)}.el-popup.earth-pop .el-popup-title{color:var(--earth)}
 .el-popup.air-pop{border-color:rgba(107,143,181,.2)}.el-popup.air-pop .el-popup-title{color:var(--air)}
+.el-popup.water-pop{border-color:rgba(123,107,170,.2)}.el-popup.water-pop .el-popup-title{color:var(--water)}
 .pt td.pl-btn,.pt td.sign-td,.pt td.house-td{cursor:pointer;transition:all .3s;border-radius:4px;position:relative}
 .pt td.pl-btn:hover,.pt td.sign-td:hover,.pt td.house-td:hover{background:rgba(201,168,76,.06)}
 .pt td.pl-sun{color:#c9a84c}.pt td.pl-sun:hover{text-shadow:0 0 10px rgba(201,168,76,.4)}
