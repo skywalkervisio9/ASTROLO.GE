@@ -966,6 +966,39 @@ function initObservers() {
     _calcSecBounds();
     window.addEventListener('resize', _calcSecBounds);
 
+    // Auto-center the active .nbtn within its horizontal scroll container.
+    // Manual horizontal scroll on the nav suspends centering for ~2.5s.
+    var _navCt = document.querySelector('.nb .ct');
+    var _prevActiveIdx = -1;
+    var _navUserOverrideUntil = 0;
+    var _navIsProgrammatic = false;
+    var _navProgTimer;
+    var _navAnimId;
+    function _navSmoothScrollTo(target, dur) {
+      if (!_navCt) return;
+      if (_navAnimId) cancelAnimationFrame(_navAnimId);
+      var startSL = _navCt.scrollLeft;
+      var delta = target - startSL;
+      if (Math.abs(delta) < 1) return;
+      var startT;
+      // easeInOutQuad
+      function ease(t) { return t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+      function step(t) {
+        if (!startT) startT = t;
+        var p = Math.min(1, (t - startT) / dur);
+        _navCt.scrollLeft = startSL + delta * ease(p);
+        if (p < 1) _navAnimId = requestAnimationFrame(step);
+        else _navAnimId = null;
+      }
+      _navAnimId = requestAnimationFrame(step);
+    }
+    if (_navCt) {
+      _navCt.addEventListener('scroll', function() {
+        if (_navIsProgrammatic) return;
+        _navUserOverrideUntil = Date.now() + 2500;
+      }, { passive: true });
+    }
+
     window._syncNavProgress = function() {
       var offset = 130; // px from top to consider a section "in view"
       var activeNavIdx = 0;
@@ -974,6 +1007,21 @@ function initObservers() {
       }
       nbs.forEach(function(b) { b.classList.remove('active'); });
       if (nbs[activeNavIdx]) nbs[activeNavIdx].classList.add('active');
+
+      // Center the active pill — only when active idx changes and user isn't dragging the nav
+      if (activeNavIdx !== _prevActiveIdx && _navCt && nbs[activeNavIdx] && Date.now() >= _navUserOverrideUntil) {
+        var btn = nbs[activeNavIdx];
+        var ctRect = _navCt.getBoundingClientRect();
+        var bRect = btn.getBoundingClientRect();
+        var desired = _navCt.scrollLeft + (bRect.left - ctRect.left) + bRect.width / 2 - ctRect.width / 2;
+        if (Math.abs(desired - _navCt.scrollLeft) > 2) {
+          _navIsProgrammatic = true;
+          _navSmoothScrollTo(desired, 380);
+          if (_navProgTimer) clearTimeout(_navProgTimer);
+          _navProgTimer = setTimeout(function() { _navIsProgrammatic = false; }, 500);
+        }
+      }
+      _prevActiveIdx = activeNavIdx;
 
       // Progress bar: 0 = top of first section, 100 = bottom of last section scrolled into view
       var scrollable = (_lastSecBottom || 0) - window.innerHeight - (_firstSecTop || 0);
