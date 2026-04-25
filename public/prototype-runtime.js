@@ -1151,7 +1151,9 @@ function getElType(el) {
 // All popup interactions use event delegation so they work on dynamically hydrated content.
 
 function _showPopup(anchor, className, titleHtml, bodyHtml) {
-  closePopup();
+  // Replace synchronously — closePopup() defers removal 250ms (fade-out),
+  // which would briefly stack the old popup over the new one ("glitches for a second").
+  if (activePopup) { activePopup.remove(); activePopup = null; activeTag = null; }
   const pop = document.createElement('div');
   pop.className = 'el-popup ' + className;
   pop.innerHTML = '<div class="el-popup-title">' + titleHtml + '</div><div class="el-popup-body">' + bodyHtml + '</div>';
@@ -1238,6 +1240,17 @@ document.addEventListener('click', e => {
   // Close popup when clicking elsewhere
   if (activePopup && !_closest(e.target, '.el-popup') && !_closest(e.target, '.mc-sign-btn')) closePopup();
 });
+
+// iOS Safari only fires `click` on elements that look interactive (links, buttons,
+// role=button, onclick handlers). Taps on plain divs / page background never reach
+// the close-elsewhere handler above. `pointerdown` fires on any element, so use it
+// purely for outside-close. Triggers handle their own toggle via the click handler.
+const _POPUP_TRIGGER_SEL = '.et,.pl-btn,.sign-td,.house-td,.aspect-tag,.mc-sign-btn,.el-popup';
+document.addEventListener('pointerdown', e => {
+  if (!activePopup) return;
+  if (_closest(e.target, _POPUP_TRIGGER_SEL)) return;
+  closePopup();
+}, true);
 
 // Close popup on mouseleave from popup trigger tags (delegated)
 document.addEventListener('mouseleave', e => {
@@ -2978,6 +2991,27 @@ window.hydrateReading = hydrateReading;
   }
   window.addEventListener('reading:hydrated', function() { setTimeout(attachHintObservers, 150); });
   document.addEventListener('DOMContentLoaded', attachHintObservers);
+})();
+
+// ═══ MOBILE: SCROLL-ACTIVATE CARDS ═══
+// On mobile, hover doesn't work — instead, mark a card "active" (mirrors :hover
+// styles via .c.c-active / .card.c-active in globals.css) when it crosses the
+// viewport vertical center band. Pattern mirrors the .h-active observer above.
+(function() {
+  if (typeof IntersectionObserver === 'undefined') return;
+  if (typeof matchMedia === 'undefined' || !matchMedia('(max-width: 720px)').matches) return;
+  var _cObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(en) { en.target.classList.toggle('c-active', en.isIntersecting); });
+  }, { rootMargin: '-45% 0px -45% 0px' }); // ~10% band around viewport vertical center
+  function attachCardObservers() {
+    document.querySelectorAll('.c:not([data-c-obs]),.card:not([data-c-obs])').forEach(function(el) {
+      el.setAttribute('data-c-obs', '1');
+      _cObs.observe(el);
+    });
+  }
+  window.addEventListener('reading:hydrated', function() { setTimeout(attachCardObservers, 150); });
+  document.addEventListener('DOMContentLoaded', attachCardObservers);
+  attachCardObservers();
 })();
 
 // ═══ INIT ═══
