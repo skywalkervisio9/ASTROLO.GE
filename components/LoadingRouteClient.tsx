@@ -40,7 +40,13 @@ export default function LoadingRouteClient() {
       try {
         const res = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (!res.ok) return;
-        const status = await res.json() as { status: string; complete?: boolean; shareSlug?: string };
+        const status = await res.json() as { status: string; complete?: boolean; shareSlug?: string; error?: string };
+        if (status.status === 'failed') {
+          const detail = status.error ? `: ${status.error.slice(0, 240)}` : '';
+          setErrorText(`Generation failed${detail}`);
+          setCanReturnToBirth(false);
+          return;
+        }
         if (status.status !== 'complete') return;
         navigated = true;
         if (status.shareSlug) {
@@ -202,7 +208,14 @@ export default function LoadingRouteClient() {
 
         const statusRes = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (!statusRes.ok) continue;
-        const status = await statusRes.json() as { status: string; complete?: boolean; readingId?: string | null; shareSlug?: string };
+        const status = await statusRes.json() as { status: string; complete?: boolean; readingId?: string | null; shareSlug?: string; error?: string };
+
+        if (status.status === 'failed') {
+          const detail = status.error ? `: ${status.error.slice(0, 240)}` : '';
+          setErrorText(`Generation failed${detail}`);
+          setCanReturnToBirth(false);
+          return;
+        }
 
         if (status.status === 'complete') {
           if (navigated) return;
