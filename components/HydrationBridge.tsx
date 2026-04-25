@@ -14,10 +14,12 @@ import { whenRuntimeReady } from "@/lib/runtime-ready";
 
 export default function HydrationBridge() {
   const { user, authUser } = useAuth();
-  const { reading } = useReading("ka", authUser?.id);
+  // Hold the reading fetch until user.language is known — otherwise we'd
+  // request `ka` first and re-fetch when the profile arrives.
+  const { reading } = useReading(user?.language ?? "ka", user ? authUser?.id : undefined);
   const initialHydrated = useRef(false);
 
-  // Initial hydration with the default (ka) reading
+  // Initial hydration with the user's preferred-language reading
   useEffect(() => {
     if (!user || !reading || initialHydrated.current) return;
 
@@ -25,6 +27,17 @@ export default function HydrationBridge() {
     whenRuntimeReady().then(() => {
       if (cancelled) return;
       const w = window as unknown as Record<string, unknown>;
+
+      // Sync body class + active toggle + applyTranslations to the user's
+      // preference before hydrateReading runs (it derives lang from body class).
+      // setLang's re-fetch branches are no-ops here: __hydrationBridgeActive
+      // isn't set yet, and _currentUser is only assigned inside hydrateReading.
+      if (user.language === "en") {
+        const enBtn = document.querySelectorAll<HTMLElement>(".lg .lo")[1] ?? null;
+        const setLangFn = w.setLang as ((l: string, b: HTMLElement | null) => void) | undefined;
+        if (setLangFn) setLangFn("en", enBtn);
+      }
+
       if (typeof w.hydrateReading === "function") {
         (w.hydrateReading as (r: unknown, u: unknown) => void)(reading, user);
         initialHydrated.current = true;

@@ -1526,10 +1526,19 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
       openSignPopup();
     });
     // Desktop hover — show popup without click. Skip touch (relies on click).
+    // The document-level mouseleave handler can't reach SVG nodes (its _closest
+    // helper only walks HTMLElement ancestors), so close directly here.
     g.addEventListener('pointerenter', e => {
       if (e.pointerType === 'touch') return;
       if (activeTag === g) return;
       openSignPopup();
+    });
+    g.addEventListener('pointerleave', e => {
+      if (e.pointerType === 'touch') return;
+      if (activeTag !== g) return;
+      setTimeout(() => {
+        if (activeTag === g && activePopup && !activePopup.matches(':hover')) closePopup();
+      }, 200);
     });
   });
 }
