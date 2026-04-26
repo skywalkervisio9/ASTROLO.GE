@@ -459,6 +459,16 @@ export default function BodyContent() {
   <div className="dev-sep"></div>
   <div className="dev-label">TEST USER</div>
   <div className="dev-row">
+    <button className="dev-btn" id="devPrevPrevLogin" onClick={async (e) => {
+      const btn = e.currentTarget;
+      btn.textContent = '...';
+      try {
+        const res = await fetch('/api/dev/test-user?offset=2');
+        if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '⬅⬅ Prev2'; }, 1500); return; }
+        const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
+        await devSignInAndGo(data);
+      } catch { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = '⬅⬅ Prev2'; }, 1500); }
+    }}>⬅⬅ Prev2</button>
     <button className="dev-btn" id="devPrevLogin" onClick={async (e) => {
       const btn = e.currentTarget;
       btn.textContent = '...';
