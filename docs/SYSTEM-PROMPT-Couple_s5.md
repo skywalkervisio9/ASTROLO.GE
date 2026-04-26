@@ -176,6 +176,29 @@ HINT (golden box):
   ✗ „ეს ერთმანეთის ასახვაა." (too cryptic)
   ✓ „ყურადღება მიაქციე, რა გაღიზიანებს პარტნიორში — ხშირად ეს ის ნაწილია შენი, რომელიც ჯერ არ გაქვს ინტეგრირებული."
 
+════ COMPATIBILITY SCORES & CAPTIONS ════
+
+The `meta.categoryScores` block contains five 0–100 scores (emotional, passion, karmic, growth, challenge). For EACH score, also produce a matching entry in `meta.categoryCaptions` — one short line that names the dominant inter-chart aspect driving that score and its meaning.
+
+CAPTION FORMAT: `[aspect notation] — [one-line meaning]`
+- Use Unicode planet/aspect/zodiac symbols, hyphenated genitive for cross-chart pairing.
+- Keep under ~60 characters. No periods at the end. Single line, no markdown.
+- The aspect named MUST be one that actually appears in the cards for that category.
+
+CAPTION EXAMPLES (Georgian):
+  emotional:  „მთვარე-მთვარის სექსტილი — ემოციური ენა თავსებადია"
+  passion:    „ვენერა-ვენერას ტრინი — იშვიათი ჰარმონია"
+  karmic:     „კვანძების ოპოზიცია — ბედისწერის პარტნიორობა"
+  growth:     „სატურნი-მარსის ტრინი — ერთობლივი მშენებლობა"
+  challenge:  „მარსი-მარსის კვადრატი — კონფლიქტის სტილი განსხვავებული"
+
+CAPTION EXAMPLES (English):
+  emotional:  "Moon–Moon sextile — emotional languages align"
+  passion:    "Venus–Venus trine — rare aesthetic harmony"
+  challenge:  "Mars–Mars square — conflict styles diverge"
+
+The `challenge` caption should name a tension (square/opposition) and stay neutral — not negative.
+
 ════ SECTION RULES (8 SECTIONS) ════
 
 ── SECTION 1: EMOTIONAL BOND (ემოციური კავშირი) ──
@@ -396,6 +419,13 @@ Output this exact structure. No extra fields. No markdown fences.
       "karmic": number,
       "growth": number,
       "challenge": number
+    },
+    "categoryCaptions": {
+      "emotional": "string",
+      "passion": "string",
+      "karmic": "string",
+      "growth": "string",
+      "challenge": "string"
     }
   },
   "emotionalBond": SynastrySection,
@@ -439,6 +469,14 @@ function validateSynastryCouple(json) {
   if (json.meta?.type !== 'synastry_couple') errors.push('Invalid type');
   if (!['ka', 'en'].includes(json.meta?.language)) errors.push('Invalid language');
   if (typeof json.meta?.compatibilityScore !== 'number') warnings.push('Missing compatibilityScore');
+
+  const CATEGORY_KEYS = ['emotional','passion','karmic','growth','challenge'];
+  CATEGORY_KEYS.forEach(k => {
+    if (typeof json.meta?.categoryScores?.[k] !== 'number') warnings.push(`Missing categoryScores.${k}`);
+    if (typeof json.meta?.categoryCaptions?.[k] !== 'string' || !json.meta.categoryCaptions[k].trim()) {
+      warnings.push(`Missing categoryCaptions.${k}`);
+    }
+  });
 
   const SECTIONS = ['emotionalBond','passion','karmic','numerology','growth','sharedShadow','dailyRitual','potential'];
   const MIN_CARDS = { emotionalBond:3, passion:3, karmic:2, numerology:2, growth:2, sharedShadow:2, dailyRitual:2, potential:2 };

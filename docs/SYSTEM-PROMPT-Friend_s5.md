@@ -187,6 +187,30 @@ HINT (golden box):
   ✗ „ეს ერთმანეთის ასახვაა." (too cryptic)
   ✓ „ყურადღება მიაქციე, სად ეთანხმება პარტნიორი ყოველთვის — ხშირად ეს ადგილია, სადაც მეგობარი შენს გაზრდას გეხმარება, თვითონ მსგავსი გამოწვევის განცდაა."
 
+════ COMPATIBILITY SCORES & CAPTIONS ════
+
+The `meta.categoryScores` block contains six 0–100 scores (emotional, intellectual, values, karmic, growth, challenge). For EACH score, also produce a matching entry in `meta.categoryCaptions` — one short line that names the dominant inter-chart aspect driving that score and its meaning.
+
+CAPTION FORMAT: `[aspect notation] — [one-line meaning]`
+- Use Unicode planet/aspect/zodiac symbols, hyphenated genitive for cross-chart pairing.
+- Keep under ~60 characters. No periods at the end. Single line, no markdown.
+- The aspect named MUST be one that actually appears in the cards for that category.
+
+CAPTION EXAMPLES (Georgian):
+  emotional:    „მთვარე-მთვარის სექსტილი — ემოციური ენა თავსებადია"
+  intellectual: „მერკური-მზის კვადრატი — საუბრები ინტენსიურია"
+  values:       „ვენერა-იუპიტერის ტრინი — საერთო იდეალები"
+  karmic:       „კვანძების კონიუნქცია — საერთო მისია"
+  growth:       „იუპიტერ-მარსის ტრინი — გაბედული გზა ერთად"
+  challenge:    „სატურნი-მთვარის კვადრატი — განსხვავებული რიტმი"
+
+CAPTION EXAMPLES (English):
+  emotional:    "Moon–Moon sextile — emotional languages align"
+  intellectual: "Mercury–Sun square — conversations run hot"
+  challenge:    "Saturn–Moon square — different rhythms of safety"
+
+The `challenge` caption should name a tension (square/opposition) and stay neutral — not negative.
+
 ════ SECTION RULES (8 SECTIONS) ════
 
 ── SECTION 1: EMOTIONAL BOND (ემოციური კავშირი) ──
@@ -414,6 +438,14 @@ Output this exact structure. No extra fields. No markdown fences.
       "karmic": number,
       "growth": number,
       "challenge": number
+    },
+    "categoryCaptions": {
+      "emotional": "string",
+      "intellectual": "string",
+      "values": "string",
+      "karmic": "string",
+      "growth": "string",
+      "challenge": "string"
     }
   },
   "emotionalBond": SynastrySection,
@@ -457,6 +489,14 @@ function validateSynastryFriend(json) {
   if (json.meta?.type !== 'synastry_friend') errors.push('Invalid type — must be synastry_friend');
   if (!['ka', 'en'].includes(json.meta?.language)) errors.push('Invalid language');
   if (typeof json.meta?.compatibilityScore !== 'number') warnings.push('Missing compatibilityScore');
+
+  const CATEGORY_KEYS = ['emotional','intellectual','values','karmic','growth','challenge'];
+  CATEGORY_KEYS.forEach(k => {
+    if (typeof json.meta?.categoryScores?.[k] !== 'number') warnings.push(`Missing categoryScores.${k}`);
+    if (typeof json.meta?.categoryCaptions?.[k] !== 'string' || !json.meta.categoryCaptions[k].trim()) {
+      warnings.push(`Missing categoryCaptions.${k}`);
+    }
+  });
 
   const SECTIONS = ['emotionalBond','intellectualSynergy','karmic','numerology','growth','sharedShadow','sharedAdventures','potential'];
   const MIN_CARDS = { emotionalBond:3, intellectualSynergy:3, karmic:2, numerology:2, growth:2, sharedShadow:2, sharedAdventures:3, potential:2 };

@@ -41,6 +41,7 @@ export interface SynastryMeta {
   personB: { name: string; sun: string; moon: string; asc: string };
   compatibilityScore: number;
   categoryScores: Record<string, number>;
+  categoryCaptions?: Record<string, string>;
 }
 
 export interface SynastryReadingData {
@@ -281,6 +282,7 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
               category={key}
               label={catLabels[key] || key}
               score={score as number}
+              caption={meta.categoryCaptions?.[key]}
             />
           ))}
         </div>
@@ -417,7 +419,7 @@ const CAT_TO_ELEMENT: Record<string, string> = {
   values: 'var(--gold)',
 };
 
-function CategoryBar({ category, label, score }: { category: string; label: string; score: number }) {
+function CategoryBar({ category, label, score, caption }: { category: string; label: string; score: number; caption?: string }) {
   const tone = CAT_TO_ELEMENT[category] || 'var(--gold)';
   return (
     <div className="cat">
@@ -434,6 +436,7 @@ function CategoryBar({ category, label, score }: { category: string; label: stri
           }}
         />
       </div>
+      {caption && <p className="cat-desc">{caption}</p>}
     </div>
   );
 }
