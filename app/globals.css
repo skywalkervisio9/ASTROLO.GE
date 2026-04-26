@@ -228,12 +228,13 @@ section.vis{opacity:1;transform:translateY(0)}
 .as:hover{border-color:rgba(85,85,85,.2);box-shadow:0 4px 20px rgba(85,85,85,.06),0 12px 40px rgba(85,85,85,.04)}
 .ag:hover{border-color:rgba(201,168,76,.2);box-shadow:0 4px 20px rgba(201,168,76,.06),0 12px 40px rgba(201,168,76,.04)}
 
-.b{display:inline-flex;align-items:center;gap:2px;line-height:1;font-size:.6rem;letter-spacing:.12em;color:var(--gold);padding:4px 12px;background:rgba(201,168,76,.06);border-radius:100px;border:1px solid rgba(201,168,76,.1);margin-bottom:12px}
+.b{display:inline-flex;align-items:center;gap:2px;line-height:1;font-size:.6rem;letter-spacing:.12em;color:var(--gold);padding:4px 12px;background:rgba(201,168,76,.06);border-radius:100px;border:1px solid rgba(201,168,76,.1);margin-bottom:12px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .b svg{width:10px;height:10px;fill:var(--gold)}
 .b-theme{background:linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.03));border:1px solid rgba(201,168,76,.15);color:var(--gold);font-style:italic;letter-spacing:.1em}
 .b-theme::before{content:'◇';margin-right:2px;font-style:normal;font-size:.55rem;opacity:.7}
 /* Label hover popup (crossReferences rendered as tooltip on badge) */
 .b.has-popup,.card-label.has-popup{position:relative;cursor:help}
+.b.has-popup:hover,.card-label.has-popup:hover{z-index:200}
 .label-popup{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--sf2);color:var(--silver);padding:8px 14px;border-radius:10px;font-size:.7rem;font-family:var(--fb);font-weight:400;letter-spacing:.02em;line-height:1.65;white-space:normal;width:max-content;max-width:340px;opacity:0;pointer-events:none;transition:opacity .25s;border:1px solid rgba(201,168,76,.12);z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.5)}
 .b.has-popup:hover .label-popup,.card-label.has-popup:hover .label-popup{opacity:1;pointer-events:all}
 .c h3{font-family:var(--fd);font-weight:500;font-size:1.1rem;color:var(--tx);margin-bottom:12px;line-height:1.45;display:flex;align-items:center;gap:8px}
@@ -432,7 +433,7 @@ span.pt{color:var(--gold);font-family:'Outfit',sans-serif;letter-spacing:.07em;f
 .gi-water:hover svg{filter:drop-shadow(0 0 5px var(--water))}
 .b .gi{width:12px;height:12px;flex-shrink:0;min-width:12px}
 /* Neutralise span.pt size/spacing overrides inside label badge */
-.b span.pt{font-size:inherit;letter-spacing:inherit;font-family:inherit;font-weight:inherit}
+.b span.pt{font-size:inherit;letter-spacing:inherit;font-family:inherit;font-weight:inherit;line-height:inherit;display:inline-flex;align-items:center}
 .c p .gi,.c h3 .gi{width:1.1em;height:1.1em}
 
 /* ═══ LOCKED SECTIONS ═══ */

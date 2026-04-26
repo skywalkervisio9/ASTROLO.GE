@@ -458,7 +458,7 @@ function CategoryBar({ category, label, score, caption }: { category: string; la
           }}
         />
       </div>
-      {caption && <p className="cat-desc">{caption}</p>}
+      {caption && <p className="cat-desc">{renderText(caption)}</p>}
     </div>
   );
 }

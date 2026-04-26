@@ -94,8 +94,8 @@ Use each person's natal analysis to understand their INDIVIDUAL psychological la
 ════ CROSS-REFERENCING (CRITICAL) ════
 
 EVERY inter-chart aspect connects to at least 2 others.
-Show CHAINS: "A's Venus triggers B's Moon which activates B's Saturn which..."
-EVERY card's crossReferences must show a 3+ step chain across BOTH charts.
+Show CHAINS in BODY paragraphs: "A's Venus triggers B's Moon which activates B's Saturn which..."
+crossReferences itself stays SHORT — see crossReferences spec below.
 
 ════ CARD STRUCTURE ════
 
@@ -104,18 +104,20 @@ sectionTagline: One evocative teaser sentence that makes you want to read the se
   ✗ „ეს სექცია მოიცავს ემოციური კავშირის ნიმუშებს" (summary — boring)
 
 LABEL (badge at top of card):
-- Must be ASTROLOGICAL NOTATION showing the inter-chart aspect.
-  Format: [Person A symbol] [Planet] [aspect symbol] [Person B symbol] [Planet] — [signs/houses if space]
+- MAX 22 characters total. Badge, not a sentence. Must fit one line.
+- DOUBLE PLACEMENT (one inter-chart aspect): [name's] [planet] [sign] [aspect] [name's] [planet] [sign]
   ✓ „ნინოს ☽ ♋ ⚹ გიორგის ☽ ♍"
   ✓ „ნინოს ♀ ♎ ☌ გიორგის ♇ ♎"
-  For composite / synthesis cards, use a THEMATIC LABEL:
-  ✓ „კარმული სინთეზი" / „ემოციური არქიტექტურა"
+- THREE+ PLACEMENTS / SYNTHESIS / NODAL / COMPOSITE cards: THEMATIC LABEL ONLY — no notation.
+  ✓ „კარმული სინთეზი" / „ემოციური არქიტექტურა" / „კვანძური ღერძი"
+  ✗ „კვანძების სინთეზი: ნინოს ASC ♌ & გიორგის ☋ ♌" (too long, mixes thematic + notation)
   ALWAYS include planet names in body text — symbols alone are unreadable.
 
 crossReferences (label hover popup):
-- The ASTROLOGICAL CONTEXT for this card's inter-chart aspect.
-- Lead with MEANING, not notation. Reference exact orbs, dignities, and house positions across both charts.
-- Each entry: a 3+ step chain connecting aspects across both charts.
+- The ASTROLOGICAL CONTEXT BLOCK for this card's label — what a curious reader hovering over the badge wants to know.
+- 1-2 short sentences. Information-dense, not a saga.
+- Content: exact orbs, dignity status, house rulerships — technically rich.
+- Lead with MEANING, not notation. The reader should understand the dynamic, not decode astrology.
 
 TITLE (h3):
 - Poetic, evocative, specific to this couple's dynamic. No length limit.
@@ -457,7 +459,7 @@ SynastryCard: {
   "body": ["paragraph"],
   "aspectType": "harmony" | "tension" | "magnetic",
   "accentElement": "fire" | "earth" | "air" | "water",
-  "crossReferences": ["3+ step chain across both charts"],
+  "crossReferences": ["1-2 short sentences: orbs, dignities, house rulerships — meaning-led"],
   "expandedContent": ["paragraph"] | null,
   "hint": { "title": "string", "content": "string" } | null
 }
