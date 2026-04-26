@@ -178,7 +178,7 @@ HINT (golden box):
 
 ════ COMPATIBILITY SCORES & CAPTIONS ════
 
-The `meta.categoryScores` block contains five 0–100 scores (emotional, passion, karmic, growth, challenge). For EACH score, also produce a matching entry in `meta.categoryCaptions` — one short line that names the dominant inter-chart aspect driving that score and its meaning.
+The `meta.categoryScores` block contains six 0–100 scores (emotional, intellectual, passion, karmic, growth, challenge). For EACH score, also produce a matching entry in `meta.categoryCaptions` — one short line that names the dominant inter-chart aspect driving that score and its meaning.
 
 CAPTION FORMAT: `[aspect notation] — [one-line meaning]`
 - Use Unicode planet/aspect/zodiac symbols, hyphenated genitive for cross-chart pairing.
@@ -186,16 +186,18 @@ CAPTION FORMAT: `[aspect notation] — [one-line meaning]`
 - The aspect named MUST be one that actually appears in the cards for that category.
 
 CAPTION EXAMPLES (Georgian):
-  emotional:  „მთვარე-მთვარის სექსტილი — ემოციური ენა თავსებადია"
-  passion:    „ვენერა-ვენერას ტრინი — იშვიათი ჰარმონია"
-  karmic:     „კვანძების ოპოზიცია — ბედისწერის პარტნიორობა"
-  growth:     „სატურნი-მარსის ტრინი — ერთობლივი მშენებლობა"
-  challenge:  „მარსი-მარსის კვადრატი — კონფლიქტის სტილი განსხვავებული"
+  emotional:    „მთვარე-მთვარის სექსტილი — ემოციური ენა თავსებადია"
+  intellectual: „მერკური-მერკურის ტრინი — საუბრები ბუნებრივად მიედინება"
+  passion:      „ვენერა-ვენერას ტრინი — იშვიათი ჰარმონია"
+  karmic:       „კვანძების ოპოზიცია — ბედისწერის პარტნიორობა"
+  growth:       „სატურნი-მარსის ტრინი — ერთობლივი მშენებლობა"
+  challenge:    „მარსი-მარსის კვადრატი — კონფლიქტის სტილი განსხვავებული"
 
 CAPTION EXAMPLES (English):
-  emotional:  "Moon–Moon sextile — emotional languages align"
-  passion:    "Venus–Venus trine — rare aesthetic harmony"
-  challenge:  "Mars–Mars square — conflict styles diverge"
+  emotional:    "Moon–Moon sextile — emotional languages align"
+  intellectual: "Mercury–Mercury trine — conversations flow easily"
+  passion:      "Venus–Venus trine — rare aesthetic harmony"
+  challenge:    "Mars–Mars square — conflict styles diverge"
 
 The `challenge` caption should name a tension (square/opposition) and stay neutral — not negative.
 
@@ -415,6 +417,7 @@ Output this exact structure. No extra fields. No markdown fences.
     "compatibilityScore": number,
     "categoryScores": {
       "emotional": number,
+      "intellectual": number,
       "passion": number,
       "karmic": number,
       "growth": number,
@@ -422,6 +425,7 @@ Output this exact structure. No extra fields. No markdown fences.
     },
     "categoryCaptions": {
       "emotional": "string",
+      "intellectual": "string",
       "passion": "string",
       "karmic": "string",
       "growth": "string",
@@ -470,7 +474,7 @@ function validateSynastryCouple(json) {
   if (!['ka', 'en'].includes(json.meta?.language)) errors.push('Invalid language');
   if (typeof json.meta?.compatibilityScore !== 'number') warnings.push('Missing compatibilityScore');
 
-  const CATEGORY_KEYS = ['emotional','passion','karmic','growth','challenge'];
+  const CATEGORY_KEYS = ['emotional','intellectual','passion','karmic','growth','challenge'];
   CATEGORY_KEYS.forEach(k => {
     if (typeof json.meta?.categoryScores?.[k] !== 'number') warnings.push(`Missing categoryScores.${k}`);
     if (typeof json.meta?.categoryCaptions?.[k] !== 'string' || !json.meta.categoryCaptions[k].trim()) {
