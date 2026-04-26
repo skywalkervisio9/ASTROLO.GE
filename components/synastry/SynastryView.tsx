@@ -117,6 +117,28 @@ const ASPECT_BADGE: Record<string, { symbol: string; tone: string }> = {
   magnetic: { symbol: '◆', tone: 'var(--water)' },
 };
 
+// English zodiac sign → Georgian name (AI emits English signs in meta.personA/B regardless of language)
+const SIGN_KA: Record<string, string> = {
+  aries: 'ვერძი',
+  taurus: 'კურო',
+  gemini: 'ტყუპები',
+  cancer: 'კირჩხიბი',
+  leo: 'ლომი',
+  virgo: 'ქალწული',
+  libra: 'სასწორი',
+  scorpio: 'მორიელი',
+  sagittarius: 'მშვილდოსანი',
+  capricorn: 'თხის რქა',
+  aquarius: 'მერწყული',
+  pisces: 'თევზები',
+};
+
+function localizeSign(sign: string, language: Language): string {
+  if (language !== 'ka' || !sign) return sign;
+  const ka = SIGN_KA[sign.trim().toLowerCase()];
+  return ka || sign;
+}
+
 // ── Main Component ──
 
 interface SynastryViewProps {
@@ -359,19 +381,19 @@ function PartnerCard({
       {isYou && <div className="pc-tooltip">{language === 'ka' ? 'ჩემი რუკა →' : 'My Chart →'}</div>}
       <div className="pc-avatar"><span className="pc-avatar-letter">{initial}</span></div>
       <div className="pc-name">{person.name}</div>
-      <div className="pc-sub">{renderText(`${person.sun} · ${person.moon} · ${person.asc}`)}</div>
+      <div className="pc-sub">{renderText(`${localizeSign(person.sun, language)} · ${localizeSign(person.moon, language)} · ${localizeSign(person.asc, language)}`)}</div>
       <div className="pc-placements">
         <div className="pc-row">
           <span className="pc-row-label"><svg><use href="#gl-sun" /></svg>{language === 'ka' ? 'მზე' : 'Sun'}</span>
-          <span className="pc-row-val">{renderText(person.sun)}</span>
+          <span className="pc-row-val">{renderText(localizeSign(person.sun, language))}</span>
         </div>
         <div className="pc-row">
           <span className="pc-row-label"><svg><use href="#gl-moon" /></svg>{language === 'ka' ? 'მთვარე' : 'Moon'}</span>
-          <span className="pc-row-val">{renderText(person.moon)}</span>
+          <span className="pc-row-val">{renderText(localizeSign(person.moon, language))}</span>
         </div>
         <div className="pc-row">
           <span className="pc-row-label">ASC</span>
-          <span className="pc-row-val">{renderText(person.asc)}</span>
+          <span className="pc-row-val">{renderText(localizeSign(person.asc, language))}</span>
         </div>
       </div>
     </div>
