@@ -149,13 +149,14 @@ expandedContent[] — STRUCTURED FORMAT:
 - Use `1. ` format (numeral · period · space)
 - Prose paragraphs are also allowed between numbered sections.
 - Section headers render as decorative dividers: `"**Header:**"` (bold, standalone, ends with colon). Max ~5 words.
-- NEVER start expandedContent with a `**Header:**` — begin with a numbered item or prose directly.
+- ALWAYS open expandedContent with a leading `**Header:**` that names the table's theme — this mirrors the natal pattern and creates the visible top divider above the two-column table.
 - NEVER place two `**Header:**` lines consecutively.
 - NEVER place a `**Header:**` at the END with nothing following it.
 - NEVER embed multiple numbered items inline in one string.
 
   ✓ CORRECT:
   "expandedContent": [
+    "**მეგობრული სცენარები:**",
     "1. **პირველი შეხება:** ნინოს ♋-ის მთვარე ინსტინქტურად...",
     "2. **გაუგებრობის მომენტი:** გიორგის ♍-ის ☿ ლოგიკურ...",
     "**ინტეგრაციის გზა:**",
