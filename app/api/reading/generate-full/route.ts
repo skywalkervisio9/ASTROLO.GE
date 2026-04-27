@@ -14,6 +14,8 @@ import { jsonServerError } from '@/lib/auth/http';
 import { requireCsrfOrThrow } from '@/lib/auth/csrf';
 import { hasFullReading } from '@/types/user';
 import type { User } from '@/types/user';
+import { invalidateNatalReading } from '@/lib/data/natal-reading';
+import { invalidatePublicReadingByUser } from '@/lib/data/public-reading';
 import {
   buildPlanetTableForReading,
   mergeAspectsForReading,
@@ -143,6 +145,11 @@ export async function POST() {
         .single();
 
       if (saveError) throw saveError;
+
+      // Bust the owner-side natal cache and the public-share cache so the
+      // newly generated reading is served on the next visit.
+      invalidateNatalReading(authUser.id);
+      await invalidatePublicReadingByUser(authUser.id);
 
       return NextResponse.json({ status: 'complete', readingId: saved?.id, shareSlug: saved?.share_slug });
     } catch (call2Error: unknown) {

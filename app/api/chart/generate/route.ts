@@ -18,6 +18,10 @@ import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonBadRequest, jsonServerError } from '@/lib/auth/http';
 import { requireCsrfOrThrow } from '@/lib/auth/csrf';
 import { clearOnboardingToken } from '@/lib/auth/onboarding';
+import {
+  invalidateNatalChart,
+  invalidateNatalReading,
+} from '@/lib/data/natal-reading';
 
 // This handler performs long-running network work (external astrology API + LLM calls),
 // so it must run on the Node.js runtime on Vercel (Edge functions time out quickly).
@@ -386,6 +390,7 @@ export async function POST(req: NextRequest) {
         aspects: normalized.aspects,
         points: normalized.points,
       });
+      invalidateNatalChart(user.id);
     }
 
     if (!context) throw new Error('Missing chart context');
@@ -430,6 +435,7 @@ export async function POST(req: NextRequest) {
         model_call1: call1.model,
         tokens_call1: call1.tokens,
       }, { onConflict: 'user_id' });
+      invalidateNatalReading(user.id);
     }
 
     // 4. Handle invite accept + fire-and-forget synastry trigger
