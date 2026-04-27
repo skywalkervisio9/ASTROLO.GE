@@ -227,6 +227,10 @@ section.vis{opacity:1;transform:translateY(0)}
 .ar:hover{border-color:rgba(196,122,138,.2);box-shadow:0 4px 20px rgba(196,122,138,.06),0 12px 40px rgba(196,122,138,.04)}
 .as:hover{border-color:rgba(85,85,85,.2);box-shadow:0 4px 20px rgba(85,85,85,.06),0 12px 40px rgba(85,85,85,.04)}
 .ag:hover{border-color:rgba(201,168,76,.2);box-shadow:0 4px 20px rgba(201,168,76,.06),0 12px 40px rgba(201,168,76,.04)}
+/* Two-color cards (synastry): left = personA element, right = personB element. Colors come in via inline custom props. */
+.c-2c{border-left:2px solid var(--cL,var(--gd));border-right:2px solid var(--cR,var(--gd))}
+.c-2c::before{background:radial-gradient(ellipse at left center,var(--cL-bg,transparent),transparent 55%),radial-gradient(ellipse at right center,var(--cR-bg,transparent),transparent 55%)!important}
+.c-2c:hover{border-left-color:var(--cL-hover,var(--cL,var(--gd)));border-right-color:var(--cR-hover,var(--cR,var(--gd)));box-shadow:-4px 4px 20px var(--cL-glow,transparent),4px 4px 20px var(--cR-glow,transparent),-8px 12px 40px var(--cL-glow2,transparent),8px 12px 40px var(--cR-glow2,transparent)}
 
 .b{display:inline-flex;align-items:center;gap:2px;line-height:1;font-size:.6rem;letter-spacing:.12em;color:var(--gold);padding:4px 12px;background:rgba(201,168,76,.06);border-radius:100px;border:1px solid rgba(201,168,76,.1);margin-bottom:12px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .b svg{width:10px;height:10px;fill:var(--gold)}
@@ -666,6 +670,9 @@ body[data-view="payment"] .main-natal,body[data-view="payment"] .synastry-wrap,b
 .cat::after{content:'';position:absolute;inset:0;border-radius:14px;opacity:0;transition:opacity .5s;background:radial-gradient(200px circle at var(--mx,50%) var(--my,50%),rgba(201,168,76,.06),transparent 50%);pointer-events:none}
 .cat:hover::after{opacity:1}
 .cat:hover{border-color:rgba(201,168,76,.2);box-shadow:0 4px 20px rgba(201,168,76,.04)}
+.cat-clickable{cursor:pointer}
+.cat-clickable:focus-visible{outline:1px solid var(--gd);outline-offset:2px}
+.cat-clickable:hover{transform:translateY(-1px)}
 .cat-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .cat-name{font-size:.76rem;color:var(--tx);font-weight:400}
 .cat-score{font-family:'Cormorant Garamond',serif;font-size:1.15rem;font-weight:400}
@@ -674,7 +681,7 @@ body[data-view="payment"] .main-natal,body[data-view="payment"] .synastry-wrap,b
 .cat-desc{font-size:.72rem;color:var(--txd);line-height:1.7}
 
 /* Section Nav (sticky) */
-.snav{display:flex;gap:6px;justify-content:center;flex-wrap:nowrap;margin:0 -24px 50px;padding:14px 24px;border-top:1px solid rgba(201,168,76,.04);border-bottom:1px solid rgba(201,168,76,.04);position:sticky;top:56px;z-index:100;background:rgba(10,10,15,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.snav{display:flex;gap:6px;justify-content:center;flex-wrap:nowrap;margin:0 calc(-24px - clamp(0px, (100vw - 880px)/2 - 16px, 80px)) 50px;padding:14px calc(24px + clamp(0px, (100vw - 880px)/2 - 16px, 80px));border-top:1px solid rgba(201,168,76,.04);border-bottom:1px solid rgba(201,168,76,.04);position:sticky;top:56px;z-index:100;background:rgba(10,10,15,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
 .snav::-webkit-scrollbar{display:none}
 .snb{background:none;border:1px solid rgba(201,168,76,.08);color:var(--txd);font-family:var(--fb);font-size:.64rem;letter-spacing:.06em;padding:7px 13px;border-radius:100px;cursor:pointer;transition:all .35s var(--ease);white-space:nowrap;position:relative;overflow:hidden;flex-shrink:0;min-height:34px;display:inline-flex;align-items:center;justify-content:center}
 .snb::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(201,168,76,.08),transparent);opacity:0;transition:opacity .3s;pointer-events:none}

@@ -21,7 +21,12 @@ export interface SynastryCardData {
   title: string;
   body: string[];
   aspectType: 'harmony' | 'tension' | 'magnetic';
-  elementColor: string;
+  // Two-color cards: A = personA's involved planet's sign element, B = personB's.
+  accentElementA?: string;
+  accentElementB?: string;
+  // Legacy single-element field (still emitted by older readings)
+  accentElement?: string;
+  elementColor?: string;
   crossReferences: string[];
   expandedContent: string[] | null;
   hint: { title: string; content: string; bullets: string[] | null } | null;
@@ -99,7 +104,19 @@ const CATEGORY_LABELS_EN: Record<string, string> = {
   values: 'Values',
 };
 
-// elementColor string → short-form accent class used by .c
+// Category bar click → ordered list of candidate section keys to scroll to.
+// First entry that exists in the current reading wins (couple vs. friend differ).
+const CATEGORY_TO_SECTION: Record<string, string[]> = {
+  emotional:    ['emotionalBond'],
+  passion:      ['passion'],
+  karmic:       ['karmic'],
+  growth:       ['growth'],
+  challenge:    ['sharedShadow'],
+  intellectual: ['intellectualSynergy', 'numerology'],
+  values:       ['numerology', 'potential'],
+};
+
+// elementColor string → short-form accent class used by .c (single-color cards)
 const ELEMENT_ACCENT_CLASS: Record<string, string> = {
   fire: 'af',
   earth: 'ae',
@@ -110,11 +127,16 @@ const ELEMENT_ACCENT_CLASS: Record<string, string> = {
   gold: 'ag',
 };
 
-// Aspect type → small colored symbol shown inside the .b badge
-const ASPECT_BADGE: Record<string, { symbol: string; tone: string }> = {
-  harmony: { symbol: '●', tone: 'var(--earth)' },
-  tension: { symbol: '▲', tone: 'var(--fire)' },
-  magnetic: { symbol: '◆', tone: 'var(--water)' },
+// Per-element CSS palette used to render two-color synastry cards.
+// Keys mirror the element names accepted by ELEMENT_ACCENT_CLASS above.
+const ELEMENT_PALETTE: Record<string, { c: string; bg: string; hover: string; glow: string; glow2: string }> = {
+  fire:   { c: 'var(--fire)',   bg: 'rgba(212,100,74,.13)',  hover: 'rgba(212,100,74,.22)',  glow: 'rgba(212,100,74,.06)',  glow2: 'rgba(212,100,74,.04)'  },
+  earth:  { c: 'var(--earth)',  bg: 'rgba(107,154,107,.13)', hover: 'rgba(107,154,107,.22)', glow: 'rgba(107,154,107,.06)', glow2: 'rgba(107,154,107,.04)' },
+  air:    { c: 'var(--air)',    bg: 'rgba(107,143,181,.13)', hover: 'rgba(107,143,181,.22)', glow: 'rgba(107,143,181,.06)', glow2: 'rgba(107,143,181,.04)' },
+  water:  { c: 'var(--water)',  bg: 'rgba(123,107,170,.13)', hover: 'rgba(123,107,170,.22)', glow: 'rgba(123,107,170,.06)', glow2: 'rgba(123,107,170,.04)' },
+  rose:   { c: 'var(--rose)',   bg: 'rgba(196,122,138,.13)', hover: 'rgba(196,122,138,.22)', glow: 'rgba(196,122,138,.06)', glow2: 'rgba(196,122,138,.04)' },
+  shadow: { c: '#555',          bg: 'rgba(85,85,85,.13)',    hover: 'rgba(85,85,85,.22)',    glow: 'rgba(85,85,85,.06)',    glow2: 'rgba(85,85,85,.04)'    },
+  gold:   { c: 'var(--gold)',   bg: 'rgba(201,168,76,.13)',  hover: 'rgba(201,168,76,.22)',  glow: 'rgba(201,168,76,.06)',  glow2: 'rgba(201,168,76,.04)'  },
 };
 
 // English zodiac sign → Georgian name (AI emits English signs in meta.personA/B regardless of language)
@@ -241,6 +263,16 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
     .map((key) => ({ key, data: reading[key] as SynastrySectionData | undefined }))
     .filter((s): s is { key: string; data: SynastrySectionData } => !!s.data);
 
+  // Click on a category bar → scroll to the matching section. Falls back to a sibling
+  // section when the direct target isn't present in this reading variant.
+  const scrollToCategory = useCallback((catKey: string) => {
+    const candidates = CATEGORY_TO_SECTION[catKey] || [];
+    for (const sectionKey of candidates) {
+      const idx = sections.findIndex((s) => s.key === sectionKey);
+      if (idx >= 0) { scrollToSection(idx); return; }
+    }
+  }, [sections, scrollToSection]);
+
   const { meta } = reading;
   const heroTitle = isFriend
     ? (language === 'ka' ? 'ვარსკვლავთა მეგობრობა' : 'Starbound Friendship')
@@ -305,6 +337,7 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
               label={catLabels[key] || key}
               score={score as number}
               caption={meta.categoryCaptions?.[key]}
+              onClick={() => scrollToCategory(key)}
             />
           ))}
         </div>
@@ -441,10 +474,16 @@ const CAT_TO_ELEMENT: Record<string, string> = {
   values: 'var(--gold)',
 };
 
-function CategoryBar({ category, label, score, caption }: { category: string; label: string; score: number; caption?: string }) {
+function CategoryBar({ category, label, score, caption, onClick }: { category: string; label: string; score: number; caption?: string; onClick?: () => void }) {
   const tone = CAT_TO_ELEMENT[category] || 'var(--gold)';
   return (
-    <div className="cat">
+    <div
+      className={`cat${onClick ? ' cat-clickable' : ''}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+    >
       <div className="cat-top">
         <span className="cat-name">{label}</span>
         <span className="cat-score" style={{ color: tone }}>{score}%</span>
@@ -552,18 +591,40 @@ function SynastryCardComponent({
   onToggleExpand: () => void;
   language: Language;
 }) {
-  const elClass = card.elementColor ? (ELEMENT_ACCENT_CLASS[card.elementColor] || '') : '';
+  // Resolve up to two element accents. Falls back to legacy single-element fields.
+  const rawA = (card.accentElementA ?? card.accentElement ?? card.elementColor ?? '').toLowerCase();
+  const rawB = (card.accentElementB ?? '').toLowerCase();
+  const palA = ELEMENT_PALETTE[rawA];
+  const palB = ELEMENT_PALETTE[rawB];
+  const isTwoColor = !!(palA && palB);
+
+  let cardClass = 'c';
+  let cardStyle: React.CSSProperties | undefined;
+  if (isTwoColor) {
+    cardClass = 'c c-2c';
+    cardStyle = {
+      ['--cL' as never]: palA.c,
+      ['--cR' as never]: palB.c,
+      ['--cL-bg' as never]: palA.bg,
+      ['--cR-bg' as never]: palB.bg,
+      ['--cL-hover' as never]: palA.hover,
+      ['--cR-hover' as never]: palB.hover,
+      ['--cL-glow' as never]: palA.glow,
+      ['--cR-glow' as never]: palB.glow,
+      ['--cL-glow2' as never]: palA.glow2,
+      ['--cR-glow2' as never]: palB.glow2,
+    };
+  } else if (palA) {
+    cardClass = `c ${ELEMENT_ACCENT_CLASS[rawA] || ''}`.trim();
+  }
+
   const hasCrossRefs = card.crossReferences && card.crossReferences.length > 0;
   const crossRefPopup = hasCrossRefs ? card.crossReferences.join(' · ') : undefined;
-  const badge = ASPECT_BADGE[card.aspectType] || ASPECT_BADGE.harmony;
 
   return (
-    <div className={`c ${elClass}`.trim()}>
-      {/* Label badge — uses .b (matches natal), aspect symbol prefix */}
+    <div className={cardClass} style={cardStyle}>
+      {/* Label badge — uses .b (matches natal). No leading aspect glyph. */}
       <div className={`b${hasCrossRefs ? ' has-popup' : ''}`}>
-        <span style={{ color: badge.tone }}>
-          {badge.symbol}
-        </span>
         {renderText(card.label)}
         {hasCrossRefs && <span className="label-popup">{crossRefPopup ? renderText(crossRefPopup) : null}</span>}
       </div>

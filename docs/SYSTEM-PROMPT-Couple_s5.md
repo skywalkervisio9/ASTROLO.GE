@@ -458,7 +458,8 @@ SynastryCard: {
   "title": "string",
   "body": ["paragraph"],
   "aspectType": "harmony" | "tension" | "magnetic",
-  "accentElement": "fire" | "earth" | "air" | "water",
+  "accentElementA": "fire" | "earth" | "air" | "water",  // personA's involved planet's sign element (e.g. A's Moon in Cancer → "water"). For thematic/multi-placement cards, pick the dominant element from A's contributing chart points.
+  "accentElementB": "fire" | "earth" | "air" | "water",  // personB's involved planet's sign element (e.g. B's Moon in Virgo → "earth"). May equal accentElementA when both partners' contributing points share an element — that's expected and renders as a balanced single-tone card.
   "crossReferences": ["1-2 short sentences: orbs, dignities, house rulerships — meaning-led"],
   "expandedContent": ["paragraph"] | null,
   "hint": { "title": "string", "content": "string" } | null
@@ -499,7 +500,8 @@ function validateSynastryCouple(json) {
       if (!Array.isArray(c.body) || c.body.length < 3) warnings.push(`${s}[${i}]: body needs 3+ paragraphs`);
       if (!c.crossReferences?.length) warnings.push(`${s}[${i}]: missing crossReferences`);
       if (!['harmony','tension','magnetic'].includes(c.aspectType)) warnings.push(`${s}[${i}]: invalid aspectType`);
-      if (!['fire','earth','air','water'].includes(c.accentElement)) warnings.push(`${s}[${i}]: invalid accentElement`);
+      if (!['fire','earth','air','water'].includes(c.accentElementA)) warnings.push(`${s}[${i}]: invalid accentElementA`);
+      if (!['fire','earth','air','water'].includes(c.accentElementB)) warnings.push(`${s}[${i}]: invalid accentElementB`);
     });
   });
 
