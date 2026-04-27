@@ -1059,3 +1059,46 @@ body[data-view="auth"] .tb .pb { display: none; }
 @media(max-width:500px){
   .stg-panel{width:100vw;border-left:none}
 }
+
+/* ═══ READING SKELETON ═══
+   Placeholder UI shown while a natal/synastry reading is fetched.
+   Mounted via portal into #readingSkeletonHost (see components/reading/ReadingSkeleton.tsx).
+   200ms mount delay in JS prevents flashing on fast cache hits. */
+.reading-skel{padding:24px 0 56px;opacity:0;transition:opacity .25s var(--ease)}
+.reading-skel.reading-skel-in{opacity:1}
+.reading-skel-section{margin:0 0 56px}
+.reading-skel-section + .reading-skel-section{padding-top:24px;border-top:1px solid rgba(201,168,76,.04)}
+.reading-skel-bar{
+  height:14px;
+  border-radius:6px;
+  background:linear-gradient(90deg,
+    rgba(201,168,76,.04) 0%,
+    rgba(201,168,76,.10) 50%,
+    rgba(201,168,76,.04) 100%);
+  background-size:200% 100%;
+  animation:reading-skel-shimmer 1.6s linear infinite;
+}
+.reading-skel-title{width:42%;height:22px;margin:0 auto 16px;border-radius:8px}
+.reading-skel-tagline{width:62%;height:12px;margin:0 auto 36px;opacity:.7}
+.reading-skel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.reading-skel-card{
+  padding:24px 22px;
+  border:1px solid rgba(201,168,76,.06);
+  background:rgba(17,17,24,.4);
+  border-radius:14px;
+  display:flex;flex-direction:column;gap:12px;
+}
+.reading-skel-card-title{width:50%;height:16px;margin-bottom:6px}
+.reading-skel-card-line{width:100%;height:10px;opacity:.6}
+.reading-skel-card-line.short{width:72%}
+@media(max-width:680px){
+  .reading-skel-grid{grid-template-columns:1fr}
+}
+@keyframes reading-skel-shimmer{
+  0%{background-position:200% 0}
+  100%{background-position:-200% 0}
+}
+@media(prefers-reduced-motion:reduce){
+  .reading-skel-bar{animation:none;background:rgba(201,168,76,.06)}
+  .reading-skel{transition:none}
+}

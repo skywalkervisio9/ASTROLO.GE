@@ -219,7 +219,7 @@ export default function BodyContent() {
 <div className="nb"><div className="ct"></div></div>
 
 {/* Content sections injected by hydrateReading() */}
-<div className="ct"></div>
+<div className="ct" id="readingSkeletonHost"></div>
 
 
 {/* ── REMOVED: 8 hardcoded demo sections (s1-s8) ── hydrateReading() builds all content dynamically ── */}
