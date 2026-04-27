@@ -105,8 +105,8 @@ Use each person's natal analysis to understand their INDIVIDUAL psychological la
 ════ CROSS-REFERENCING (CRITICAL) ════
 
 EVERY inter-chart aspect connects to at least 2 others.
-Show CHAINS: "A's Mercury triggers B's Moon which activates B's Saturn which..."
-EVERY card's crossReferences must show a 3+ step chain across BOTH charts.
+Show CHAINS in BODY paragraphs: "A's Mercury triggers B's Moon which activates B's Saturn which..."
+crossReferences itself stays SHORT — see crossReferences spec below.
 
 ════ CARD STRUCTURE ════
 
@@ -115,18 +115,20 @@ sectionTagline: One evocative teaser sentence that makes you want to read the se
   ✗ „ეს სექცია მოიცავს ინტელექტური კავშირის ნიმუშებს" (summary — boring)
 
 LABEL (badge at top of card):
-- Must be ASTROLOGICAL NOTATION showing the inter-chart aspect.
-  Format: [Person A symbol] [Planet] [aspect symbol] [Person B symbol] [Planet] — [signs/houses if space]
+- MAX 22 characters total. Badge, not a sentence. Must fit one line.
+- DOUBLE PLACEMENT (one inter-chart aspect): [name's] [planet] [sign] [aspect] [name's] [planet] [sign]
   ✓ „ნინოს ☽ ♋ ⚹ გიორგის ☽ ♍"
   ✓ „ნინოს ☿ ♊ △ გიორგის ☿ ♒"
-  For composite / synthesis cards, use a THEMATIC LABEL:
-  ✓ „კარმული მეგობრობა" / „ინტელექტური სარკე"
+- THREE+ PLACEMENTS / SYNTHESIS / NODAL / COMPOSITE cards: THEMATIC LABEL ONLY — no notation.
+  ✓ „კარმული მეგობრობა" / „ინტელექტური სარკე" / „კვანძური ღერძი"
+  ✗ „კვანძების სინთეზი: ნინოს ASC ♌ & გიორგის ☋ ♌" (too long, mixes thematic + notation)
   ALWAYS include planet names in body text — symbols alone are unreadable.
 
 crossReferences (label hover popup):
-- The ASTROLOGICAL CONTEXT for this card's inter-chart aspect.
-- Lead with MEANING, not notation. Reference exact orbs, dignities, and house positions across both charts.
-- Each entry: a 3+ step chain connecting aspects across both charts.
+- The ASTROLOGICAL CONTEXT BLOCK for this card's label — what a curious reader hovering over the badge wants to know.
+- 1-2 short sentences. Information-dense, not a saga.
+- Content: exact orbs, dignity status, house rulerships — technically rich.
+- Lead with MEANING, not notation. The reader should understand the dynamic, not decode astrology.
 
 TITLE (h3):
 - Poetic, evocative, specific to this friendship's dynamic. No length limit.
@@ -149,13 +151,14 @@ expandedContent[] — STRUCTURED FORMAT:
 - Use `1. ` format (numeral · period · space)
 - Prose paragraphs are also allowed between numbered sections.
 - Section headers render as decorative dividers: `"**Header:**"` (bold, standalone, ends with colon). Max ~5 words.
-- NEVER start expandedContent with a `**Header:**` — begin with a numbered item or prose directly.
+- ALWAYS open expandedContent with a leading `**Header:**` that names the table's theme — this mirrors the natal pattern and creates the visible top divider above the two-column table.
 - NEVER place two `**Header:**` lines consecutively.
 - NEVER place a `**Header:**` at the END with nothing following it.
 - NEVER embed multiple numbered items inline in one string.
 
   ✓ CORRECT:
   "expandedContent": [
+    "**მეგობრული სცენარები:**",
     "1. **პირველი შეხება:** ნინოს ♋-ის მთვარე ინსტინქტურად...",
     "2. **გაუგებრობის მომენტი:** გიორგის ♍-ის ☿ ლოგიკურ...",
     "**ინტეგრაციის გზა:**",
@@ -186,6 +189,30 @@ HINT (golden box):
 - hint.content: complete, warm prose — a thought that lands. Not a riddle, not a list.
   ✗ „ეს ერთმანეთის ასახვაა." (too cryptic)
   ✓ „ყურადღება მიაქციე, სად ეთანხმება პარტნიორი ყოველთვის — ხშირად ეს ადგილია, სადაც მეგობარი შენს გაზრდას გეხმარება, თვითონ მსგავსი გამოწვევის განცდაა."
+
+════ COMPATIBILITY SCORES & CAPTIONS ════
+
+The `meta.categoryScores` block contains six 0–100 scores (emotional, intellectual, values, karmic, growth, challenge). For EACH score, also produce a matching entry in `meta.categoryCaptions` — one short line that names the dominant inter-chart aspect driving that score and its meaning.
+
+CAPTION FORMAT: `[aspect notation] — [one-line meaning]`
+- Use Unicode planet/aspect/zodiac symbols, hyphenated genitive for cross-chart pairing.
+- Keep under ~60 characters. No periods at the end. Single line, no markdown.
+- The aspect named MUST be one that actually appears in the cards for that category.
+
+CAPTION EXAMPLES (Georgian):
+  emotional:    „მთვარე-მთვარის სექსტილი — ემოციური ენა თავსებადია"
+  intellectual: „მერკური-მზის კვადრატი — საუბრები ინტენსიურია"
+  values:       „ვენერა-იუპიტერის ტრინი — საერთო იდეალები"
+  karmic:       „კვანძების კონიუნქცია — საერთო მისია"
+  growth:       „იუპიტერ-მარსის ტრინი — გაბედული გზა ერთად"
+  challenge:    „სატურნი-მთვარის კვადრატი — განსხვავებული რიტმი"
+
+CAPTION EXAMPLES (English):
+  emotional:    "Moon–Moon sextile — emotional languages align"
+  intellectual: "Mercury–Sun square — conversations run hot"
+  challenge:    "Saturn–Moon square — different rhythms of safety"
+
+The `challenge` caption should name a tension (square/opposition) and stay neutral — not negative.
 
 ════ SECTION RULES (8 SECTIONS) ════
 
@@ -414,6 +441,14 @@ Output this exact structure. No extra fields. No markdown fences.
       "karmic": number,
       "growth": number,
       "challenge": number
+    },
+    "categoryCaptions": {
+      "emotional": "string",
+      "intellectual": "string",
+      "values": "string",
+      "karmic": "string",
+      "growth": "string",
+      "challenge": "string"
     }
   },
   "emotionalBond": SynastrySection,
@@ -439,8 +474,9 @@ SynastryCard: {
   "title": "string",
   "body": ["paragraph"],
   "aspectType": "harmony" | "tension" | "magnetic",
-  "accentElement": "fire" | "earth" | "air" | "water",
-  "crossReferences": ["3+ step chain across both charts"],
+  "accentElementA": "fire" | "earth" | "air" | "water",  // personA's involved planet's sign element (e.g. A's Moon in Cancer → "water"). For thematic/multi-placement cards, pick the dominant element from A's contributing chart points.
+  "accentElementB": "fire" | "earth" | "air" | "water",  // personB's involved planet's sign element (e.g. B's Moon in Virgo → "earth"). May equal accentElementA when both partners' contributing points share an element — that's expected and renders as a balanced single-tone card.
+  "crossReferences": ["1-2 short sentences: orbs, dignities, house rulerships — meaning-led"],
   "expandedContent": ["paragraph"] | null,
   "hint": { "title": "string", "content": "string" } | null
 }
@@ -458,6 +494,14 @@ function validateSynastryFriend(json) {
   if (!['ka', 'en'].includes(json.meta?.language)) errors.push('Invalid language');
   if (typeof json.meta?.compatibilityScore !== 'number') warnings.push('Missing compatibilityScore');
 
+  const CATEGORY_KEYS = ['emotional','intellectual','values','karmic','growth','challenge'];
+  CATEGORY_KEYS.forEach(k => {
+    if (typeof json.meta?.categoryScores?.[k] !== 'number') warnings.push(`Missing categoryScores.${k}`);
+    if (typeof json.meta?.categoryCaptions?.[k] !== 'string' || !json.meta.categoryCaptions[k].trim()) {
+      warnings.push(`Missing categoryCaptions.${k}`);
+    }
+  });
+
   const SECTIONS = ['emotionalBond','intellectualSynergy','karmic','numerology','growth','sharedShadow','sharedAdventures','potential'];
   const MIN_CARDS = { emotionalBond:3, intellectualSynergy:3, karmic:2, numerology:2, growth:2, sharedShadow:2, sharedAdventures:3, potential:2 };
 
@@ -472,7 +516,8 @@ function validateSynastryFriend(json) {
       if (!Array.isArray(c.body) || c.body.length < 3) warnings.push(`${s}[${i}]: body needs 3+ paragraphs`);
       if (!c.crossReferences?.length) warnings.push(`${s}[${i}]: missing crossReferences`);
       if (!['harmony','tension','magnetic'].includes(c.aspectType)) warnings.push(`${s}[${i}]: invalid aspectType`);
-      if (!['fire','earth','air','water'].includes(c.accentElement)) warnings.push(`${s}[${i}]: invalid accentElement`);
+      if (!['fire','earth','air','water'].includes(c.accentElementA)) warnings.push(`${s}[${i}]: invalid accentElementA`);
+      if (!['fire','earth','air','water'].includes(c.accentElementB)) warnings.push(`${s}[${i}]: invalid accentElementB`);
     });
   });
 

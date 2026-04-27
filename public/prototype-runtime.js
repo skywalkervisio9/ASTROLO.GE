@@ -471,7 +471,10 @@ document.getElementById('synNavItem').onclick = function() {
       this.classList.remove('syn-cta-pulsate');
       this.classList.add('syn-generating');
       var label = this.querySelector('.sb-nav-label');
-      if (label) label.textContent = '⟳ Generating...';
+      if (label) {
+        var isEn = document.body.classList.contains('lang-en');
+        label.textContent = isEn ? '⟳ Generating...' : '⟳ იქმნება...';
+      }
       closeSidebar();
       switchView('synastry');
       window.dispatchEvent(new CustomEvent('dev-trigger-synastry'));
