@@ -5,7 +5,7 @@
 // ============================================================
 
 import { ImageResponse } from 'next/og';
-import { createAdminSupabase } from '@/lib/supabase/admin';
+import { getReadingMeta } from '@/lib/data/public-reading';
 
 export const runtime = 'edge';
 export const contentType = 'image/png';
@@ -18,28 +18,15 @@ interface Params {
 
 export default async function OgImage({ params }: Params) {
   const { slug } = await params;
-  const admin = createAdminSupabase();
-
-  const { data: row } = await admin
-    .from('natal_readings')
-    .select('user_id, is_public, reading_ka, reading_en')
-    .eq('share_slug', slug)
-    .maybeSingle();
+  const meta = await getReadingMeta(slug);
 
   let name = 'ASTROLO.GE';
   let tagline = 'Your Astrological Reading';
 
-  if (row?.is_public) {
-    const { data: profile } = await admin
-      .from('users')
-      .select('full_name')
-      .eq('id', row.user_id)
-      .maybeSingle();
-    if (profile?.full_name) name = profile.full_name;
-    const reading = (row.reading_ka ?? row.reading_en) as
-      | { overview?: { sectionTagline?: string } }
-      | null;
-    if (reading?.overview?.sectionTagline) tagline = reading.overview.sectionTagline;
+  if (meta?.is_public) {
+    if (meta.owner_full_name) name = meta.owner_full_name;
+    const t = meta.tagline_ka || meta.tagline_en;
+    if (t) tagline = t;
   }
 
   return new ImageResponse(

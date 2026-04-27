@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
+import { invalidatePublicReadingByUser } from '@/lib/data/public-reading';
 
 export async function GET() {
   const supabase = await createServerSupabase();
@@ -46,6 +47,10 @@ export async function PATCH(req: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Drop cached public-reading payloads for this user's slug so the
+    // next visit reflects the new is_public value immediately.
+    await invalidatePublicReadingByUser(user.id);
 
     return NextResponse.json({ ok: true, isPublic: body.isPublic });
   } catch (error: unknown) {
