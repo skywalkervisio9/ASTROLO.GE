@@ -380,7 +380,7 @@ export default function AuthBridge() {
       // Always creates a fresh account with random birth data and goes to /loading.
       w.handleTestUser = async () => {
         try {
-          const res = await fetch('/api/dev/test-user?new=1', { method: 'POST' });
+          const res = await fetch('/api/dev/test-user?new=1', { method: 'POST', headers: { 'x-dev-password': 'astrolo' } });
           if (!res.ok) throw new Error(await res.text());
           const data = await res.json() as {
             email: string;
