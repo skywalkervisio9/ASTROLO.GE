@@ -340,7 +340,7 @@ span.pt{color:var(--gold);font-family:'Outfit',sans-serif;letter-spacing:.07em;f
 
 /* Grid, table, misc */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
+table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 .pt th{font-size:.6rem;letter-spacing:.14em;color:var(--gd);text-align:left;padding:6px 9px;border-bottom:1px solid rgba(201,168,76,.08);font-weight:400;vertical-align:middle}
 .pt td{font-size:.8rem;padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--silver);transition:all .2s;vertical-align:middle}
 .pt tr:hover td{background:rgba(201,168,76,.02)}.pt .retro{color:var(--gd);font-style:italic}.c:hover .retro{color:var(--gold);transition:color .2s}

@@ -79,7 +79,7 @@ function setTier(tier, btn) {
   if (btn) {
     fetch('/api/dev/set-tier', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-dev-password': 'astrolo' },
       credentials: 'include',
       body: JSON.stringify({ tier: tier }),
     }).then(function() {
@@ -138,7 +138,7 @@ function setTier(tier, btn) {
                : tier;
     fetch('/api/dev/test-user', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-dev-password': 'astrolo' },
       body: JSON.stringify({ userId: _currentUser.id, accountType: dbType })
     }).then(function(r) {
       if (!r.ok) return r.json().then(function(d) { console.warn('[DEV] Tier update failed:', d.error); });
@@ -1311,6 +1311,64 @@ document.addEventListener('pointerdown', e => {
 // the cursor to read the popup would race the timer and the popup would
 // close mid-animation. The hover-driven .mc-sign-btn case has its own
 // pointerleave handler in renderMiniChart.
+
+// Desktop: 1 s hover on planet-table cells opens the popup, and leaving
+// both the trigger and popup closes it after a short grace (so the user
+// can travel from cell to popup to read it). Touch devices skip this
+// entirely via matchMedia and keep click-only behavior. We synthesize a
+// click so all the existing open logic runs unchanged.
+if (typeof window !== 'undefined' && window.matchMedia &&
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  const HOVER_OPEN_DELAY = 1000;
+  const HOVER_CLOSE_GRACE = 200;
+  const HOVER_TRIGGER_SEL = '.pl-btn,.sign-td,.house-td';
+  let openTimer = null, openTarget = null;
+  let closeTimer = null, hoverOpenedFor = null;
+  const cancelOpen = () => {
+    if (openTimer) { clearTimeout(openTimer); openTimer = null; }
+    openTarget = null;
+  };
+  const cancelClose = () => {
+    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+  };
+  const isOverHoverGroup = (node) =>
+    !!node && !!hoverOpenedFor && !!activePopup &&
+    (hoverOpenedFor.contains(node) || activePopup.contains(node));
+
+  document.addEventListener('mouseover', e => {
+    // Re-entering the trigger or popup cancels a pending close.
+    if (isOverHoverGroup(e.target)) cancelClose();
+
+    const trigger = _closest(e.target, HOVER_TRIGGER_SEL);
+    if (!trigger || trigger === openTarget) return;
+    cancelOpen();
+    openTarget = trigger;
+    openTimer = setTimeout(() => {
+      openTimer = null;
+      if (activeTag === trigger) return;
+      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      hoverOpenedFor = trigger;
+    }, HOVER_OPEN_DELAY);
+  });
+
+  document.addEventListener('mouseout', e => {
+    const trigger = _closest(e.target, HOVER_TRIGGER_SEL);
+    if (trigger && trigger === openTarget && !trigger.contains(e.relatedTarget)) {
+      cancelOpen();
+    }
+    // Auto-close hover-opened popups when leaving both the trigger and
+    // the popup. Click-opened popups (hoverOpenedFor === null) are unaffected.
+    if (!hoverOpenedFor || !activePopup) return;
+    if (!isOverHoverGroup(e.target)) return;
+    if (isOverHoverGroup(e.relatedTarget)) return;
+    cancelClose();
+    closeTimer = setTimeout(() => {
+      closeTimer = null;
+      if (hoverOpenedFor && activeTag === hoverOpenedFor) closePopup();
+      hoverOpenedFor = null;
+    }, HOVER_CLOSE_GRACE);
+  });
+}
 
 
 // Nudge .tip tooltip left/right to stay within viewport edges

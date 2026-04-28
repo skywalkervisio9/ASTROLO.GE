@@ -11,11 +11,13 @@ import { generateInviteCode } from '@/lib/utils/invite';
 
 export const maxDuration = 300; // 5 min timeout for AI generation
 
-const isDevAllowed =
-  process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV === 'preview';
+const DEV_PASSWORD = 'astrolo';
+const isDevAllowed = (req: NextRequest) =>
+  process.env.NODE_ENV !== 'production' ||
+  req.headers.get('x-dev-password') === DEV_PASSWORD;
 
 export async function POST(req: NextRequest) {
-  if (!isDevAllowed) {
+  if (!isDevAllowed(req)) {
     return NextResponse.json({ error: 'Dev-only endpoint' }, { status: 403 });
   }
 
