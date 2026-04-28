@@ -273,7 +273,7 @@ export default function BodyContent() {
 
 
 <nav className="tb">
-<a className="tbl" href="#" aria-label="ASTROLO.GE"><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-dot">.</span>GE</span></a>
+<a className="tbl" href="#" aria-label="ASTROLO.GE"><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-ge"><span className="lt-dot">.</span>GE</span></span></a>
 <div className="tbr"><div className="lg"><button className="lo active" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("ka", e.currentTarget); }}>ქარ</button><button className="lo" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("en", e.currentTarget); }}>EN</button></div>
 <button type="button" className="pb" onClick={() => { (window as unknown as ProtoGlobals).openSidebar?.(); }}><div className="pa"></div><span className="pn"></span></button></div></nav>
 
