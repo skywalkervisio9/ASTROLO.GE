@@ -18,7 +18,6 @@ const PUBLIC_PREFIXES = [
 
 function isPublicRoute(path: string) {
   const hasFileExtension = /\.[a-zA-Z0-9]+$/.test(path);
-  if (path === '/') return true;
   if (hasFileExtension) return true;
   // API routes enforce auth/authorization at handler level.
   if (path.startsWith('/api/')) return true;

@@ -273,7 +273,7 @@ export default function BodyContent() {
 
 
 <nav className="tb">
-<a className="tbl" href="#" aria-label="ASTROLO.GE"><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-dot">.</span>GE</span></a>
+<a className="tbl" href="#" aria-label="ASTROLO.GE"><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-ge"><span className="lt-dot">.</span>GE</span></span></a>
 <div className="tbr"><div className="lg"><button className="lo active" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("ka", e.currentTarget); }}>ქარ</button><button className="lo" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("en", e.currentTarget); }}>EN</button></div>
 <button type="button" className="pb" onClick={() => { (window as unknown as ProtoGlobals).openSidebar?.(); }}><div className="pa"></div><span className="pn"></span></button></div></nav>
 
@@ -560,7 +560,7 @@ export default function BodyContent() {
       const btn = e.currentTarget;
       btn.textContent = '...';
       try {
-        const res = await fetch('/api/dev/test-user?offset=2');
+        const res = await fetch('/api/dev/test-user?offset=2', { headers: { 'x-dev-password': DEV_MODE_PASSWORD } });
         if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '⬅⬅ Prev2'; }, 1500); return; }
         const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
         await devSignInAndGo(data);
@@ -570,7 +570,7 @@ export default function BodyContent() {
       const btn = e.currentTarget;
       btn.textContent = '...';
       try {
-        const res = await fetch('/api/dev/test-user?offset=1');
+        const res = await fetch('/api/dev/test-user?offset=1', { headers: { 'x-dev-password': DEV_MODE_PASSWORD } });
         if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '⬅ Prev'; }, 1500); return; }
         const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
         await devSignInAndGo(data);
@@ -580,7 +580,7 @@ export default function BodyContent() {
       const btn = e.currentTarget;
       btn.textContent = '...';
       try {
-        const res = await fetch('/api/dev/test-user');
+        const res = await fetch('/api/dev/test-user', { headers: { 'x-dev-password': DEV_MODE_PASSWORD } });
         if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
         const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
         if (!data.email || !data.password) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
