@@ -9,43 +9,41 @@
 // Premium / natal_chart_unlocked:
 //   Returns the full AI reading with chart_data injected into overview.
 //   { reading: full, hasFullReading: true }
+//
+// Backed by per-userId Data Cache (lib/data/natal-reading.ts) so repeat
+// hits — including language toggle — skip Supabase entirely.
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import type { User } from '@/types/user';
-import { hasFullReading } from '@/types/user';
 import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonServerError } from '@/lib/auth/http';
 import { buildStaticReading } from '@/lib/chart/static-reading';
+import {
+  getNatalChartByUser,
+  getNatalReadingByUser,
+} from '@/lib/data/natal-reading';
+import { getUserProfileForReading } from '@/lib/data/public-reading';
 
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuthContext();
     if (auth.response) return auth.response;
-    const { supabase, authUser } = auth;
+    const { authUser } = auth;
 
     const url = new URL(req.url);
     const lang = (url.searchParams.get('lang') ?? 'ka') as 'ka' | 'en';
 
-    // Profile may be missing briefly for brand-new OAuth users.
-    const { data: profile } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', authUser.id)
-      .maybeSingle();
+    // All three reads hit the Data Cache; on warm hits this is microseconds.
+    const [profile, chartRow, readingBody] = await Promise.all([
+      getUserProfileForReading(authUser.id),
+      getNatalChartByUser(authUser.id),
+      getNatalReadingByUser(authUser.id),
+    ]);
 
+    // Profile may be missing briefly for brand-new OAuth users.
     if (!profile) {
       return NextResponse.json({ reading: null, hasFullReading: false });
     }
-
-    const user = profile as User;
-
-    // Always load chart_data — needed for overview planet table regardless of tier
-    const { data: chartRow } = await supabase
-      .from('chart_data')
-      .select('planets, aspects, points')
-      .eq('user_id', authUser.id)
-      .maybeSingle();
 
     // No chart yet → user hasn't completed DOB entry. Returning a static reading
     // here would cause HydrationBridge to force-switch the view to "natal" and
@@ -54,28 +52,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ reading: null, hasFullReading: false });
     }
 
+    const fullUnlocked =
+      profile.account_type === 'premium' || profile.natal_chart_unlocked;
+
     // ── FREE / INVITED: no AI reading — return static placeholder ──
-    if (!hasFullReading(user)) {
+    if (!fullUnlocked) {
       const staticReading = buildStaticReading(lang, chartRow);
       return NextResponse.json({ reading: staticReading, hasFullReading: false });
     }
 
     // ── PREMIUM: return full AI reading ──
-    const { data: row } = await supabase
-      .from('natal_readings')
-      .select('reading_ka, reading_en')
-      .eq('user_id', authUser.id)
-      .maybeSingle();
-
-    if (!row?.reading_ka) {
+    if (!readingBody?.reading_ka) {
       // Full reading not generated yet (e.g. payment just completed, still generating)
       return NextResponse.json({ reading: null, hasFullReading: true });
     }
 
-    const full = (lang === 'ka' ? row.reading_ka : row.reading_en) as Record<string, unknown>;
+    const full = (lang === 'ka' ? readingBody.reading_ka : readingBody.reading_en) as
+      | Record<string, unknown>
+      | null;
+    if (!full) {
+      return NextResponse.json({ reading: null, hasFullReading: true });
+    }
 
     // Inject chart_data into the overview section
-    if (chartRow && full.overview && typeof full.overview === 'object') {
+    if (full.overview && typeof full.overview === 'object') {
       const overview = full.overview as Record<string, unknown>;
       if (!overview.planetTable && chartRow.planets) overview.planetTable = chartRow.planets;
       if (!overview.aspects && chartRow.aspects)     overview.aspects = chartRow.aspects;

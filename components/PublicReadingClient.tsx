@@ -4,6 +4,7 @@ import Script from "next/script";
 import BodyContent from "@/components/BodyContent";
 import SettingsBridge from "@/components/SettingsBridge";
 import ReadingRenderer from "@/components/reading/ReadingRenderer";
+import ReadingSkeleton from "@/components/reading/ReadingSkeleton";
 import { useEffect, useRef } from "react";
 import { whenRuntimeReady } from "@/lib/runtime-ready";
 
@@ -100,6 +101,7 @@ export default function PublicReadingClient({ slug }: Props) {
       <BodyContent />
       <Script src="/prototype-runtime.js" strategy="afterInteractive" />
       <SettingsBridge />
+      <ReadingSkeleton />
       <ReadingRenderer />
     </>
   );

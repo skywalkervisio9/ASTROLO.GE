@@ -7,6 +7,7 @@ import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonBadRequest, jsonServerError } from '@/lib/auth/http';
 import { requireCsrfOrThrow } from '@/lib/auth/csrf';
 import { asEnum, asNonEmptyString } from '@/lib/auth/validators';
+import { invalidateUserProfile } from '@/lib/data/public-reading';
 
 export async function GET() {
   try {
@@ -53,6 +54,10 @@ export async function PATCH(req: Request) {
       .update(patch)
       .eq('id', auth.authUser.id);
     if (error) throw error;
+
+    // Bust the cached public-reading user block when display fields change.
+    // language is a private preference — not in the public payload, skip.
+    if ('full_name' in patch) invalidateUserProfile(auth.authUser.id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

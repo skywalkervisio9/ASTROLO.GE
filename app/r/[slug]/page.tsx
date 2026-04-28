@@ -11,7 +11,10 @@
 import type { Metadata } from 'next';
 import { redirect, notFound } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { createAdminSupabase } from '@/lib/supabase/admin';
+import {
+  getReadingMeta,
+  getReadingOwnership,
+} from '@/lib/data/public-reading';
 import PrototypeClient from '@/components/PrototypeClient';
 import PublicReadingClient from '@/components/PublicReadingClient';
 
@@ -20,32 +23,17 @@ interface Props {
 }
 
 // Server-rendered metadata for social share previews (FB, WhatsApp, X, etc).
-// Runs at request time on first hit, then cached by Next.js.
+// Backed by the per-slug Data Cache; first hit fills, repeats are free.
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const admin = createAdminSupabase();
+  const meta = await getReadingMeta(slug);
 
-  const { data: row } = await admin
-    .from('natal_readings')
-    .select('reading_ka, reading_en, user_id, is_public')
-    .eq('share_slug', slug)
-    .maybeSingle();
-
-  if (!row || !row.is_public) {
+  if (!meta || !meta.is_public) {
     return { title: 'ASTROLO.GE', robots: { index: false, follow: false } };
   }
 
-  const { data: profile } = await admin
-    .from('users')
-    .select('full_name')
-    .eq('id', row.user_id)
-    .maybeSingle();
-
-  const reading = (row.reading_ka ?? row.reading_en) as
-    | { overview?: { sectionTagline?: string } }
-    | null;
-  const tagline = reading?.overview?.sectionTagline?.trim() || 'ასტროლოგიური ანალიზი';
-  const name = profile?.full_name?.trim() || '';
+  const tagline = meta.tagline_ka || meta.tagline_en || 'ასტროლოგიური ანალიზი';
+  const name = meta.owner_full_name?.trim() || '';
   const title = name ? `${name} — ASTROLO.GE` : 'ASTROLO.GE';
 
   return {
@@ -69,15 +57,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ReadingPage({ params }: Props) {
   const { slug } = await params;
 
-  // Admin lookup so we can read is_public/user_id even if the viewer
-  // has no session (RLS would otherwise block a private row).
-  const admin = createAdminSupabase();
-  const { data: row } = await admin
-    .from('natal_readings')
-    .select('user_id, is_public')
-    .eq('share_slug', slug)
-    .maybeSingle();
-
+  // Cached ownership lookup — no DB hit on repeat visits to the same slug.
+  const row = await getReadingOwnership(slug);
   if (!row) notFound();
 
   const supabase = await createServerSupabase();
