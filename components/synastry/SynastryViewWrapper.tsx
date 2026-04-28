@@ -72,7 +72,7 @@ export default function SynastryViewWrapper() {
     try {
       const res = await fetch('/api/dev/test-synastry', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-dev-password': 'astrolo' },
         body: JSON.stringify({}),
       });
 

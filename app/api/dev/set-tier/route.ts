@@ -7,14 +7,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/auth/guards';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 
-const isDevAllowed =
-  process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV === 'preview';
+const DEV_PASSWORD = 'astrolo';
+const isDevAllowed = (req: NextRequest) =>
+  process.env.NODE_ENV !== 'production' ||
+  req.headers.get('x-dev-password') === DEV_PASSWORD;
 
 const VALID_TIERS = ['free', 'invited', 'premium'] as const;
 type Tier = (typeof VALID_TIERS)[number];
 
 export async function POST(req: NextRequest) {
-  if (!isDevAllowed) {
+  if (!isDevAllowed(req)) {
     return NextResponse.json({ error: 'Dev-only endpoint' }, { status: 403 });
   }
 

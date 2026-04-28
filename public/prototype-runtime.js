@@ -79,7 +79,7 @@ function setTier(tier, btn) {
   if (btn) {
     fetch('/api/dev/set-tier', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-dev-password': 'astrolo' },
       credentials: 'include',
       body: JSON.stringify({ tier: tier }),
     }).then(function() {
@@ -138,7 +138,7 @@ function setTier(tier, btn) {
                : tier;
     fetch('/api/dev/test-user', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-dev-password': 'astrolo' },
       body: JSON.stringify({ userId: _currentUser.id, accountType: dbType })
     }).then(function(r) {
       if (!r.ok) return r.json().then(function(d) { console.warn('[DEV] Tier update failed:', d.error); });

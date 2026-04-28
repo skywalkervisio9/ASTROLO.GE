@@ -169,6 +169,45 @@ export async function POST(request: Request) {
   });
 }
 
+// PATCH /api/dev/test-user — Update account_type for the current user (dev only)
+export async function PATCH(req: Request) {
+  if (!isDevAllowed(req)) {
+    return NextResponse.json({ error: 'Dev only' }, { status: 403 });
+  }
+
+  const body = await req.json();
+  const { userId, accountType } = body;
+
+  if (!userId || !accountType) {
+    return NextResponse.json({ error: 'userId and accountType required' }, { status: 400 });
+  }
+
+  const validTypes = ['free', 'premium', 'invited'];
+  if (!validTypes.includes(accountType)) {
+    return NextResponse.json({ error: 'Invalid accountType' }, { status: 400 });
+  }
+
+  const admin = createAdminSupabase();
+
+  const updates: Record<string, unknown> = { account_type: accountType };
+  if (accountType === 'premium') {
+    updates.natal_chart_unlocked = true;
+  } else if (accountType === 'free') {
+    updates.natal_chart_unlocked = false;
+  }
+
+  const { error } = await admin
+    .from('users')
+    .update(updates)
+    .eq('id', userId);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, accountType });
+}
+
 // ── Random Georgian name generator ──
 
 const FEMALE_FIRST = [
