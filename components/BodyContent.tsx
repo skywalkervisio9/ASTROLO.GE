@@ -2,7 +2,34 @@
 /* eslint-disable react/no-unescaped-entities */
 
 /** Full app markup (formerly content/body.html). */
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import SynastryViewWrapper from './synastry/SynastryViewWrapper';
+
+// Dev-mode unlock: the ⚙ DEV toggle bar at the bottom is the entry point on
+// every device. Tapping it while locked prompts for the password; while
+// unlocked it just expands/collapses the panel. The dev controls and the
+// auth-page Test User buttons only render once unlocked.
+const DEV_MODE_KEY = 'astrolo:dev-mode';
+const DEV_MODE_PASSWORD = 'astrolo';
+
+// localStorage-backed external store. The `storage` event only fires across
+// tabs, so we also dispatch a same-tab CustomEvent on writes.
+const DEV_MODE_EVENT = 'astrolo:dev-mode-change';
+const subscribeDevMode = (cb: () => void) => {
+  window.addEventListener('storage', cb);
+  window.addEventListener(DEV_MODE_EVENT, cb);
+  return () => {
+    window.removeEventListener('storage', cb);
+    window.removeEventListener(DEV_MODE_EVENT, cb);
+  };
+};
+const getDevModeSnapshot = () => window.localStorage.getItem(DEV_MODE_KEY) === '1';
+const getDevModeServerSnapshot = () => false;
+const setDevModeFlag = (on: boolean) => {
+  if (on) window.localStorage.setItem(DEV_MODE_KEY, '1');
+  else window.localStorage.removeItem(DEV_MODE_KEY);
+  window.dispatchEvent(new CustomEvent(DEV_MODE_EVENT));
+};
 
 type ProtoGlobals = {
   switchView?: (view: string, btn?: HTMLElement) => void;
@@ -76,6 +103,52 @@ async function devSignInAndGo(data: {
 }
 
 export default function BodyContent() {
+  const devMode = useSyncExternalStore(subscribeDevMode, getDevModeSnapshot, getDevModeServerSnapshot);
+  const [unlockOpen, setUnlockOpen] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const unlockInputRef = useRef<HTMLInputElement>(null);
+
+  const openUnlockDialog = useCallback(() => {
+    setUnlockError(null);
+    setUnlockOpen(true);
+    setTimeout(() => unlockInputRef.current?.focus(), 0);
+  }, []);
+
+  const closeUnlockDialog = useCallback(() => {
+    setUnlockOpen(false);
+    setUnlockError(null);
+    if (unlockInputRef.current) unlockInputRef.current.value = '';
+  }, []);
+
+  const submitUnlock = useCallback(() => {
+    const pw = unlockInputRef.current?.value ?? '';
+    if (pw === DEV_MODE_PASSWORD) {
+      setDevModeFlag(true);
+      closeUnlockDialog();
+    } else {
+      setUnlockError('Incorrect password');
+    }
+  }, [closeUnlockDialog]);
+
+  const onDevToggleClick = useCallback(() => {
+    if (!getDevModeSnapshot()) {
+      openUnlockDialog();
+      return;
+    }
+    document.getElementById('devPanel')?.classList.toggle('open');
+  }, [openUnlockDialog]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const w = window as unknown as { unlockDev?: () => void; lockDev?: () => void };
+    w.unlockDev = openUnlockDialog;
+    w.lockDev = () => setDevModeFlag(false);
+    return () => {
+      delete w.unlockDev;
+      delete w.lockDev;
+    };
+  }, [openUnlockDialog]);
+
   return (
 <div>
 <div className="stars" id="stars"></div>
@@ -269,7 +342,7 @@ export default function BodyContent() {
         <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '16px'}}><a href="#" onClick={(e) => { e.preventDefault(); (window as unknown as ProtoGlobals).showAuthPage?.("page-forgot"); }} style={{fontSize: '.72rem', color: 'var(--gd)', textDecoration: 'none', transition: 'color .3s'}}>დაგავიწყდა?</a></div>
         <button className="auth-btn" onClick={() => { (window as unknown as ProtoGlobals).handleLogin?.(); }}><span className="btn-text">შესვლა</span></button>
         <div className="nav-row" style={{marginTop: '10px'}}><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).showAuthPage?.("page-signup"); }} style={{width: '100%'}}>რეგისტრაცია →</button></div>
-        <div className="nav-row" style={{marginTop: '8px'}}><button className="auth-btn-ghost" onClick={() => { (window as unknown as Record<string, () => void>).handleTestUser?.(); }} style={{width: '100%', color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ Test User</button></div>
+        {devMode && <div className="nav-row" style={{marginTop: '8px'}}><button className="auth-btn-ghost" onClick={() => { (window as unknown as Record<string, () => void>).handleTestUser?.(); }} style={{width: '100%', color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ Test User</button></div>}
       </div>
     </div>
 
@@ -317,7 +390,7 @@ export default function BodyContent() {
         <label style={{display: 'block', fontSize: '.6rem', letterSpacing: '.14em', color: 'var(--gd)', marginBottom: '6px', fontWeight: 400}}>სქესი</label>
         <div className="gender-row"><div className="gender-opt" data-gender="female" onClick={(e) => { (window as unknown as ProtoGlobals).selectGender?.(e.currentTarget, "female"); }}><span className="g-icon">♀</span>ქალი</div><div className="gender-opt" data-gender="male" onClick={(e) => { (window as unknown as ProtoGlobals).selectGender?.(e.currentTarget, "male"); }}><span className="g-icon">♂</span>კაცი</div></div>
         <button className="auth-btn" onClick={() => { (window as unknown as { __authBirthSubmit?: () => void }).__authBirthSubmit?.(); }} style={{marginTop: '6px'}}><span className="btn-text">რუკის აგება ✦</span></button>
-        <div className="nav-row"><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).goAuthStep?.(1); }}>← უკან</button><button className="auth-btn-ghost" onClick={() => { (window as unknown as Record<string, () => void>).handleTestUser?.(); }} style={{color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ Test User</button></div>
+        <div className="nav-row"><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).goAuthStep?.(1); }}>← უკან</button>{devMode && <button className="auth-btn-ghost" onClick={() => { (window as unknown as Record<string, () => void>).handleTestUser?.(); }} style={{color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ Test User</button>}</div>
       </div>
     </div>
   </div>
@@ -425,9 +498,33 @@ export default function BodyContent() {
 
 
 
+{unlockOpen && (
+  <div className="dev-unlock-overlay" onClick={closeUnlockDialog}>
+    <div className="dev-unlock-card" onClick={(e) => e.stopPropagation()}>
+      <div className="dev-unlock-title">Developer access</div>
+      <input
+        ref={unlockInputRef}
+        type="password"
+        className="dev-unlock-input"
+        placeholder="Password"
+        autoComplete="off"
+        onKeyDown={(e) => { if (e.key === 'Enter') submitUnlock(); if (e.key === 'Escape') closeUnlockDialog(); }}
+      />
+      {unlockError && <div className="dev-unlock-error">{unlockError}</div>}
+      <div className="dev-unlock-actions">
+        <button className="dev-unlock-btn ghost" onClick={closeUnlockDialog}>Cancel</button>
+        <button className="dev-unlock-btn primary" onClick={submitUnlock}>Unlock</button>
+      </div>
+    </div>
+  </div>
+)}
 <div className="dev-panel" id="devPanel">
-  <button className="dev-toggle" onClick={() => { document.getElementById('devPanel')?.classList.toggle('open'); }}>⚙ DEV</button>
+  <button className="dev-toggle" onClick={onDevToggleClick}>⚙ DEV</button>
+  {devMode && (
   <div className="dev-panel-body">
+  <div className="dev-row" style={{justifyContent:'flex-end',width:'100%'}}>
+    <button className="dev-btn" onClick={() => setDevModeFlag(false)} title="Lock developer mode">🔒 Lock</button>
+  </div>
   <div className="dev-label">VIEW</div>
   <button className="dev-btn" onClick={() => { window.location.href = "/auth"; }} id="devAuth">☽ AUTH</button>
   <button className="dev-btn active" onClick={() => { window.location.href = "/"; }} id="devNatal">⊙ NATAL</button>
@@ -491,7 +588,8 @@ export default function BodyContent() {
       } catch { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); }
     }}>🔁 Last</button>
   </div>
-  </div>{/* dev-panel-body */}
+  </div>
+  )}{/* dev-panel-body */}
 </div>
 </div>
   );
