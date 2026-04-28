@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 
-const gafiya = localFont({
-  src: "./fonts/Gafiya-Regular.otf",
+const transcity = localFont({
+  src: "./fonts/Transcity.otf",
   variable: "--f-brand",
   display: "swap",
   weight: "400",
@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ka" className={gafiya.variable}>
+    <html lang="ka" className={transcity.variable}>
       <head>
         <link
           rel="stylesheet"
