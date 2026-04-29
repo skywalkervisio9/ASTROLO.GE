@@ -607,6 +607,14 @@ body[data-view="payment"] .main-natal,body[data-view="payment"] .synastry-wrap,b
 .pay-sigil{width:80px;height:80px;margin:0 auto 20px;border:1px solid rgba(201,168,76,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(201,168,76,.06),transparent 70%)}
 .pay-sigil svg{width:28px;height:28px;color:var(--gold)}
 
+/* Promo code section (premium payment page only) */
+.pay-promo{margin-bottom:20px}
+.pay-promo-label{display:block;text-align:center;font-size:.64rem;color:var(--txd);letter-spacing:.14em;margin-bottom:10px;text-transform:lowercase}
+.pay-promo-input{width:100%;padding:14px 16px;background:var(--sf);border:1px solid rgba(201,168,76,.08);border-radius:12px;color:var(--tx);font-family:var(--fb);font-size:.92rem;letter-spacing:.04em;text-align:center;outline:none;transition:border-color .3s,box-shadow .3s}
+.pay-promo-input:hover{border-color:rgba(201,168,76,.18)}
+.pay-promo-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.08)}
+.pay-promo-status{margin-top:8px;text-align:center;font-size:.7rem;letter-spacing:.06em}
+
 
 
 /* ═══ SYNASTRY-SPECIFIC CSS ═══ */
