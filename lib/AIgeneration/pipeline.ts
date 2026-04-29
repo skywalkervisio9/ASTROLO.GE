@@ -22,7 +22,10 @@ import {
 import type { Language } from '@/types/user';
 import { SECTION_KEYS } from '@/types/reading';
 
-const MAX_RETRIES = 2;
+// One retry only — generate-full has a 300s server budget and KA generation
+// can land at 3–4 min on its own. A second retry reliably blows the budget,
+// triggering a Vercel kill that leaves the row stuck in 'generating'.
+const MAX_RETRIES = 1;
 const JSON_REPAIR_MAX_CHARS = 120000;
 
 // ── Natal reading pipeline ──
@@ -171,8 +174,10 @@ async function generateSingleReading(
 }> {
   const prompt = getNatalCall2Prompt(language);
   // Georgian is ~2 chars/token (Mkhedruli script); English is ~4 chars/token.
-  // Full KA reading ≈ 35K tokens; EN ≈ 10K tokens. Add headroom for JSON structure + aspects.
-  const maxTokens = language === 'ka' ? 56000 : 32000;
+  // Full KA reading ≈ 35K tokens; EN ≈ 10K tokens. The headroom above the typical
+  // size lets a single retry still fit inside the 300s function budget — bigger
+  // caps push KA wall time over the limit and fail without producing output.
+  const maxTokens = language === 'ka' ? 40000 : 24000;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {

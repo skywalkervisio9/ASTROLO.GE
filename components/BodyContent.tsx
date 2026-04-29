@@ -149,6 +149,105 @@ export default function BodyContent() {
     };
   }, [openUnlockDialog]);
 
+  // ─── Promo code state for the premium payment page ───
+  // Default "astrolo10" applies the existing -₾5 discount on first paint.
+  // "lotus" is a comp code: the server flips the user to premium and we
+  // skip the (still-stub) bank redirect, sending them straight to the
+  // loading screen which fires generate-call1 + generate-full.
+  const [promoCode, setPromoCode] = useState('astrolo10');
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoLangTick, setPromoLangTick] = useState(0);
+  const promoNormalised = promoCode.trim().toLowerCase();
+  const promoVariant: 'discount' | 'unlock' | 'invalid' | 'none' =
+    promoNormalised === 'astrolo10' ? 'discount'
+    : promoNormalised === 'lotus' ? 'unlock'
+    : promoNormalised === '' ? 'none'
+    : 'invalid';
+
+  // Re-render promo strings when language toggles. The runtime adds/removes
+  // 'lang-en' on document.body — there's no React signal for it, so we
+  // observe the body's class attribute and bump a counter to force a render.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const observer = new MutationObserver(() => setPromoLangTick(t => t + 1));
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  // Mirror promo state into the existing prototype DOM (price, badge, CTA
+  // text) so the discount/unlock visual stays consistent with the rest of
+  // the payment page, which prototype-runtime.js wrote against directly.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isEn = document.body.classList.contains('lang-en');
+    const oldPrice = document.getElementById('payOldPrice');
+    const amount = document.getElementById('payAmount');
+    const discBadge = document.getElementById('payDiscountBadge');
+    const ctaText = document.getElementById('payCtaText');
+    const unlockLabel = isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
+
+    if (promoVariant === 'discount') {
+      if (oldPrice) oldPrice.style.display = '';
+      if (amount) amount.textContent = '₾10';
+      if (discBadge) discBadge.style.display = '';
+      if (ctaText) ctaText.textContent = unlockLabel + '₾10';
+    } else if (promoVariant === 'unlock') {
+      if (oldPrice) oldPrice.style.display = '';
+      if (amount) amount.textContent = '₾0';
+      if (discBadge) discBadge.style.display = 'none';
+      if (ctaText) ctaText.textContent = unlockLabel + '₾0';
+    } else {
+      if (oldPrice) oldPrice.style.display = 'none';
+      if (amount) amount.textContent = '₾15';
+      if (discBadge) discBadge.style.display = 'none';
+      if (ctaText) ctaText.textContent = unlockLabel + '₾15';
+    }
+  }, [promoVariant, promoLangTick]);
+
+  const onPayCtaClick = useCallback(async () => {
+    if (promoBusy) return;
+    if (promoVariant === 'unlock') {
+      try {
+        setPromoBusy(true);
+        const { withCsrfHeaders } = await import('@/lib/auth/client');
+        const init = await withCsrfHeaders({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ code: promoNormalised }),
+        });
+        const res = await fetch('/api/payment/promo', init);
+        if (!res.ok) {
+          const message = await res.text().catch(() => '');
+          alert(`Promo redemption failed (${res.status}): ${message || 'unknown error'}`);
+          return;
+        }
+        window.location.href = '/loading?mode=generate-full';
+      } finally {
+        setPromoBusy(false);
+      }
+      return;
+    }
+    // astrolo10 / no-code / invalid — fall through to the existing bank
+    // redirect placeholder. Real bank integration replaces this alert later.
+    alert('→ გადამისამართება ბანკის გვერდზე…');
+  }, [promoBusy, promoVariant, promoNormalised]);
+
+  // For convenience inside JSX — recalculated each render via promoLangTick.
+  const promoIsEn =
+    typeof document !== 'undefined' && document.body.classList.contains('lang-en');
+  const promoLabelText = promoIsEn ? 'Promo code' : 'ფასდაკლების კოდი';
+  const promoStatusText =
+    promoVariant === 'discount' ? (promoIsEn ? '✓ −₾5 discount applied' : '✓ −₾5 ფასდაკლება')
+    : promoVariant === 'unlock' ? (promoIsEn ? '✦ Free unlock — no payment needed' : '✦ უფასო განბლოკვა — გადახდა არ საჭიროებს')
+    : promoVariant === 'invalid' ? (promoIsEn ? '✕ Invalid code' : '✕ არასწორი კოდი')
+    : '';
+  const promoStatusColor =
+    promoVariant === 'discount' ? '#4caf50'
+    : promoVariant === 'unlock' ? 'var(--gold)'
+    : promoVariant === 'invalid' ? '#e57373'
+    : 'var(--txd)';
+
   return (
 <div>
 <div className="stars" id="stars"></div>
@@ -481,9 +580,35 @@ export default function BodyContent() {
     </div>
   </div>
 
+  {/* ── Promo code (premium page only) ── */}
+  {/* Default "astrolo10" applies the -₾5 discount; typing "lotus" turns
+      the CTA into a free-unlock that hits /api/payment/promo and redirects
+      to /loading?mode=generate-full. */}
+  <div className="pay-promo">
+    <label htmlFor="payPromoInput" className="pay-promo-label">{promoLabelText}</label>
+    <input
+      id="payPromoInput"
+      type="text"
+      className="pay-promo-input"
+      value={promoCode}
+      autoComplete="off"
+      spellCheck={false}
+      onChange={(e) => setPromoCode(e.target.value)}
+    />
+    {promoStatusText && (
+      <div className="pay-promo-status" style={{ color: promoStatusColor }}>{promoStatusText}</div>
+    )}
+  </div>
+
   {/* ── Shared: CTA Button ── */}
-  <button className="btn-cta-green" id="payCta" onClick={() => { alert('→ გადამისამართება ბანკის გვერდზე…'); }}>
-    <span id="payCtaText">✦ PREMIUM-ის განბლოკვა — ₾15</span>
+  <button
+    className="btn-cta-green"
+    id="payCta"
+    onClick={onPayCtaClick}
+    disabled={promoBusy}
+    style={promoBusy ? { opacity: 0.6, cursor: 'wait' } : undefined}
+  >
+    <span id="payCtaText">✦ PREMIUM-ის განბლოკვა — ₾10</span>
   </button>
 </div>
 </div>

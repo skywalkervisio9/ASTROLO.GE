@@ -75,10 +75,15 @@ export function getNatalReadingByUser(userId: string): Promise<NatalReadingBody>
 
 // --- Invalidation -----------------------------------------------------------
 
+// `{ expire: 0 }` forces immediate expiration — the next read fetches fresh
+// data instead of stale-while-revalidate. Required for read-your-own-writes:
+// the user is about to view this exact data, so SWR would show a stale
+// (often null) reading on the first load and only the second visit would
+// have the fresh content. See node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidateTag.md.
 export function invalidateNatalChart(userId: string): void {
-  revalidateTag(chartTag(userId), 'max');
+  revalidateTag(chartTag(userId), { expire: 0 });
 }
 
 export function invalidateNatalReading(userId: string): void {
-  revalidateTag(readingTag(userId), 'max');
+  revalidateTag(readingTag(userId), { expire: 0 });
 }

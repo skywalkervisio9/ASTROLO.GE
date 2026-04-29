@@ -194,6 +194,12 @@ export async function getPublicReadingFull(
 
 // --- Invalidation -----------------------------------------------------------
 
+// `{ expire: 0 }` forces immediate expiration. Using 'max' (stale-while-revalidate)
+// caused freshly generated readings to render empty on the first visit because
+// the route handler served the stale null cache while fetching fresh in the
+// background; only the user's manual refresh saw the real reading.
+// See node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidateTag.md.
+
 // Body cache: only stale when is_public toggles (visibility route).
 export async function invalidatePublicReadingByUser(userId: string): Promise<void> {
   const admin = createAdminSupabase();
@@ -202,14 +208,14 @@ export async function invalidatePublicReadingByUser(userId: string): Promise<voi
     .select('share_slug')
     .eq('user_id', userId)
     .maybeSingle();
-  if (data?.share_slug) revalidateTag(slugTag(data.share_slug), 'max');
+  if (data?.share_slug) revalidateTag(slugTag(data.share_slug), { expire: 0 });
 }
 
 export function invalidatePublicReadingBySlug(slug: string): void {
-  revalidateTag(slugTag(slug), 'max');
+  revalidateTag(slugTag(slug), { expire: 0 });
 }
 
 // Profile cache: stale on settings + payment-driven field changes.
 export function invalidateUserProfile(userId: string): void {
-  revalidateTag(profileTag(userId), 'max');
+  revalidateTag(profileTag(userId), { expire: 0 });
 }
