@@ -214,9 +214,14 @@ function occupySlot(slotNum, btn) {
   var unlocked = slotNum === 1 ? getSlot1Unlocked() : getSlot2Unlocked();
   if (!unlocked) return;
 
-  // Dev mode (localhost + Vercel preview): slot 1 triggers real synastry generation
-  var isDev = window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app');
-  if (slotNum === 1 && isDev) {
+  // Dev-style trigger hosts: localhost, Vercel previews, and main production domain.
+  var host = window.location.hostname;
+  var isDevTriggerHost =
+    host === 'localhost' ||
+    host.includes('vercel.app') ||
+    host === 'astrolo.ge' ||
+    host === 'www.astrolo.ge';
+  if (slotNum === 1 && isDevTriggerHost) {
     // If already generated, don't re-trigger — just toggle view
     if (_synastryGenerated) {
       closeSidebar();
@@ -463,9 +468,14 @@ document.getElementById('synNavItem').onclick = function() {
   if (_synastryGenerated) { closeSidebar(); switchView('synastry'); return; }
   // FREE: locked → premium payment page
   if (this.classList.contains('locked-syn')) { closeSidebar(); showPaymentPage('premium'); return; }
-  // Pulsating CTA → open invite modal (or dev trigger on localhost)
+  // Pulsating CTA → open invite modal (or test trigger on allowed hosts)
   if (this.classList.contains('syn-cta-pulsate')) {
-    var isDevEnv = window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app');
+    var host = window.location.hostname;
+    var isDevEnv =
+      host === 'localhost' ||
+      host.includes('vercel.app') ||
+      host === 'astrolo.ge' ||
+      host === 'www.astrolo.ge';
     if (isDevEnv) {
       // Dev mode: trigger synastry generation via React wrapper
       this.classList.remove('syn-cta-pulsate');
