@@ -66,7 +66,7 @@ export async function callClaude(
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genai.getGenerativeModel({
-      model: 'gemini-2.5-pro',
+      model: 'gemini-2.5-flash',
       systemInstruction: systemPrompt,
       generationConfig: {
         maxOutputTokens: maxTokens,
@@ -86,7 +86,7 @@ export async function callClaude(
       outputTokens: usage?.candidatesTokenCount ?? 0,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
-      model: 'gemini-2.5-pro',
+      model: 'gemini-2.5-flash',
     };
   }
 

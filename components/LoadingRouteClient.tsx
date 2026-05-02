@@ -12,7 +12,7 @@ const LEGACY_LS_KEY = 'astrolo:lastGenerateRequest';
 // Free users: astrologer API only — quick (≤20s, 4 attempts at 5s).
 // Invited & premium-generate-full: up to 7 min of polling at 5s intervals.
 const FREE_MAX_ATTEMPTS = 4;   // 4 × 5s = 20s
-const FULL_MAX_ATTEMPTS = 84;  // 84 × 5s = 7 min
+const FULL_MAX_ATTEMPTS = 180;  // 84 × 5s = 7 min -- 180 -changed to approx. 15min
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -82,7 +82,7 @@ export default function LoadingRouteClient() {
       whenRuntimeReady().then(() => {
         const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string, durationMs?: number) => void) | undefined;
         // 20s for free (Astrologer API only), 7 min for generate-full (AI reading)
-        if (fn) fn(userLang, isFree ? 20000 : 420000);
+        if (fn) fn(userLang, isFree ? 20000 : 900000); // 900000ms = 15min
       });
 
       const { data: auth } = await supabase.auth.getUser();
