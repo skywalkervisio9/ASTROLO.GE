@@ -7,8 +7,18 @@
 // table, aspects, lock wraps, grid wrappers). React owns card
 // content rendered into prototype-drawn slot divs.
 //
-// Phase 1: behavior-only, renders nothing until prototype emits
-// slots + event (wired up in Phase 2).
+// Slot lifecycle:
+//   The prototype calls `hydrateReading()` on first load AND on
+//   every language switch / tier toggle. Each call sets innerHTML
+//   on the section container, which DESTROYS the previous slot
+//   nodes — any ref React still holds becomes detached and
+//   portals into it render invisibly. To stay correct we:
+//     1. Defer the initial `collectSlots()` to the next frame so
+//        the prototype's setTimeout-scheduled observer init has
+//        time to settle before we snapshot the DOM.
+//     2. Re-run `collectSlots()` whenever the section container's
+//        children change (MutationObserver), so re-hydrations
+//        from the prototype always update our slot refs.
 // ============================================================
 
 'use client';
@@ -45,6 +55,16 @@ function collectSlots(): Slot[] {
     .filter((s): s is Slot => s !== null);
 }
 
+function slotsEqual(a: Slot[], b: Slot[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].el !== b[i].el || a[i].sectionKey !== b[i].sectionKey || a[i].cardIdx !== b[i].cardIdx) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function getCardAt(reading: NatalReading, key: SectionKey, idx: number): Card | null {
   const section = reading[key] as OverviewSection | ContentSection | undefined;
   if (!section) return null;
@@ -57,12 +77,41 @@ export default function ReadingRenderer() {
   const [slots, setSlots] = useState<Slot[]>([]);
 
   useEffect(() => {
+    let rafId = 0;
+    let observer: MutationObserver | null = null;
+
+    const refreshSlots = () => {
+      const next = collectSlots();
+      setSlots(prev => (slotsEqual(prev, next) ? prev : next));
+    };
+
+    // Defer slot collection one frame so prototype's setTimeout-scheduled
+    // observer init and any same-tick DOM mutations land before we snapshot.
+    const scheduleRefresh = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(refreshSlots);
+    };
+
+    // Watch the reading section host so when the prototype rebuilds sections
+    // (lang switch, tier toggle, dev re-hydrate) we pick up the fresh slot
+    // nodes instead of portaling into detached refs. Scoped to
+    // #readingSkeletonHost (the stable container BodyContent renders into)
+    // so unrelated UI mutations (sidebar, modals, hover states) don't fire it.
+    const ensureObserver = () => {
+      if (observer) return;
+      const host = document.getElementById('readingSkeletonHost');
+      if (!host) return;
+      observer = new MutationObserver(scheduleRefresh);
+      observer.observe(host, { childList: true, subtree: true });
+    };
+
     const sync = () => {
       const w = window as unknown as Record<string, unknown>;
       const s = w.__readingState as ReadingState | undefined;
       if (s && s.type === 'natal') {
         setState(s);
-        setSlots(collectSlots());
+        ensureObserver();
+        scheduleRefresh();
       }
     };
 
@@ -70,7 +119,11 @@ export default function ReadingRenderer() {
     // If prototype already hydrated before this listener mounted, pick up state now.
     sync();
 
-    return () => window.removeEventListener('reading:hydrated', sync);
+    return () => {
+      window.removeEventListener('reading:hydrated', sync);
+      cancelAnimationFrame(rafId);
+      observer?.disconnect();
+    };
   }, []);
 
   if (!state) return null;
@@ -79,6 +132,10 @@ export default function ReadingRenderer() {
   return (
     <>
       {slots.map(({ el, sectionKey, cardIdx }) => {
+        // Skip slots whose host element has been detached from the live DOM
+        // (can happen briefly between a prototype re-hydrate and the
+        // MutationObserver-scheduled refresh).
+        if (!el.isConnected) return null;
         const card = getCardAt(state.reading, sectionKey, cardIdx);
         if (!card) return null;
         return createPortal(
