@@ -5,16 +5,16 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import SynastryViewWrapper from './synastry/SynastryViewWrapper';
 
-// Dev-mode unlock: the ⚙ DEV toggle bar at the bottom is the entry point on
-// every device. Tapping it while locked prompts for the password; while
-// unlocked it just expands/collapses the panel. The dev controls and the
-// auth-page Test User buttons only render once unlocked.
+// ─── Dev-mode unlock ─────────────────────────────────────────────────────
+// The ⚙ DEV toggle bar is the entry point on every device. Tapping it while
+// locked prompts for the password; while unlocked it just expands/collapses
+// the panel. Dev controls and the auth-page Test User buttons render only
+// once unlocked. localStorage is the source of truth; we mirror writes via a
+// same-tab CustomEvent because the `storage` event only fires across tabs.
 const DEV_MODE_KEY = 'astrolo:dev-mode';
 const DEV_MODE_PASSWORD = 'astrolo';
-
-// localStorage-backed external store. The `storage` event only fires across
-// tabs, so we also dispatch a same-tab CustomEvent on writes.
 const DEV_MODE_EVENT = 'astrolo:dev-mode-change';
+
 const subscribeDevMode = (cb: () => void) => {
   window.addEventListener('storage', cb);
   window.addEventListener(DEV_MODE_EVENT, cb);
@@ -31,6 +31,9 @@ const setDevModeFlag = (on: boolean) => {
   window.dispatchEvent(new CustomEvent(DEV_MODE_EVENT));
 };
 
+// ─── Bridge to prototype-runtime.js ──────────────────────────────────────
+// The legacy runtime exposes its handlers on `window`. Cast through `proto()`
+// once instead of repeating `(window as unknown as ProtoGlobals)` everywhere.
 type ProtoGlobals = {
   switchView?: (view: string, btn?: HTMLElement) => void;
   switchSynastry?: (mode: string, btn: HTMLElement) => void;
@@ -64,19 +67,43 @@ type ProtoGlobals = {
   handleSignup?: () => void;
   handleForgot?: () => void;
   handleBirthData?: () => void;
+  handleTestUser?: () => void;
   startLoading?: () => void;
   openSettings?: () => void;
+  __authBirthSubmit?: () => void;
+};
+const proto = (): ProtoGlobals => window as unknown as ProtoGlobals;
+
+// ─── Reused inline icons ─────────────────────────────────────────────────
+const IconGoogleG = (
+  <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+);
+const IconFacebook = (
+  <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+);
+const IconInstagram = (
+  <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+);
+const IconTikTok = (
+  <svg viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+);
+
+// ─── Promo display ───────────────────────────────────────────────────────
+// Drives both the React-rendered status line and the imperative DOM mutation
+// that keeps prototype-runtime.js's payment markup (price/badge/CTA) in sync.
+type PromoVariant = 'discount' | 'unlock' | 'invalid' | 'none';
+const PROMO_DISPLAY: Record<PromoVariant, { amount: string; oldPriceVisible: boolean; badgeVisible: boolean }> = {
+  discount: { amount: '₾10', oldPriceVisible: true,  badgeVisible: true  },
+  unlock:   { amount: '₾0',  oldPriceVisible: true,  badgeVisible: false },
+  invalid:  { amount: '₾15', oldPriceVisible: false, badgeVisible: false },
+  none:     { amount: '₾15', oldPriceVisible: false, badgeVisible: false },
 };
 
-// ── Dev helper: sign in as a test user, then confirm the session is
-// actually in the cookie before navigating. Without this wait, the next
-// server render at /r/[slug] can run before the Supabase session cookie
-// lands, and the page renders as a guest instead of the owner.
-async function devSignInAndGo(data: {
-  email: string;
-  password: string;
-  shareSlug?: string | null;
-}) {
+// ─── Dev helper: sign in as a test user ──────────────────────────────────
+// Polls getSession() briefly so the Supabase cookie lands in storage before
+// we navigate. Without this, the next server render at /r/[slug] can run as
+// guest because the session cookie hasn't been written yet.
+async function devSignInAndGo(data: { email: string; password: string; shareSlug?: string | null }) {
   const { createClient } = await import('@/lib/supabase/client');
   const sb = createClient();
   const { data: signInData, error } = await sb.auth.signInWithPassword({
@@ -89,18 +116,30 @@ async function devSignInAndGo(data: {
     return;
   }
   console.log('[dev] signed in as', data.email, 'user_id:', signInData.session.user.id);
-
-  // Poll getSession() briefly — @supabase/ssr writes the cookie as part
-  // of signInWithPassword, but the storage adapter resolves a tick later.
   for (let i = 0; i < 20; i++) {
     const { data: { session } } = await sb.auth.getSession();
     if (session) break;
     await new Promise(r => setTimeout(r, 50));
   }
-
   const target = data.shareSlug ? `/r/${data.shareSlug}` : window.location.pathname;
   window.location.assign(target);
 }
+
+// One handler for the three test-user buttons (Last / Prev / Prev2).
+const onDevTestUserClick = (label: string, offset: number) =>
+  async (e: React.MouseEvent<HTMLButtonElement>) => {
+    const btn = e.currentTarget;
+    const reset = () => setTimeout(() => { btn.textContent = label; }, 1500);
+    btn.textContent = '...';
+    try {
+      const url = offset > 0 ? `/api/dev/test-user?offset=${offset}` : '/api/dev/test-user';
+      const res = await fetch(url, { headers: { 'x-dev-password': DEV_MODE_PASSWORD } });
+      if (!res.ok) { btn.textContent = 'NONE'; reset(); return; }
+      const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
+      if (!data.email || !data.password) { btn.textContent = 'NONE'; reset(); return; }
+      await devSignInAndGo(data);
+    } catch { btn.textContent = 'ERROR'; reset(); }
+  };
 
 export default function BodyContent() {
   const devMode = useSyncExternalStore(subscribeDevMode, getDevModeSnapshot, getDevModeServerSnapshot);
@@ -158,15 +197,15 @@ export default function BodyContent() {
   const [promoBusy, setPromoBusy] = useState(false);
   const [promoLangTick, setPromoLangTick] = useState(0);
   const promoNormalised = promoCode.trim().toLowerCase();
-  const promoVariant: 'discount' | 'unlock' | 'invalid' | 'none' =
+  const promoVariant: PromoVariant =
     promoNormalised === 'astrolo10' ? 'discount'
     : promoNormalised === 'lotus' ? 'unlock'
     : promoNormalised === '' ? 'none'
     : 'invalid';
 
-  // Re-render promo strings when language toggles. The runtime adds/removes
-  // 'lang-en' on document.body — there's no React signal for it, so we
-  // observe the body's class attribute and bump a counter to force a render.
+  // The runtime adds/removes 'lang-en' on document.body — there's no React
+  // signal for it, so we observe the body's class attribute and bump a
+  // counter to force re-renders of the language-aware promo strings.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const observer = new MutationObserver(() => setPromoLangTick(t => t + 1));
@@ -174,34 +213,26 @@ export default function BodyContent() {
     return () => observer.disconnect();
   }, []);
 
-  // Mirror promo state into the existing prototype DOM (price, badge, CTA
-  // text) so the discount/unlock visual stays consistent with the rest of
+  // Mirror promo state into the prototype DOM (price, old-price strikethrough,
+  // discount badge, CTA text) so the visual stays consistent with the rest of
   // the payment page, which prototype-runtime.js wrote against directly.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const isEn = document.body.classList.contains('lang-en');
-    const oldPrice = document.getElementById('payOldPrice');
-    const amount = document.getElementById('payAmount');
-    const discBadge = document.getElementById('payDiscountBadge');
-    const ctaText = document.getElementById('payCtaText');
-    const unlockLabel = isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
-
-    if (promoVariant === 'discount') {
-      if (oldPrice) oldPrice.style.display = '';
-      if (amount) amount.textContent = '₾10';
-      if (discBadge) discBadge.style.display = '';
-      if (ctaText) ctaText.textContent = unlockLabel + '₾10';
-    } else if (promoVariant === 'unlock') {
-      if (oldPrice) oldPrice.style.display = '';
-      if (amount) amount.textContent = '₾0';
-      if (discBadge) discBadge.style.display = 'none';
-      if (ctaText) ctaText.textContent = unlockLabel + '₾0';
-    } else {
-      if (oldPrice) oldPrice.style.display = 'none';
-      if (amount) amount.textContent = '₾15';
-      if (discBadge) discBadge.style.display = 'none';
-      if (ctaText) ctaText.textContent = unlockLabel + '₾15';
-    }
+    const cfg = PROMO_DISPLAY[promoVariant];
+    const ctaPrefix = isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
+    const setShow = (id: string, show: boolean) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = show ? '' : 'none';
+    };
+    const setText = (id: string, text: string) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    };
+    setShow('payOldPrice', cfg.oldPriceVisible);
+    setShow('payDiscountBadge', cfg.badgeVisible);
+    setText('payAmount', cfg.amount);
+    setText('payCtaText', ctaPrefix + cfg.amount);
   }, [promoVariant, promoLangTick]);
 
   const onPayCtaClick = useCallback(async () => {
@@ -254,58 +285,14 @@ export default function BodyContent() {
 <canvas id="shootingStar" style={{position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 300}}></canvas>
 <div className="pbar" id="prog"></div>
 
-
-<svg xmlns="http://www.w3.org/2000/svg" style={{display: 'none'}}><defs>
-<symbol id="gl-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></symbol>
-<symbol id="gl-moon" viewBox="0 0 24 24"><path d="M16 4a8 8 0 1 0 0 16 6 6 0 0 1 0-16z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></symbol>
-<symbol id="gl-venus" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5" fill="none" stroke="currentColor" strokeWidth="1.5"/><line x1="12" y1="14" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="19" x2="15" y2="19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></symbol>
-<symbol id="gl-mars" viewBox="0 0 24 24"><circle cx="10" cy="14" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.5"/><line x1="14" y1="10" x2="20" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><polyline points="15,4 20,4 20,9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></symbol>
-<symbol id="gl-sparkle" viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" fill="currentColor" opacity=".8"/></symbol>
-<symbol id="gl-brand-sparkle" viewBox="0 0 24 24"><path d="M12 1.5l2.6 7.8L22.5 12l-7.9 2.7L12 22.5l-2.6-7.8L1.5 12l7.9-2.7z" fill="currentColor"/></symbol>
-<symbol id="gl-node" viewBox="0 0 24 24"><circle cx="8" cy="16" r="4" fill="none" stroke="currentColor" strokeWidth="1.5"/><circle cx="16" cy="16" r="4" fill="none" stroke="currentColor" strokeWidth="1.5"/><path d="M8 12V6M16 12V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></symbol>
-<symbol id="gl-diamond" viewBox="0 0 24 24"><path d="M12 2L22 12L12 22L2 12Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></symbol>
-
-<symbol id="gl-libra" viewBox="0 0 24 24"><path d="M4 18h16M4 15h16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none"/><path d="M12 15c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6z" stroke="currentColor" strokeWidth="1.3" fill="none"/></symbol>
-
-<symbol id="gl-aries" viewBox="0 0 24 24"><path d="M12 22V6M12 6c0-2 2-4 5-4s4 2 4 4-2 4-4 7M12 6c0-2-2-4-5-4S3 4 3 6s2 4 4 7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
-<symbol id="gl-taurus" viewBox="0 0 24 24"><circle cx="12" cy="15" r="6" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M4 4c2 4 5 5 8 5s6-1 8-5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
-<symbol id="gl-gemini" viewBox="0 0 24 24"><path d="M6 3c3 2 6 2 12 0M6 21c3-2 6-2 12 0M8 3v18M16 3v18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
-<symbol id="gl-cancer" viewBox="0 0 24 24"><circle cx="8" cy="10" r="4" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="16" cy="14" r="4" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M12 10c4 0 8-1 9-5M12 14c-4 0-8 1-9 5" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
-<symbol id="gl-leo" viewBox="0 0 24 24"><circle cx="8" cy="14" r="4" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M12 14c0-4 2-8 5-8s4 2 4 5c0 4-3 6-3 9" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
-<symbol id="gl-virgo" viewBox="0 0 24 24"><path d="M4 4v14c0 2 1 3 3 3M10 4v14c0 2 1 3 3 3s3-2 3-4V4M16 12c2 2 4 4 4 7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
-<symbol id="gl-scorpio" viewBox="0 0 24 24"><path d="M4 4v14c0 2 1 3 3 3M10 4v14c0 2 1 3 3 3M16 4v14c0 2 1 3 3 1l2-2M19 14l2 2" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></symbol>
-<symbol id="gl-sagittarius" viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><polyline points="12,4 20,4 20,12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><line x1="7" y1="13" x2="13" y2="19" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></symbol>
-<symbol id="gl-capricorn" viewBox="0 0 24 24"><path d="M5 4v12c0 3 2 5 5 5s4-2 4-4V4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M14 14c2 0 4 1 5 3s1 4-1 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
-<symbol id="gl-aquarius" viewBox="0 0 24 24"><path d="M3 9l3 3 3-3 3 3 3-3 3 3 3-3M3 15l3 3 3-3 3 3 3-3 3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></symbol>
-<symbol id="gl-pisces" viewBox="0 0 24 24"><path d="M6 3c0 6-1 9 0 12s1 3 0 6M18 3c0 6 1 9 0 12s-1 3 0 6" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
-
-<symbol id="gl-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" strokeWidth="1.4"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" strokeWidth="1.4"/></symbol>
-<symbol id="gl-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></symbol>
-<symbol id="gl-print" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
-<symbol id="gl-mercury" viewBox="0 0 24 24"><circle cx="12" cy="10" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="12" y1="15" x2="12" y2="22" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="9" y1="19" x2="15" y2="19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M7 5a6 6 0 0110 0" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
-<symbol id="gl-jupiter" viewBox="0 0 24 24"><path d="M14 4v16M10 12h10M6 4c4 0 6 3 6 8s-2 8-6 8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></symbol>
-<symbol id="gl-neptune" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="18" x2="16" y2="18" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5 10l3.5-4L12 10l3.5-4L19 10" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></symbol>
-<symbol id="gl-uranus" viewBox="0 0 24 24"><circle cx="12" cy="17" r="4" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="12" y1="13" x2="12" y2="2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="7" x2="16" y2="7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="2" r="1.2" fill="currentColor"/></symbol>
-<symbol id="gl-lilith" viewBox="0 0 24 24"><path d="M12 3c-4 0-6 3-6 6s3 5 6 5 6-2 6-5-2-6-6-6z" fill="none" stroke="currentColor" strokeWidth="1.3"/><line x1="12" y1="14" x2="12" y2="22" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="18" x2="16" y2="18" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
-<symbol id="gl-saturn" viewBox="0 0 24 24"><path d="M8 2l-3 3M5 5l2 2M9 9c-3 3-3 7 0 10s7 3 10 0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="9" y1="9" x2="9" y2="20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="6" y1="14" x2="12" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
-<symbol id="gl-pluto" viewBox="0 0 24 24"><circle cx="12" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M12 7m-2 0a2 2 0 104 0 2 2 0 10-4 0" fill="none" stroke="currentColor" strokeWidth="1.2"/><line x1="12" y1="12" x2="12" y2="20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="17" x2="16" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
-    <symbol id="gl-asc" viewBox="0 0 24 24"><path d="M12 3L6 21h2.5l1.5-5h8l1.5 5H22L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
-    <symbol id="gl-conjunction" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="12" y1="5" x2="12" y2="2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
-    <symbol id="gl-trine" viewBox="0 0 24 24"><path d="M12 3L22 20H2L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
-    <symbol id="gl-square" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
-    <symbol id="gl-sextile" viewBox="0 0 24 24"><path d="M12 2l2.6 4.5H22l-3.7 6L22 17.5h-7.4L12 22l-2.6-4.5H2l3.7-5.5L2 7.5h7.4z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></symbol>
-    <symbol id="gl-opposition" viewBox="0 0 24 24"><circle cx="5" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="19" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="8.5" y1="12" x2="15.5" y2="12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></symbol>
-    <symbol id="gl-numbers" viewBox="0 0 24 24"><text x="4" y="14" fontFamily="Cormorant Garamond,serif" fontSize="12" fill="currentColor" fontWeight="400">1</text><text x="12" y="20" fontFamily="Cormorant Garamond,serif" fontSize="10" fill="currentColor" fontWeight="300" opacity=".7">9</text><text x="14" y="10" fontFamily="Cormorant Garamond,serif" fontSize="9" fill="currentColor" fontWeight="300" opacity=".5">7</text></symbol>
-    <symbol id="gl-yinyang" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.3"/><path d="M12 2a10 10 0 000 20c0-5.5-2.5-10 0-10s0 4.5 0 10" fill="none" stroke="currentColor" strokeWidth="1.2"/><circle cx="12" cy="7" r="1.5" fill="currentColor"/><circle cx="12" cy="17" r="1.5" fill="none" stroke="currentColor" strokeWidth="1"/></symbol>
-</defs></svg>
-
+<GlyphSymbols />
 
 <div className="account-dd" id="accountDD" onClick={(e) => e.stopPropagation()}>
 <div className="sb-header">
 <span className="sb-tier premium" id="sbTier" style={{position:'absolute',top:'50px',right:'16px'}}><span className="dot"></span> PREMIUM</span>
 <div className="sb-avatar"></div>
 <div className="sb-info"><div className="sb-name"></div><div className="sb-email"></div></div>
-<button className="stg-gear" id="stgBtn" type="button" aria-label="Settings" onClick={(e) => { e.stopPropagation(); (window as unknown as ProtoGlobals).openSettings?.(); }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1.08 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33h.08a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.08a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
+<button className="stg-gear" id="stgBtn" type="button" aria-label="Settings" onClick={(e) => { e.stopPropagation(); proto().openSettings?.(); }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1.08 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33h.08a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.08a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></button>
 </div>
 
 
@@ -314,16 +301,16 @@ export default function BodyContent() {
 <div className="sb-nav-row" id="sbNavRow">
   <div className="sb-nav-item active" onClick={() => { alert("→ ნატალური რუკა"); }}><span className="sb-nav-icon"><svg><use href="#gl-sun"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">ნატალური რუკა</span></div></div>
   <div className="sb-nav-item has-partner" id="synNavItem" onClick={() => { alert("→ სინასტრია"); }}><span className="sb-nav-icon"><svg><use href="#gl-venus"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">სინასტრია</span><span className="sb-nav-partner" id="synPartnerName">(გიორგი მაისურაძე)</span></div><span className="mode-badge couple" id="modeBadge">მეწყვილე</span></div>
-  <div className="sb-nav-item invite-btn" id="inviteNavBtn" onClick={() => { (window as unknown as ProtoGlobals).showUpgrade?.(); }}><span className="sb-nav-icon">+</span><div className="sb-nav-text"><span className="sb-nav-label" id="inviteBtnLabel">მოწვევა</span></div></div>
+  <div className="sb-nav-item invite-btn" id="inviteNavBtn" onClick={() => { proto().showUpgrade?.(); }}><span className="sb-nav-icon">+</span><div className="sb-nav-text"><span className="sb-nav-label" id="inviteBtnLabel">მოწვევა</span></div></div>
 </div>
 </div>
 
 
 <div className="sb-section"><div className="sb-section-title">გაზიარება</div>
-<button className="sb-share-main" onClick={() => { (window as unknown as ProtoGlobals).shareReading?.(); }} style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '10px', background: 'rgba(201,168,76,.04)', border: '1px solid rgba(201,168,76,.1)', borderRadius: '10px', color: 'var(--gold)', fontFamily: 'var(--fb)', fontSize: '.74rem', cursor: 'pointer', transition: 'all .35s', marginBottom: '8px'}}><svg style={{width: '13px', height: '13px', fill: 'var(--gold)'}}><use href="#gl-share"/></svg> რუკის გაზიარება</button>
+<button className="sb-share-main" onClick={() => { proto().shareReading?.(); }} style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '10px', background: 'rgba(201,168,76,.04)', border: '1px solid rgba(201,168,76,.1)', borderRadius: '10px', color: 'var(--gold)', fontFamily: 'var(--fb)', fontSize: '.74rem', cursor: 'pointer', transition: 'all .35s', marginBottom: '8px'}}><svg style={{width: '13px', height: '13px', fill: 'var(--gold)'}}><use href="#gl-share"/></svg> რუკის გაზიარება</button>
 <div className="sb-share-inline">
-<button className="sb-share-icon" onClick={() => { (window as unknown as ProtoGlobals).shareToSocial?.("fb"); }} title="Facebook"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></button>
-<button className="sb-share-icon" onClick={() => { (window as unknown as ProtoGlobals).shareToSocial?.("ig"); }} title="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg></button>
+<button className="sb-share-icon" onClick={() => { proto().shareToSocial?.("fb"); }} title="Facebook">{IconFacebook}</button>
+<button className="sb-share-icon" onClick={() => { proto().shareToSocial?.("ig"); }} title="Instagram">{IconInstagram}</button>
 <button className="sb-share-icon" onClick={() => { window.print(); }} title="Print"><svg><use href="#gl-print"/></svg></button>
 </div></div>
 
@@ -332,18 +319,18 @@ export default function BodyContent() {
 
 
 <div className="invite-modal" id="inviteModal">
-<div className="invite-modal-bg" onClick={() => { (window as unknown as ProtoGlobals).closeInviteModal?.(); }}></div>
+<div className="invite-modal-bg" onClick={() => { proto().closeInviteModal?.(); }}></div>
 <div className="invite-modal-card">
 <div className="invite-title" id="inviteModalTitle">ვის ეგზავნება ბმული?</div>
 <div className="invite-sub" id="inviteModalSub">აირჩიე კავშირის ტიპი — ბმული ავტომატურად გენერირდება</div>
 <div className="invite-price-tag" id="invitePriceTag"></div>
 <div className="invite-opts" id="inviteOptsWrap">
-  <div className="invite-opt" onClick={(e) => { (window as unknown as ProtoGlobals).selectInviteType?.("couple", e.currentTarget); }}>
+  <div className="invite-opt" onClick={(e) => { proto().selectInviteType?.("couple", e.currentTarget); }}>
     <span className="invite-opt-icon"><span className="gi gi-pl"><svg><use href="#gl-moon"/></svg></span> <span className="gi gi-pl"><svg><use href="#gl-sun"/></svg></span></span>
     <div className="invite-opt-label">მეწყვილე</div>
     <div className="invite-opt-desc">რომანტიკული პარტნიორი — სრული სინასტრია</div>
   </div>
-  <div className="invite-opt" onClick={(e) => { (window as unknown as ProtoGlobals).selectInviteType?.("friend", e.currentTarget); }}>
+  <div className="invite-opt" onClick={(e) => { proto().selectInviteType?.("friend", e.currentTarget); }}>
     <span className="invite-opt-icon">✦ ✦</span>
     <div className="invite-opt-label">მეგობარი</div>
     <div className="invite-opt-desc">მეგობრული თავსებადობა — ზოგადი ანალიზი</div>
@@ -354,15 +341,15 @@ export default function BodyContent() {
   <div className="upgrade-icon">✦</div>
   <div className="upgrade-text">სინასტრიის ფუნქცია ხელმისაწვდომია მხოლოდ პრემიუმ ანგარიშით</div>
   <div className="upgrade-price"><strong>₾15</strong> ერთჯერადი</div>
-  <button className="btn-cta-green" onClick={() => { (window as unknown as ProtoGlobals).showPaymentPage?.("premium"); (window as unknown as ProtoGlobals).closeInviteModal?.(); }} style={{maxWidth:'280px', margin:'0 auto'}}>გახდი პრემიუმი</button>
+  <button className="btn-cta-green" onClick={() => { proto().showPaymentPage?.("premium"); proto().closeInviteModal?.(); }} style={{maxWidth:'280px', margin:'0 auto'}}>გახდი პრემიუმი</button>
 </div>
 <div className="invite-link-box" id="inviteLinkBox">
   <span className="invite-link-url" id="inviteLinkUrl">astrolo.ge/inv/x7k9m2p</span>
-  <button className="invite-link-copy" onClick={(e) => { (window as unknown as ProtoGlobals).copyInviteLink?.(e.currentTarget); }}>კოპირება</button>
+  <button className="invite-link-copy" onClick={(e) => { proto().copyInviteLink?.(e.currentTarget); }}>კოპირება</button>
 </div>
 <div className="invite-actions" id="inviteActions">
-  <button className="invite-btn-secondary" onClick={() => { (window as unknown as ProtoGlobals).closeInviteModal?.(); }}>დახურვა</button>
-  <button className="invite-btn-primary" id="inviteGenBtn" disabled onClick={() => { (window as unknown as ProtoGlobals).generateInviteLink?.(); }}>აირჩიე ტიპი</button>
+  <button className="invite-btn-secondary" onClick={() => { proto().closeInviteModal?.(); }}>დახურვა</button>
+  <button className="invite-btn-primary" id="inviteGenBtn" disabled onClick={() => { proto().generateInviteLink?.(); }}>აირჩიე ტიპი</button>
 </div>
 </div>
 </div>
@@ -373,8 +360,8 @@ export default function BodyContent() {
 
 <nav className="tb">
 <a className="tbl" href="#" aria-label="ASTROLO.GE"><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-ge"><span className="lt-dot">.</span>GE</span></span></a>
-<div className="tbr"><div className="lg"><button className="lo active" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("ka", e.currentTarget); }}>ქარ</button><button className="lo" onClick={(e) => { (window as unknown as ProtoGlobals).setLang?.("en", e.currentTarget); }}>EN</button></div>
-<button type="button" className="pb" onClick={() => { (window as unknown as ProtoGlobals).openSidebar?.(); }}><div className="pa"></div><span className="pn"></span></button></div></nav>
+<div className="tbr"><div className="lg"><button className="lo active" onClick={(e) => { proto().setLang?.("ka", e.currentTarget); }}>ქარ</button><button className="lo" onClick={(e) => { proto().setLang?.("en", e.currentTarget); }}>EN</button></div>
+<button type="button" className="pb" onClick={() => { proto().openSidebar?.(); }}><div className="pa"></div><span className="pn"></span></button></div></nav>
 
 
 
@@ -399,9 +386,9 @@ export default function BodyContent() {
 
 <footer className="footer"><div className="ct">
 <div className="footer-social">
-<a href="#" className="social-link" title="Instagram"><svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg></a>
-<a href="#" className="social-link" title="Facebook"><svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></a>
-<a href="#" className="social-link" title="TikTok"><svg viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg></a>
+<a href="#" className="social-link" title="Instagram">{IconInstagram}</a>
+<a href="#" className="social-link" title="Facebook">{IconFacebook}</a>
+<a href="#" className="social-link" title="TikTok">{IconTikTok}</a>
 </div>
 <div className="footer-links"><a href="#">ჩვენს შესახებ</a><a href="#">კონფიდენციალობა</a><a href="#">პირობები</a><a href="#">კონტაქტი</a></div>
 <div className="footer-copy">© 2026 ASTROLO.GE</div>
@@ -434,14 +421,14 @@ export default function BodyContent() {
       <div className="auth-header"><h1>შესვლა</h1><div className="sub">შენი ციური ნახაზი გელოდება</div></div>
       <div className="auth-panel">
         <div className="msg error" id="login-error"></div>
-        <button className="google-btn" onClick={() => { (window as unknown as ProtoGlobals).handleGoogle?.(); }}><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> Google-ით შესვლა</button>
+        <button className="google-btn" onClick={() => { proto().handleGoogle?.(); }}>{IconGoogleG} Google-ით შესვლა</button>
         <div className="auth-divider"><span>ან ელ-ფოსტით</span></div>
-        <div className="field"><label>ელ-ფოსტა</label><input type="email" id="login-email" placeholder="name@example.com" autoComplete="email" onKeyDown={(e) => { if (e.key === 'Enter') (window as unknown as ProtoGlobals).handleLogin?.(); }}/></div>
-        <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="login-pw" placeholder="••••••••" autoComplete="current-password" onKeyDown={(e) => { if (e.key === 'Enter') (window as unknown as ProtoGlobals).handleLogin?.(); }}/><button className="pw-toggle" onClick={(e) => { (window as unknown as ProtoGlobals).togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
-        <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '16px'}}><a href="#" onClick={(e) => { e.preventDefault(); (window as unknown as ProtoGlobals).showAuthPage?.("page-forgot"); }} style={{fontSize: '.72rem', color: 'var(--gd)', textDecoration: 'none', transition: 'color .3s'}}>დაგავიწყდა?</a></div>
-        <button className="auth-btn" onClick={() => { (window as unknown as ProtoGlobals).handleLogin?.(); }}><span className="btn-text">შესვლა</span></button>
-        <div className="nav-row" style={{marginTop: '10px'}}><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).showAuthPage?.("page-signup"); }} style={{width: '100%'}}>რეგისტრაცია →</button></div>
-        {devMode && <div className="nav-row" style={{marginTop: '8px'}}><button className="auth-btn-ghost" onClick={() => { (window as unknown as Record<string, () => void>).handleTestUser?.(); }} style={{width: '100%', color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ Test User</button></div>}
+        <div className="field"><label>ელ-ფოსტა</label><input type="email" id="login-email" placeholder="name@example.com" autoComplete="email" onKeyDown={(e) => { if (e.key === 'Enter') proto().handleLogin?.(); }}/></div>
+        <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="login-pw" placeholder="••••••••" autoComplete="current-password" onKeyDown={(e) => { if (e.key === 'Enter') proto().handleLogin?.(); }}/><button className="pw-toggle" onClick={(e) => { proto().togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
+        <div style={{display: 'flex', justifyContent: 'flex-end', marginBottom: '16px'}}><a href="#" onClick={(e) => { e.preventDefault(); proto().showAuthPage?.("page-forgot"); }} style={{fontSize: '.72rem', color: 'var(--gd)', textDecoration: 'none', transition: 'color .3s'}}>დაგავიწყდა?</a></div>
+        <button className="auth-btn" onClick={() => { proto().handleLogin?.(); }}><span className="btn-text">შესვლა</span></button>
+        <div className="nav-row" style={{marginTop: '10px'}}><button className="auth-btn-ghost" onClick={() => { proto().showAuthPage?.("page-signup"); }} style={{width: '100%'}}>რეგისტრაცია →</button></div>
+        {devMode && <div className="nav-row" style={{marginTop: '8px'}}><button className="auth-btn-ghost" onClick={() => { proto().handleTestUser?.(); }} style={{width: '100%', color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ Test User</button></div>}
       </div>
     </div>
 
@@ -452,14 +439,14 @@ export default function BodyContent() {
       <div className="auth-panel">
         <div className="msg error" id="signup-error"></div>
         <div className="invite-badge" id="invite-badge" style={{display: 'none'}}><span className="inv-dot"></span> მოწვევა: სინასტრია</div>
-        <button className="google-btn" onClick={() => { (window as unknown as ProtoGlobals).handleGoogle?.(); }}><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> Google-ით რეგისტრაცია</button>
+        <button className="google-btn" onClick={() => { proto().handleGoogle?.(); }}>{IconGoogleG} Google-ით რეგისტრაცია</button>
         <div className="auth-divider"><span>ან ელ-ფოსტით</span></div>
         <div className="field"><label>სახელი</label><input type="text" id="signup-name" autoComplete="name"/></div>
         <div className="field"><label>ელ-ფოსტა</label><input type="email" id="signup-email" placeholder="name@example.com" autoComplete="email"/></div>
-        <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="signup-pw" placeholder="მინ. 8 სიმბოლო" autoComplete="new-password"/><button className="pw-toggle" onClick={(e) => { (window as unknown as ProtoGlobals).togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
-        <button className="auth-btn" onClick={() => { (window as unknown as ProtoGlobals).handleSignup?.(); }} style={{marginTop: '4px'}}><span className="btn-text">რეგისტრაცია</span></button>
+        <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="signup-pw" placeholder="მინ. 8 სიმბოლო" autoComplete="new-password"/><button className="pw-toggle" onClick={(e) => { proto().togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
+        <button className="auth-btn" onClick={() => { proto().handleSignup?.(); }} style={{marginTop: '4px'}}><span className="btn-text">რეგისტრაცია</span></button>
         <div className="terms">რეგისტრაციით ეთანხმები <a href="#">პირობებს</a> და <a href="#">კონფიდენციალობას</a></div>
-        <div className="auth-footer">უკვე გაქვს ანგარიში? <a href="#" onClick={(e) => { e.preventDefault(); (window as unknown as ProtoGlobals).showAuthPage?.("page-login"); }}>შესვლა</a></div>
+        <div className="auth-footer">უკვე გაქვს ანგარიში? <a href="#" onClick={(e) => { e.preventDefault(); proto().showAuthPage?.("page-login"); }}>შესვლა</a></div>
       </div>
     </div>
 
@@ -468,10 +455,10 @@ export default function BodyContent() {
       <div className="auth-sigil"><div className="auth-sigil-icon">✧</div></div>
       <div className="auth-header"><h1>პაროლის აღდგენა</h1><div className="sub">შეიყვანე ელ-ფოსტა</div></div>
       <div className="auth-panel">
-        <button className="back-link" onClick={() => { (window as unknown as ProtoGlobals).showAuthPage?.("page-login"); }}><span>←</span> შესვლაზე დაბრუნება</button>
+        <button className="back-link" onClick={() => { proto().showAuthPage?.("page-login"); }}><span>←</span> შესვლაზე დაბრუნება</button>
         <div className="msg error" id="forgot-error"></div>
-        <div id="forgot-form"><div className="field"><label>ელ-ფოსტა</label><input type="email" id="forgot-email" placeholder="name@example.com"/></div><button className="auth-btn" onClick={() => { (window as unknown as ProtoGlobals).handleForgot?.(); }}><span className="btn-text">ბმულის გაგზავნა</span></button></div>
-        <div id="forgot-success" style={{display: 'none'}}><div className="reset-success"><div className="check-icon">✓</div><h3>ბმული გაგზავნილია</h3><p>თუ ანგარიში არსებობს, მალე მიიღებ აღდგენის ბმულს.</p></div><button className="auth-btn" onClick={() => { (window as unknown as ProtoGlobals).showAuthPage?.("page-login"); }} style={{marginTop: '12px'}}><span className="btn-text">დაბრუნება</span></button></div>
+        <div id="forgot-form"><div className="field"><label>ელ-ფოსტა</label><input type="email" id="forgot-email" placeholder="name@example.com"/></div><button className="auth-btn" onClick={() => { proto().handleForgot?.(); }}><span className="btn-text">ბმულის გაგზავნა</span></button></div>
+        <div id="forgot-success" style={{display: 'none'}}><div className="reset-success"><div className="check-icon">✓</div><h3>ბმული გაგზავნილია</h3><p>თუ ანგარიში არსებობს, მალე მიიღებ აღდგენის ბმულს.</p></div><button className="auth-btn" onClick={() => { proto().showAuthPage?.("page-login"); }} style={{marginTop: '12px'}}><span className="btn-text">დაბრუნება</span></button></div>
       </div>
     </div>
 
@@ -484,12 +471,12 @@ export default function BodyContent() {
         <div className="auth-hint"><div className="hint-t">✦ რატომ გვჭირდება?</div><p>ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.</p></div>
         <div className="field-row-3"><div className="field"><label>დღე</label><select id="birth-day"><option value="">—</option></select></div><div className="field"><label>თვე</label><select id="birth-month"><option value="">—</option></select></div><div className="field"><label>წელი</label><select id="birth-year"><option value="">—</option></select></div></div>
         <div className="field-row"><div className="field"><label>საათი</label><select id="birth-hour"><option value="">—</option></select></div><div className="field"><label>წუთი</label><select id="birth-min"><option value="">—</option></select></div></div>
-        <label className="check-row"><input type="checkbox" id="time-unknown" onChange={() => { (window as unknown as ProtoGlobals).toggleTimeUnknown?.(); }}/><div className="check-box">✓</div><span className="check-label">დაბადების დრო უცნობია</span></label>
+        <label className="check-row"><input type="checkbox" id="time-unknown" onChange={() => { proto().toggleTimeUnknown?.(); }}/><div className="check-box">✓</div><span className="check-label">დაბადების დრო უცნობია</span></label>
         <div className="field" style={{position: 'relative'}}><label>დაბადების ადგილი</label><input type="text" id="birth-place" autoComplete="off" placeholder="ქალაქი, ქვეყანა"/><div className="place-suggestions" id="placeSuggestions"></div></div>
         <label style={{display: 'block', fontSize: '.6rem', letterSpacing: '.14em', color: 'var(--gd)', marginBottom: '6px', fontWeight: 400}}>სქესი</label>
-        <div className="gender-row"><div className="gender-opt" data-gender="female" onClick={(e) => { (window as unknown as ProtoGlobals).selectGender?.(e.currentTarget, "female"); }}><span className="g-icon">♀</span>ქალი</div><div className="gender-opt" data-gender="male" onClick={(e) => { (window as unknown as ProtoGlobals).selectGender?.(e.currentTarget, "male"); }}><span className="g-icon">♂</span>კაცი</div></div>
-        <button className="auth-btn" onClick={() => { (window as unknown as { __authBirthSubmit?: () => void }).__authBirthSubmit?.(); }} style={{marginTop: '6px'}}><span className="btn-text">რუკის აგება ✦</span></button>
-        <div className="nav-row"><button className="auth-btn-ghost" onClick={() => { (window as unknown as ProtoGlobals).goAuthStep?.(1); }}>← უკან</button>{devMode && <button className="auth-btn-ghost" onClick={() => { (window as unknown as Record<string, () => void>).handleTestUser?.(); }} style={{color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ Test User</button>}</div>
+        <div className="gender-row"><div className="gender-opt" data-gender="female" onClick={(e) => { proto().selectGender?.(e.currentTarget, "female"); }}><span className="g-icon">♀</span>ქალი</div><div className="gender-opt" data-gender="male" onClick={(e) => { proto().selectGender?.(e.currentTarget, "male"); }}><span className="g-icon">♂</span>კაცი</div></div>
+        <button className="auth-btn" onClick={() => { proto().__authBirthSubmit?.(); }} style={{marginTop: '6px'}}><span className="btn-text">რუკის აგება ✦</span></button>
+        <div className="nav-row"><button className="auth-btn-ghost" onClick={() => { proto().goAuthStep?.(1); }}>← უკან</button>{devMode && <button className="auth-btn-ghost" onClick={() => { proto().handleTestUser?.(); }} style={{color: 'var(--fire)', borderColor: 'rgba(212,100,74,.15)', fontSize: '.66rem'}}>⚡ Test User</button>}</div>
       </div>
     </div>
   </div>
@@ -568,12 +555,12 @@ export default function BodyContent() {
   {/* ── Shared: Payment Method Selector ── */}
   <div className="pay-method-label">გადახდის მეთოდი</div>
   <div className="pay-methods">
-    <div className="pay-method selected" id="payBog" onClick={(e) => { (window as unknown as ProtoGlobals).selectPayMethod?.('bog', e.currentTarget); }}>
+    <div className="pay-method selected" id="payBog" onClick={(e) => { proto().selectPayMethod?.('bog', e.currentTarget); }}>
       <div className="pay-method-check">✓</div>
       <div className="pay-method-name bog">BOG</div>
       <div className="pay-method-cards">Visa · Mastercard · AmEx</div>
     </div>
-    <div className="pay-method" id="payTbc" onClick={(e) => { (window as unknown as ProtoGlobals).selectPayMethod?.('tbc', e.currentTarget); }}>
+    <div className="pay-method" id="payTbc" onClick={(e) => { proto().selectPayMethod?.('tbc', e.currentTarget); }}>
       <div className="pay-method-check">✓</div>
       <div className="pay-method-name tbc">TBC</div>
       <div className="pay-method-cards">Visa · Mastercard · QR</div>
@@ -654,68 +641,92 @@ export default function BodyContent() {
   <button className="dev-btn" onClick={() => { window.location.href = "/auth"; }} id="devAuth">☽ AUTH</button>
   <button className="dev-btn active" onClick={() => { window.location.href = "/"; }} id="devNatal">⊙ NATAL</button>
   <div className="dev-row">
-    <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).switchSynastry?.("couple", e.currentTarget); }} id="devCouple">☌ COUPLE</button>
-    <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).switchSynastry?.("friend", e.currentTarget); }} id="devFriend">☌ FRIEND</button>
+    <button className="dev-btn" onClick={(e) => { proto().switchSynastry?.("couple", e.currentTarget); }} id="devCouple">☌ COUPLE</button>
+    <button className="dev-btn" onClick={(e) => { proto().switchSynastry?.("friend", e.currentTarget); }} id="devFriend">☌ FRIEND</button>
   </div>
   <div className="dev-sep"></div>
   <div className="dev-label">ACCOUNT</div>
   <div className="dev-row">
-    <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).setTier?.("free", e.currentTarget); }} id="devFree">FREE</button>
-    <button className="dev-btn active" onClick={(e) => { (window as unknown as ProtoGlobals).setTier?.("premium", e.currentTarget); }} id="devPremium">PREMIUM</button>
+    <button className="dev-btn" onClick={(e) => { proto().setTier?.("free", e.currentTarget); }} id="devFree">FREE</button>
+    <button className="dev-btn active" onClick={(e) => { proto().setTier?.("premium", e.currentTarget); }} id="devPremium">PREMIUM</button>
   </div>
   <div className="dev-row">
-    <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).setTier?.("invited", e.currentTarget); }} id="devInvited">INVITED</button>
-    <button className="dev-btn" onClick={(e) => { (window as unknown as ProtoGlobals).setTier?.("invited-plus", e.currentTarget); }} id="devInvitedPlus">INVITED+</button>
+    <button className="dev-btn" onClick={(e) => { proto().setTier?.("invited", e.currentTarget); }} id="devInvited">INVITED</button>
+    <button className="dev-btn" onClick={(e) => { proto().setTier?.("invited-plus", e.currentTarget); }} id="devInvitedPlus">INVITED+</button>
   </div>
   <div className="dev-sep"></div>
   <div className="dev-label">SLOT 1 <span style={{fontSize:'.55rem',opacity:.5}}>override</span></div>
   <div className="dev-row">
-    <button className="dev-btn slot-btn" onClick={(e) => { (window as unknown as ProtoGlobals).toggleSlot?.(1, e.currentTarget); }} id="devSlot1Toggle">🔒 locked</button>
-    <button className="dev-btn slot-btn" onClick={(e) => { (window as unknown as ProtoGlobals).occupySlot?.(1, e.currentTarget); }} id="devSlot1Occupy">👤 occupy</button>
+    <button className="dev-btn slot-btn" onClick={(e) => { proto().toggleSlot?.(1, e.currentTarget); }} id="devSlot1Toggle">🔒 locked</button>
+    <button className="dev-btn slot-btn" onClick={(e) => { proto().occupySlot?.(1, e.currentTarget); }} id="devSlot1Occupy">👤 occupy</button>
   </div>
 
   <div className="dev-row">
-    <button className="dev-btn slot-btn" onClick={(e) => { (window as unknown as ProtoGlobals).toggleSlot?.(2, e.currentTarget); }} id="devSlot2Toggle">🔒 locked</button>
-    <button className="dev-btn slot-btn" onClick={(e) => { (window as unknown as ProtoGlobals).occupySlot?.(2, e.currentTarget); }} id="devSlot2Occupy">👤 occupy</button>
+    <button className="dev-btn slot-btn" onClick={(e) => { proto().toggleSlot?.(2, e.currentTarget); }} id="devSlot2Toggle">🔒 locked</button>
+    <button className="dev-btn slot-btn" onClick={(e) => { proto().occupySlot?.(2, e.currentTarget); }} id="devSlot2Occupy">👤 occupy</button>
   </div>
   <div className="dev-sep"></div>
   <div className="dev-label">TEST USER</div>
   <div className="dev-row">
-    <button className="dev-btn" id="devPrevPrevLogin" onClick={async (e) => {
-      const btn = e.currentTarget;
-      btn.textContent = '...';
-      try {
-        const res = await fetch('/api/dev/test-user?offset=2', { headers: { 'x-dev-password': DEV_MODE_PASSWORD } });
-        if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '⬅⬅ Prev2'; }, 1500); return; }
-        const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
-        await devSignInAndGo(data);
-      } catch { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = '⬅⬅ Prev2'; }, 1500); }
-    }}>⬅⬅ Prev2</button>
-    <button className="dev-btn" id="devPrevLogin" onClick={async (e) => {
-      const btn = e.currentTarget;
-      btn.textContent = '...';
-      try {
-        const res = await fetch('/api/dev/test-user?offset=1', { headers: { 'x-dev-password': DEV_MODE_PASSWORD } });
-        if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '⬅ Prev'; }, 1500); return; }
-        const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
-        await devSignInAndGo(data);
-      } catch { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = '⬅ Prev'; }, 1500); }
-    }}>⬅ Prev</button>
-    <button className="dev-btn" id="devLastUser" onClick={async (e) => {
-      const btn = e.currentTarget;
-      btn.textContent = '...';
-      try {
-        const res = await fetch('/api/dev/test-user', { headers: { 'x-dev-password': DEV_MODE_PASSWORD } });
-        if (!res.ok) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
-        const data = await res.json() as { email: string; password: string; shareSlug?: string | null; hasReading: boolean };
-        if (!data.email || !data.password) { btn.textContent = 'NONE'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); return; }
-        await devSignInAndGo(data);
-      } catch { btn.textContent = 'ERROR'; setTimeout(() => { btn.textContent = '🔁 Last'; }, 1500); }
-    }}>🔁 Last</button>
+    <button className="dev-btn" id="devPrevPrevLogin" onClick={onDevTestUserClick('⬅⬅ Prev2', 2)}>⬅⬅ Prev2</button>
+    <button className="dev-btn" id="devPrevLogin" onClick={onDevTestUserClick('⬅ Prev', 1)}>⬅ Prev</button>
+    <button className="dev-btn" id="devLastUser" onClick={onDevTestUserClick('🔁 Last', 0)}>🔁 Last</button>
   </div>
   </div>
   )}{/* dev-panel-body */}
 </div>
 </div>
+  );
+}
+
+// ─── SVG <defs> sprite ───────────────────────────────────────────────────
+// Hidden symbol library that the rest of the markup pulls glyphs from via
+// `<use href="#gl-…"/>`. Kept inline so it doesn't depend on the legacy
+// runtime or the parent component's render order.
+function GlyphSymbols() {
+  return (
+<svg xmlns="http://www.w3.org/2000/svg" style={{display: 'none'}}><defs>
+<symbol id="gl-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" strokeWidth="1.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></symbol>
+<symbol id="gl-moon" viewBox="0 0 24 24"><path d="M16 4a8 8 0 1 0 0 16 6 6 0 0 1 0-16z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></symbol>
+<symbol id="gl-venus" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5" fill="none" stroke="currentColor" strokeWidth="1.5"/><line x1="12" y1="14" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><line x1="9" y1="19" x2="15" y2="19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></symbol>
+<symbol id="gl-mars" viewBox="0 0 24 24"><circle cx="10" cy="14" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.5"/><line x1="14" y1="10" x2="20" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><polyline points="15,4 20,4 20,9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></symbol>
+<symbol id="gl-sparkle" viewBox="0 0 24 24"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" fill="currentColor" opacity=".8"/></symbol>
+<symbol id="gl-brand-sparkle" viewBox="0 0 24 24"><path d="M12 1.5l2.6 7.8L22.5 12l-7.9 2.7L12 22.5l-2.6-7.8L1.5 12l7.9-2.7z" fill="currentColor"/></symbol>
+<symbol id="gl-node" viewBox="0 0 24 24"><circle cx="8" cy="16" r="4" fill="none" stroke="currentColor" strokeWidth="1.5"/><circle cx="16" cy="16" r="4" fill="none" stroke="currentColor" strokeWidth="1.5"/><path d="M8 12V6M16 12V6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></symbol>
+<symbol id="gl-diamond" viewBox="0 0 24 24"><path d="M12 2L22 12L12 22L2 12Z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></symbol>
+
+<symbol id="gl-libra" viewBox="0 0 24 24"><path d="M4 18h16M4 15h16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" fill="none"/><path d="M12 15c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6z" stroke="currentColor" strokeWidth="1.3" fill="none"/></symbol>
+
+<symbol id="gl-aries" viewBox="0 0 24 24"><path d="M12 22V6M12 6c0-2 2-4 5-4s4 2 4 4-2 4-4 7M12 6c0-2-2-4-5-4S3 4 3 6s2 4 4 7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+<symbol id="gl-taurus" viewBox="0 0 24 24"><circle cx="12" cy="15" r="6" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M4 4c2 4 5 5 8 5s6-1 8-5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+<symbol id="gl-gemini" viewBox="0 0 24 24"><path d="M6 3c3 2 6 2 12 0M6 21c3-2 6-2 12 0M8 3v18M16 3v18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+<symbol id="gl-cancer" viewBox="0 0 24 24"><circle cx="8" cy="10" r="4" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="16" cy="14" r="4" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M12 10c4 0 8-1 9-5M12 14c-4 0-8 1-9 5" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
+<symbol id="gl-leo" viewBox="0 0 24 24"><circle cx="8" cy="14" r="4" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M12 14c0-4 2-8 5-8s4 2 4 5c0 4-3 6-3 9" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+<symbol id="gl-virgo" viewBox="0 0 24 24"><path d="M4 4v14c0 2 1 3 3 3M10 4v14c0 2 1 3 3 3s3-2 3-4V4M16 12c2 2 4 4 4 7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+<symbol id="gl-scorpio" viewBox="0 0 24 24"><path d="M4 4v14c0 2 1 3 3 3M10 4v14c0 2 1 3 3 3M16 4v14c0 2 1 3 3 1l2-2M19 14l2 2" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></symbol>
+<symbol id="gl-sagittarius" viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><polyline points="12,4 20,4 20,12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><line x1="7" y1="13" x2="13" y2="19" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></symbol>
+<symbol id="gl-capricorn" viewBox="0 0 24 24"><path d="M5 4v12c0 3 2 5 5 5s4-2 4-4V4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M14 14c2 0 4 1 5 3s1 4-1 4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+<symbol id="gl-aquarius" viewBox="0 0 24 24"><path d="M3 9l3 3 3-3 3 3 3-3 3 3 3-3M3 15l3 3 3-3 3 3 3-3 3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></symbol>
+<symbol id="gl-pisces" viewBox="0 0 24 24"><path d="M6 3c0 6-1 9 0 12s1 3 0 6M18 3c0 6 1 9 0 12s-1 3 0 6" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+
+<symbol id="gl-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" strokeWidth="1.4"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" strokeWidth="1.4"/></symbol>
+<symbol id="gl-arrow-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></symbol>
+<symbol id="gl-print" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
+<symbol id="gl-mercury" viewBox="0 0 24 24"><circle cx="12" cy="10" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="12" y1="15" x2="12" y2="22" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="9" y1="19" x2="15" y2="19" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M7 5a6 6 0 0110 0" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
+<symbol id="gl-jupiter" viewBox="0 0 24 24"><path d="M14 4v16M10 12h10M6 4c4 0 6 3 6 8s-2 8-6 8" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></symbol>
+<symbol id="gl-neptune" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="18" x2="16" y2="18" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><path d="M5 10l3.5-4L12 10l3.5-4L19 10" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></symbol>
+<symbol id="gl-uranus" viewBox="0 0 24 24"><circle cx="12" cy="17" r="4" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="12" y1="13" x2="12" y2="2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="7" x2="16" y2="7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="12" cy="2" r="1.2" fill="currentColor"/></symbol>
+<symbol id="gl-lilith" viewBox="0 0 24 24"><path d="M12 3c-4 0-6 3-6 6s3 5 6 5 6-2 6-5-2-6-6-6z" fill="none" stroke="currentColor" strokeWidth="1.3"/><line x1="12" y1="14" x2="12" y2="22" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="18" x2="16" y2="18" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
+<symbol id="gl-saturn" viewBox="0 0 24 24"><path d="M8 2l-3 3M5 5l2 2M9 9c-3 3-3 7 0 10s7 3 10 0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="9" y1="9" x2="9" y2="20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="6" y1="14" x2="12" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+<symbol id="gl-pluto" viewBox="0 0 24 24"><circle cx="12" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M12 7m-2 0a2 2 0 104 0 2 2 0 10-4 0" fill="none" stroke="currentColor" strokeWidth="1.2"/><line x1="12" y1="12" x2="12" y2="20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="17" x2="16" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+    <symbol id="gl-asc" viewBox="0 0 24 24"><path d="M12 3L6 21h2.5l1.5-5h8l1.5 5H22L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
+    <symbol id="gl-conjunction" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="12" y1="5" x2="12" y2="2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+    <symbol id="gl-trine" viewBox="0 0 24 24"><path d="M12 3L22 20H2L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
+    <symbol id="gl-square" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
+    <symbol id="gl-sextile" viewBox="0 0 24 24"><path d="M12 2l2.6 4.5H22l-3.7 6L22 17.5h-7.4L12 22l-2.6-4.5H2l3.7-5.5L2 7.5h7.4z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></symbol>
+    <symbol id="gl-opposition" viewBox="0 0 24 24"><circle cx="5" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="19" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="8.5" y1="12" x2="15.5" y2="12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></symbol>
+    <symbol id="gl-numbers" viewBox="0 0 24 24"><text x="4" y="14" fontFamily="Cormorant Garamond,serif" fontSize="12" fill="currentColor" fontWeight="400">1</text><text x="12" y="20" fontFamily="Cormorant Garamond,serif" fontSize="10" fill="currentColor" fontWeight="300" opacity=".7">9</text><text x="14" y="10" fontFamily="Cormorant Garamond,serif" fontSize="9" fill="currentColor" fontWeight="300" opacity=".5">7</text></symbol>
+    <symbol id="gl-yinyang" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.3"/><path d="M12 2a10 10 0 000 20c0-5.5-2.5-10 0-10s0 4.5 0 10" fill="none" stroke="currentColor" strokeWidth="1.2"/><circle cx="12" cy="7" r="1.5" fill="currentColor"/><circle cx="12" cy="17" r="1.5" fill="none" stroke="currentColor" strokeWidth="1"/></symbol>
+</defs></svg>
   );
 }
