@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ka" className={transcity.variable}>
+    <html lang="ka" className={transcity.variable} suppressHydrationWarning>
       <head>
         <link
           rel="stylesheet"
