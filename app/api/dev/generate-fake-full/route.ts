@@ -2,14 +2,15 @@
 // POST /api/dev/generate-fake-full
 //
 // Dev-only "CALL1 PREMIUM" path. Runs the real (cheap) Call 1 chart analysis
-// and synthesizes a clearly-marked fake Call 2 reading so the UI can render
-// the full premium layout without spending Call 2 tokens or waiting 5 min.
+// and clones another user's already-generated reading_ka / reading_en as the
+// fake Call 2 — stamped with a "🔁 FAKE" marker on every section so a test
+// user sees the full premium layout/content shape without spending Call 2
+// tokens or waiting 5 min.
 //
-// Idempotent — if a fake reading already exists, returns the existing slug.
 // Side effects:
 //   - account_type → 'premium', natal_chart_unlocked → true
-//   - natal_readings row upserted with fake reading_ka / reading_en
-//   - cache invalidated for owner-side natal + public-share routes
+//   - natal_readings row upserted with the cloned-and-stamped reading
+//   - public-share cache invalidated
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,7 +20,7 @@ import { PROMPT_VERSION } from '@/lib/AIgeneration/prompts/natal';
 import { getAuthContext } from '@/lib/auth/guards';
 import { jsonServerError } from '@/lib/auth/http';
 import { requireCsrfOrThrow } from '@/lib/auth/csrf';
-import { buildFakeNatalReading } from '@/lib/AIgeneration/fake-reading';
+import { markReadingAsFakeCopy } from '@/lib/AIgeneration/fake-reading';
 import {
   invalidatePublicReadingByUser,
   invalidateUserProfile,
@@ -93,15 +94,37 @@ export async function POST(req: NextRequest) {
       call1Tokens = call1.tokens;
     }
 
+    // Pull a real previously-generated reading from any other user as the
+    // clone source. KA + EN must both exist on the same row so the language
+    // toggle stays consistent.
+    const { data: sample } = await admin
+      .from('natal_readings')
+      .select('reading_ka, reading_en')
+      .neq('user_id', authUser.id)
+      .not('reading_ka', 'is', null)
+      .not('reading_en', 'is', null)
+      .limit(1)
+      .maybeSingle();
+
+    if (!sample?.reading_ka || !sample?.reading_en) {
+      return NextResponse.json(
+        { error: 'No completed reading exists in the DB to clone from. Run a real generation first.' },
+        { status: 400 },
+      );
+    }
+
+    const fakeKa = markReadingAsFakeCopy(sample.reading_ka as Record<string, unknown>, 'ka');
+    const fakeEn = markReadingAsFakeCopy(sample.reading_en as Record<string, unknown>, 'en');
+    if (!fakeKa || !fakeEn) {
+      return NextResponse.json({ error: 'Failed to clone source reading' }, { status: 500 });
+    }
+
     const storedPlanets = chartRow.planets as StoredPlanet[] | null;
     const storedPoints = chartRow.points as StoredPoints | null;
     const storedAspects = chartRow.aspects as StoredAspect[] | null;
 
-    const fakeKa = buildFakeNatalReading(analysis, 'ka');
-    const fakeEn = buildFakeNatalReading(analysis, 'en');
-
-    // Inject real chart_data into the fake reading's overview so the planet
-    // table + aspects look real even though card text is stubbed.
+    // Inject the current user's real chart_data into overview so the planet
+    // table + aspects match this user even though card text is the clone's.
     const planetTable = buildPlanetTableForReading(storedPlanets, storedPoints);
     const aspectsKa = mergeAspectsForReading(storedAspects, []);
     const aspectsEn = mergeAspectsForReading(storedAspects, []);
@@ -125,7 +148,7 @@ export async function POST(req: NextRequest) {
         tokens_call1: call1Tokens,
         tokens_call2_ka: 0,
         tokens_call2_en: 0,
-        validation_warnings: ['DEV FAKE READING — Call 2 was skipped'],
+        validation_warnings: ['DEV FAKE READING — cloned from another user, Call 2 skipped'],
         generation_status: 'complete',
         generation_error: null,
         generation_started_at: new Date().toISOString(),

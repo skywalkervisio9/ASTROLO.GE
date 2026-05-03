@@ -27,6 +27,23 @@ export default function LoadingRouteClient() {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [canReturnToBirth, setCanReturnToBirth] = useState(false);
 
+  // Lock body scroll while the loading overlay is mounted. The /loading page
+  // also renders BodyContent (the full app shell) so the document is taller
+  // than the viewport — without this lock the user can scroll the hidden
+  // shell out from behind the overlay and see a stray scrollbar.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, []);
+
   useEffect(() => {
     const supabase = createClient();
 
@@ -96,29 +113,48 @@ export default function LoadingRouteClient() {
         return;
       }
 
-      // Early exit: already complete
-      const earlyCheck = await fetch('/api/onboarding/status', { credentials: 'include' });
-      if (earlyCheck.ok) {
-        const earlyStatus = await earlyCheck.json() as { status: string; complete?: boolean; shareSlug?: string };
-        if (earlyStatus.status === 'complete' && earlyStatus.shareSlug) {
-          window.location.href = `/r/${earlyStatus.shareSlug}`;
+      // Early exit: already complete. Skipped for fake-full — that mode is
+      // explicitly a re-generation and must run regardless of existing rows.
+      if (!isFakeFull) {
+        const earlyCheck = await fetch('/api/onboarding/status', { credentials: 'include' });
+        if (earlyCheck.ok) {
+          const earlyStatus = await earlyCheck.json() as { status: string; complete?: boolean; shareSlug?: string };
+          if (earlyStatus.status === 'complete' && earlyStatus.shareSlug) {
+            window.location.href = `/r/${earlyStatus.shareSlug}`;
+            return;
+          }
+        }
+      }
+
+      // ── DEV CALL1 PREMIUM: real Call 1 + cloned Call 2 (no Call 2 spend) ──
+      // Single round-trip — await the response and redirect with the returned
+      // slug. Polling would race against the existing reading_ka and bounce
+      // the user back to the previous slug before the dev route finishes.
+      if (isFakeFull) {
+        try {
+          const init = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
+          const res = await fetch('/api/dev/generate-fake-full', init);
+          if (!res.ok) {
+            const message = await res.text();
+            const trimmed = message.length > 240 ? message.slice(0, 240) + '…' : message;
+            setErrorText(`CALL1 PREMIUM failed (${res.status}): ${trimmed || 'no body'}`);
+            return;
+          }
+          const data = await res.json() as { shareSlug?: string };
+          if (data.shareSlug) {
+            window.location.href = `/r/${data.shareSlug}`;
+            return;
+          }
+          setErrorText('CALL1 PREMIUM returned no shareSlug.');
+          return;
+        } catch (err) {
+          console.error('[loading] generate-fake-full error:', err);
+          setErrorText(`CALL1 PREMIUM error: ${err instanceof Error ? err.message : String(err)}`);
           return;
         }
       }
 
-      // ── DEV CALL1 PREMIUM: real Call 1 + stub Call 2 (no Call 2 spend) ──
-      if (isFakeFull) {
-        try {
-          const init = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
-          fetch('/api/dev/generate-fake-full', init).catch((err) =>
-            console.error('[loading] generate-fake-full network error:', err)
-          );
-        } catch {
-          console.error('[loading] error starting fake-full generation');
-        }
-        // Fall through to polling loop — status route flips complete once the
-        // upsert lands, same as real generate-full.
-      } else if (isGenerateFull) {
+      if (isGenerateFull) {
         try {
           // Step 1: Call 1 — chart analysis (idempotent, quick ~20-30s)
           const init1 = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
