@@ -18,11 +18,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonServerError } from '@/lib/auth/http';
 import { buildStaticReading } from '@/lib/chart/static-reading';
-import {
-  getNatalChartByUser,
-  getNatalReadingByUser,
-} from '@/lib/data/natal-reading';
-import { getUserProfileForReading } from '@/lib/data/public-reading';
+import { createAdminSupabase } from '@/lib/supabase/admin';
+import { getNatalChartByUser } from '@/lib/data/natal-reading';
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,12 +30,29 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const lang = (url.searchParams.get('lang') ?? 'ka') as 'ka' | 'en';
 
-    // All three reads hit the Data Cache; on warm hits this is microseconds.
-    const [profile, chartRow, readingBody] = await Promise.all([
-      getUserProfileForReading(authUser.id),
+    // Profile + reading body are read uncached: both are tier-gating data that
+    // change at generation time. After a fresh upgrade + generation, the
+    // cached entries can briefly still return free-tier / null on the first
+    // /r/{slug} visit and the user sees only chart tables until they refresh.
+    // Chart data stays cached — it's immutable post-onboarding.
+    const admin = createAdminSupabase();
+    const [{ data: profile }, chartRow, { data: readingRow }] = await Promise.all([
+      admin
+        .from('users')
+        .select('account_type, natal_chart_unlocked')
+        .eq('id', authUser.id)
+        .maybeSingle(),
       getNatalChartByUser(authUser.id),
-      getNatalReadingByUser(authUser.id),
+      admin
+        .from('natal_readings')
+        .select('reading_ka, reading_en')
+        .eq('user_id', authUser.id)
+        .maybeSingle(),
     ]);
+    const readingBody = readingRow as {
+      reading_ka: Record<string, unknown> | null;
+      reading_en: Record<string, unknown> | null;
+    } | null;
 
     // Profile may be missing briefly for brand-new OAuth users.
     if (!profile) {

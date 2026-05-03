@@ -63,11 +63,13 @@ export default function LoadingRouteClient() {
       const w = window as unknown as Record<string, unknown>;
       w.__ASTROLO_LIVE_LOADING = true;
 
-      // Detect mode from URL: ?mode=generate-full means post-payment full reading
+      // Detect mode from URL: ?mode=generate-full means post-payment full reading;
+      // ?mode=fake-full is the dev CALL1 PREMIUM path (real Call 1 + stub Call 2).
       const urlParams = new URLSearchParams(window.location.search);
       const isGenerateFull = urlParams.get('mode') === 'generate-full';
+      const isFakeFull = urlParams.get('mode') === 'fake-full';
       const hasInvite = Boolean(urlParams.get('invite'));
-      const isFree = !isGenerateFull && !hasInvite;
+      const isFree = !isGenerateFull && !isFakeFull && !hasInvite;
 
       // Fetch user's language preference for loading screen
       let userLang: string = 'ka';
@@ -81,8 +83,10 @@ export default function LoadingRouteClient() {
 
       whenRuntimeReady().then(() => {
         const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string, durationMs?: number) => void) | undefined;
-        // 20s for free (Astrologer API only), 7 min for generate-full (AI reading)
-        if (fn) fn(userLang, isFree ? 20000 : 900000); // 900000ms = 15min
+        // 20s free (Astrologer API only), 60s fake-full (Call 1 only),
+        // 15min generate-full (full AI reading).
+        const duration = isFree ? 20000 : isFakeFull ? 60000 : 900000;
+        if (fn) fn(userLang, duration);
       });
 
       const { data: auth } = await supabase.auth.getUser();
@@ -102,8 +106,19 @@ export default function LoadingRouteClient() {
         }
       }
 
-      // ── POST-PAYMENT MODE: trigger generate-full (two-step to stay within 300s) ──
-      if (isGenerateFull) {
+      // ── DEV CALL1 PREMIUM: real Call 1 + stub Call 2 (no Call 2 spend) ──
+      if (isFakeFull) {
+        try {
+          const init = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
+          fetch('/api/dev/generate-fake-full', init).catch((err) =>
+            console.error('[loading] generate-fake-full network error:', err)
+          );
+        } catch {
+          console.error('[loading] error starting fake-full generation');
+        }
+        // Fall through to polling loop — status route flips complete once the
+        // upsert lands, same as real generate-full.
+      } else if (isGenerateFull) {
         try {
           // Step 1: Call 1 — chart analysis (idempotent, quick ~20-30s)
           const init1 = await withCsrfHeaders({ method: 'POST', credentials: 'include' });

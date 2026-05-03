@@ -651,7 +651,11 @@ export default function BodyContent() {
     <button className="dev-btn active" onClick={(e) => { proto().setTier?.("premium", e.currentTarget); }} id="devPremium">PREMIUM</button>
   </div>
   <div className="dev-row">
-    <button className="dev-btn" onClick={(e) => { proto().setTier?.("invited", e.currentTarget); }} id="devInvited">INVITED</button>
+    <button
+      className="dev-btn"
+      id="devCall1Premium"
+      onClick={() => { window.location.href = '/loading?mode=fake-full'; }}
+    >CALL1 PREMIUM</button>
     <button className="dev-btn" onClick={(e) => { proto().setTier?.("invited-plus", e.currentTarget); }} id="devInvitedPlus">INVITED+</button>
   </div>
   <div className="dev-sep"></div>
