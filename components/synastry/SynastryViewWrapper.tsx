@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import SynastryView from './SynastryView';
-import type { SynastryReadingData } from './SynastryView';
+import type { SynastryReadingData, ChartPersonData } from './SynastryView';
 import type { Language } from '@/types/user';
 
 interface Connection {
@@ -21,6 +21,10 @@ interface Connection {
  */
 export default function SynastryViewWrapper() {
   const [reading, setReading] = useState<SynastryReadingData | null>(null);
+  const [chartA, setChartA] = useState<ChartPersonData | null>(null);
+  const [chartB, setChartB] = useState<ChartPersonData | null>(null);
+  const [shareSlugA, setShareSlugA] = useState<string | null>(null);
+  const [shareSlugB, setShareSlugB] = useState<string | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -55,6 +59,10 @@ export default function SynastryViewWrapper() {
       const data = await res.json();
       if (data.reading) {
         setReading(data.reading);
+        setChartA(data.chartA ?? null);
+        setChartB(data.chartB ?? null);
+        setShareSlugA(data.shareSlugA ?? null);
+        setShareSlugB(data.shareSlugB ?? null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load synastry reading');
@@ -213,7 +221,7 @@ export default function SynastryViewWrapper() {
 
   // Has reading → show it
   if (reading) {
-    return <SynastryView reading={reading} language={language} onBackToNatal={handleBackToNatal} />;
+    return <SynastryView reading={reading} language={language} onBackToNatal={handleBackToNatal} chartA={chartA} chartB={chartB} shareSlugA={shareSlugA} shareSlugB={shareSlugB} />;
   }
 
   // Generating → show progress

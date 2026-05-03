@@ -466,8 +466,8 @@ document.querySelector('#sbNavRow .sb-nav-item:first-child').onclick = function(
 document.getElementById('synNavItem').onclick = function() {
   // If synastry already generated, just show it
   if (_synastryGenerated) { closeSidebar(); switchView('synastry'); return; }
-  // FREE: locked → premium payment page
-  if (this.classList.contains('locked-syn')) { closeSidebar(); showPaymentPage('premium'); return; }
+  // FREE (or no unlocked slot): locked → premium payment page
+  if (currentAccountType === 'free' || this.classList.contains('locked-syn')) { closeSidebar(); showPaymentPage('premium'); return; }
   // Pulsating CTA → open invite modal (or test trigger on allowed hosts)
   if (this.classList.contains('syn-cta-pulsate')) {
     var host = window.location.hostname;

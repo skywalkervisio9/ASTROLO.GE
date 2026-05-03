@@ -299,8 +299,8 @@ export default function BodyContent() {
 <div className="sb-section" id="navSection">
 <div className="sb-section-title">ჩემი რუკა<span className="sb-dob" id="sbDob"></span></div>
 <div className="sb-nav-row" id="sbNavRow">
-  <div className="sb-nav-item active" onClick={() => { alert("→ ნატალური რუკა"); }}><span className="sb-nav-icon"><svg><use href="#gl-sun"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">ნატალური რუკა</span></div></div>
-  <div className="sb-nav-item has-partner" id="synNavItem" onClick={() => { alert("→ სინასტრია"); }}><span className="sb-nav-icon"><svg><use href="#gl-venus"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">სინასტრია</span><span className="sb-nav-partner" id="synPartnerName">(გიორგი მაისურაძე)</span></div><span className="mode-badge couple" id="modeBadge">მეწყვილე</span></div>
+  <div className="sb-nav-item active" onClick={() => { (window as unknown as Record<string, unknown> & { switchView?: (v: string) => void }).switchView?.('natal'); }}><span className="sb-nav-icon"><svg><use href="#gl-sun"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">ნატალური რუკა</span></div></div>
+  <div className="sb-nav-item has-partner" id="synNavItem"><span className="sb-nav-icon"><svg><use href="#gl-venus"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">სინასტრია</span><span className="sb-nav-partner" id="synPartnerName">(გიორგი მაისურაძე)</span></div><span className="mode-badge couple" id="modeBadge">მეწყვილე</span></div>
   <div className="sb-nav-item invite-btn" id="inviteNavBtn" onClick={() => { proto().showUpgrade?.(); }}><span className="sb-nav-icon">+</span><div className="sb-nav-text"><span className="sb-nav-label" id="inviteBtnLabel">მოწვევა</span></div></div>
 </div>
 </div>
@@ -359,7 +359,7 @@ export default function BodyContent() {
 
 
 <nav className="tb">
-<a className="tbl" href="#" aria-label="ASTROLO.GE"><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-ge"><span className="lt-dot">.</span>GE</span></span></a>
+<a className="tbl" href="#" aria-label="ASTROLO.GE" onClick={(e) => { e.preventDefault(); (window as unknown as Record<string, unknown> & { switchView?: (v: string, b?: HTMLElement | null) => void }).switchView?.('natal', document.getElementById('devNatal')); }}><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-ge"><span className="lt-dot">.</span>GE</span></span></a>
 <div className="tbr"><div className="lg"><button className="lo active" onClick={(e) => { proto().setLang?.("ka", e.currentTarget); }}>ქარ</button><button className="lo" onClick={(e) => { proto().setLang?.("en", e.currentTarget); }}>EN</button></div>
 <button type="button" className="pb" onClick={() => { proto().openSidebar?.(); }}><div className="pa"></div><span className="pn"></span></button></div></nav>
 
@@ -668,6 +668,7 @@ export default function BodyContent() {
   <div className="dev-sep"></div>
   <div className="dev-label">TEST USER</div>
   <div className="dev-row">
+    <button className="dev-btn" id="devPrevPrevPrevLogin" onClick={onDevTestUserClick('⬅⬅⬅ Prev3', 3)}>⬅⬅⬅ Prev3</button>
     <button className="dev-btn" id="devPrevPrevLogin" onClick={onDevTestUserClick('⬅⬅ Prev2', 2)}>⬅⬅ Prev2</button>
     <button className="dev-btn" id="devPrevLogin" onClick={onDevTestUserClick('⬅ Prev', 1)}>⬅ Prev</button>
     <button className="dev-btn" id="devLastUser" onClick={onDevTestUserClick('🔁 Last', 0)}>🔁 Last</button>

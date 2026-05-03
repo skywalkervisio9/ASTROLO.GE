@@ -53,6 +53,7 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
   const [isPublic, setIsPublic] = useState(true);
   const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(user.full_name || '');
   const [nameSaving, setNameSaving] = useState(false);
@@ -268,8 +269,8 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
                 <div className="stg-row-title">{isLangEn ? 'Reading visibility' : 'წაკითხვის ხილვადობა'}</div>
                 <div className="stg-row-desc">
                   {isPublic
-                    ? (isLangEn ? 'Anyone with the link can view your reading' : 'ბმულის მქონე ნებისმიერს შეუძლია ნახვა')
-                    : (isLangEn ? 'Only you can see your reading' : 'მხოლოდ თქვენ ხედავთ წაკითხვას')
+                    ? (isLangEn ? 'Anyone with the link can view your reading' : 'ბმულით ნებისმიერს შეუძლია ნახვა')
+                    : (isLangEn ? 'Only you can see your reading' : 'მხოლოდ თქვენ ხედავთ რუკას')
                   }
                 </div>
               </div>
@@ -437,8 +438,30 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
                   <button className="stg-delete-cancel" onClick={() => setDeleteConfirm(false)}>
                     {isLangEn ? 'Cancel' : 'გაუქმება'}
                   </button>
-                  <button className="stg-delete-final" onClick={() => alert('Account deletion — coming soon')}>
-                    {isLangEn ? 'Yes, delete' : 'დიახ, წაშლა'}
+                  <button
+                    className="stg-delete-final"
+                    disabled={deleting}
+                    onClick={async () => {
+                      setDeleting(true);
+                      try {
+                        const res = await fetch('/api/user/delete', {
+                          method: 'DELETE',
+                          ...withCsrfHeaders({}),
+                        });
+                        if (res.ok) {
+                          window.location.href = '/auth';
+                        } else {
+                          const err = await res.json().catch(() => ({}));
+                          alert(err?.error ?? 'Deletion failed');
+                          setDeleting(false);
+                        }
+                      } catch {
+                        alert('Network error');
+                        setDeleting(false);
+                      }
+                    }}
+                  >
+                    {deleting ? '...' : (isLangEn ? 'Yes, delete' : 'დიახ, წაშლა')}
                   </button>
                 </div>
               </div>
