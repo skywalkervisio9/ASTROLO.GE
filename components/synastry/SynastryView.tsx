@@ -54,6 +54,19 @@ export interface SynastryReadingData {
   [sectionKey: string]: unknown;
 }
 
+export interface ChartPlanet {
+  name: string;
+  sign: string;
+  degree: string;
+  house: string;
+  retrograde: boolean;
+}
+
+export interface ChartPersonData {
+  planets: ChartPlanet[] | null;
+  points: { ascendant?: { sign: string; degree: string }; [key: string]: unknown } | null;
+}
+
 // Section key order for couple vs friend
 const COUPLE_SECTIONS = ['emotionalBond', 'passion', 'karmic', 'numerology', 'growth', 'sharedShadow', 'dailyRitual', 'potential'] as const;
 const FRIEND_SECTIONS = ['emotionalBond', 'intellectualSynergy', 'karmic', 'numerology', 'growth', 'sharedShadow', 'sharedAdventures', 'potential'] as const;
@@ -167,9 +180,13 @@ interface SynastryViewProps {
   reading: SynastryReadingData;
   language: Language;
   onBackToNatal?: () => void;
+  chartA?: ChartPersonData | null;
+  chartB?: ChartPersonData | null;
+  shareSlugA?: string | null;
+  shareSlugB?: string | null;
 }
 
-export default function SynastryView({ reading, language, onBackToNatal }: SynastryViewProps) {
+export default function SynastryView({ reading, language, onBackToNatal, chartA, chartB, shareSlugA, shareSlugB }: SynastryViewProps) {
   setRenderLang(language);
   const isFriend = reading.meta.type === 'synastry_friend';
   const sectionKeys = isFriend ? FRIEND_SECTIONS : COUPLE_SECTIONS;
@@ -287,7 +304,7 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
       <div className="ct">
         {/* Breadcrumb */}
         <div className="bnav">
-          <button className="bb" onClick={onBackToNatal}>
+          <button className="bb" onClick={() => shareSlugA ? window.location.href = `/r/${shareSlugA}` : onBackToNatal?.()}>
             ← {language === 'ka' ? 'ჩემი რუკა' : 'My Chart'}
           </button>
           <span className="ndv">·</span>
@@ -311,7 +328,7 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
 
         {/* Partner Cards */}
         <div className="pcards section-reveal vis">
-          <PartnerCard person={meta.personA} isYou language={language} />
+          <PartnerCard person={meta.personA} isYou language={language} chart={chartA ?? undefined} shareSlug={shareSlugA ?? undefined} />
           <div className="bridge">
             <div className="bridge-line" />
             <div className="bridge-icon">
@@ -322,7 +339,7 @@ export default function SynastryView({ reading, language, onBackToNatal }: Synas
             </div>
             <div className="bridge-line" />
           </div>
-          <PartnerCard person={meta.personB} language={language} />
+          <PartnerCard person={meta.personB} language={language} chart={chartB ?? undefined} />
         </div>
 
         {/* Compatibility Wheel */}
@@ -398,36 +415,103 @@ function SigilSVG() {
   );
 }
 
+// Glyph map for planet names (English keys as stored in DB)
+const PLANET_GLYPHS: Record<string, string> = {
+  Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂',
+  Jupiter: '♃', Saturn: '♄', Uranus: '♅', Neptune: '♆', Pluto: '♇',
+};
+
+const PLANET_ORDER = ['Sun', 'Moon', 'Venus', 'Mars'];
+
+// Georgian planet names
+const PLANET_KA: Record<string, string> = {
+  Sun: 'მზე', Moon: 'მთვარე', Mercury: 'მერკური', Venus: 'ვენერა',
+  Mars: 'მარსი', Jupiter: 'იუპიტერი', Saturn: 'სატურნი',
+  Uranus: 'ურანი', Neptune: 'ნეპტუნი', Pluto: 'პლუტონი',
+};
+
 function PartnerCard({
   person,
   isYou,
   language,
+  chart,
+  shareSlug,
 }: {
   person: { name: string; sun: string; moon: string; asc: string };
   isYou?: boolean;
   language: Language;
+  chart?: ChartPersonData;
+  shareSlug?: string;
 }) {
   const initial = person.name.charAt(0).toUpperCase();
+
+  // Build ordered planet rows from chart data, falling back to meta sun/moon/asc
+  const planetRows: { glyph: string; label: string; sign: string; degree: string; retrograde: boolean }[] = [];
+
+  if (chart?.planets && chart.planets.length > 0) {
+    const byName = new Map(chart.planets.map(p => [p.name, p]));
+    // ASC from points
+    const ascDeg = chart.points?.ascendant?.degree ?? '';
+    const ascSign = chart.points?.ascendant?.sign ?? person.asc;
+    // Insert ASC after Moon
+    const insertAsc = (rows: typeof planetRows) => {
+      rows.push({
+        glyph: 'ASC',
+        label: 'ASC',
+        sign: ascSign,
+        degree: ascDeg,
+        retrograde: false,
+      });
+    };
+
+    for (const name of PLANET_ORDER) {
+      const p = byName.get(name);
+      if (!p) continue;
+      planetRows.push({
+        glyph: PLANET_GLYPHS[name] || name,
+        label: language === 'ka' ? (PLANET_KA[name] || name) : name,
+        sign: p.sign,
+        degree: p.degree,
+        retrograde: p.retrograde,
+      });
+      if (name === 'Moon') insertAsc(planetRows);
+    }
+  } else {
+    // Fallback: only sun, moon, asc from meta
+    planetRows.push({ glyph: '☉', label: language === 'ka' ? 'მზე' : 'Sun', sign: person.sun, degree: '', retrograde: false });
+    planetRows.push({ glyph: '☽', label: language === 'ka' ? 'მთვარე' : 'Moon', sign: person.moon, degree: '', retrograde: false });
+    planetRows.push({ glyph: 'ASC', label: 'ASC', sign: person.asc, degree: '', retrograde: false });
+  }
+
+  const handleCardClick = shareSlug ? () => { window.location.href = `/r/${shareSlug}`; } : undefined;
+
   return (
-    <div className="pc">
+    <div className="pc" onClick={handleCardClick} style={shareSlug ? { cursor: 'pointer' } : undefined}>
       {isYou && <div className="pc-you-dot" />}
       {isYou && <div className="pc-tooltip">{language === 'ka' ? 'ჩემი რუკა →' : 'My Chart →'}</div>}
       <div className="pc-avatar"><span className="pc-avatar-letter">{initial}</span></div>
       <div className="pc-name">{person.name}</div>
       <div className="pc-sub">{renderText(`${localizeSign(person.sun, language)} · ${localizeSign(person.moon, language)} · ${localizeSign(person.asc, language)}`)}</div>
       <div className="pc-placements">
-        <div className="pc-row">
-          <span className="pc-row-label"><svg><use href="#gl-sun" /></svg>{language === 'ka' ? 'მზე' : 'Sun'}</span>
-          <span className="pc-row-val">{renderText(localizeSign(person.sun, language))}</span>
-        </div>
-        <div className="pc-row">
-          <span className="pc-row-label"><svg><use href="#gl-moon" /></svg>{language === 'ka' ? 'მთვარე' : 'Moon'}</span>
-          <span className="pc-row-val">{renderText(localizeSign(person.moon, language))}</span>
-        </div>
-        <div className="pc-row">
-          <span className="pc-row-label">ASC</span>
-          <span className="pc-row-val">{renderText(localizeSign(person.asc, language))}</span>
-        </div>
+        {planetRows.map((row) => (
+          <div className="pc-row" key={row.label}>
+            <span className="pc-row-label">
+              {row.glyph === 'ASC' ? (
+                <span className="gi-acr tip" data-tip={language === 'ka' ? 'ასცენდენტი' : 'Ascendant'}>{row.glyph}</span>
+              ) : (
+                <>
+                  <span className="pc-row-glyph">{row.glyph}</span>
+                  <span className="pc-row-name">{row.label}</span>
+                </>
+              )}
+            </span>
+            <span className="pc-row-val">
+              {renderText(localizeSign(row.sign, language))}
+              {row.degree && <span className="pc-row-deg">{row.degree}</span>}
+              {row.retrograde && <span className="pc-row-rx">℞</span>}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -618,11 +702,16 @@ function SynastryCardComponent({
     cardClass = `c ${ELEMENT_ACCENT_CLASS[rawA] || ''}`.trim();
   }
 
-  const hasCrossRefs = card.crossReferences && card.crossReferences.length > 0;
-  const crossRefPopup = hasCrossRefs ? card.crossReferences.join(' · ') : undefined;
+  const crossRefsArray = Array.isArray(card.crossReferences)
+    ? card.crossReferences
+    : card.crossReferences
+    ? [card.crossReferences]
+    : [];
+  const hasCrossRefs = crossRefsArray.length > 0;
+  const crossRefPopup = hasCrossRefs ? crossRefsArray.join(' · ') : undefined;
 
   return (
-    <div className={cardClass} style={cardStyle}>
+    <div className={`${cardClass}${expanded ? ' is-open' : ''}`} style={cardStyle}>
       {/* Label badge — uses .b (matches natal). No leading aspect glyph. */}
       <div className={`b${hasCrossRefs ? ' has-popup' : ''}`}>
         {renderText(card.label)}

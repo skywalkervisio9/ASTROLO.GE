@@ -242,6 +242,7 @@ section.vis{opacity:1;transform:translateY(0)}
 .label-popup{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--sf2);color:var(--silver);padding:8px 14px;border-radius:10px;font-size:.7rem;font-family:var(--fb);font-weight:400;letter-spacing:.02em;line-height:1.65;white-space:normal;width:max-content;max-width:340px;opacity:0;pointer-events:none;transition:opacity .25s;border:1px solid rgba(201,168,76,.12);z-index:999;box-shadow:0 4px 20px rgba(0,0,0,.5)}
 .b.has-popup:hover .label-popup,.card-label.has-popup:hover .label-popup{opacity:1;pointer-events:all}
 .c h3{font-family:var(--fd);font-weight:500;font-size:1.1rem;color:var(--tx);margin-bottom:12px;line-height:1.45;display:flex;align-items:center;gap:8px}
+.c.is-open h3{max-width:52%;flex-wrap:wrap}
 .c p{color:var(--silver);font-size:.86rem;line-height:1.85;margin-bottom:10px;transition:color .35s var(--ease)}.c p:last-of-type{margin-bottom:0}
 .c:hover p{color:var(--tx)}
 /* Numbered lists in card body/expanded */
@@ -660,7 +661,13 @@ body[data-view="payment"] .main-natal,body[data-view="payment"] .synastry-wrap,b
 .pc-row:hover{background:rgba(24,24,34,.9)}
 .pc-row-label{font-size:.6rem;color:var(--gd);letter-spacing:.1em;font-family:'Outfit',sans-serif;display:flex;align-items:center;gap:5px}
 .pc-row-label svg{width:12px;height:12px;fill:var(--gd)}
-.pc-row-val{font-size:.76rem;color:var(--silver)}
+.pc-row-glyph{font-size:.95rem;color:var(--gd);line-height:1;min-width:16px;text-align:center}
+.pc-row-name{font-size:.68rem;color:var(--txd);font-family:'Outfit',sans-serif;letter-spacing:.03em}
+.pc-row-glyph--asc{cursor:help;border-bottom:1px dotted rgba(201,168,76,.4)}
+.pc-row-label .gi-acr{font-size:.78rem}
+.pc-row-val{font-size:.76rem;color:var(--silver);display:flex;align-items:center;gap:5px}
+.pc-row-deg{font-size:.7rem;color:var(--txd);font-family:'Outfit',sans-serif}
+.pc-row-rx{font-size:.62rem;color:var(--gd);opacity:.7}
 
 /* Bridge */
 .bridge{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 4px}

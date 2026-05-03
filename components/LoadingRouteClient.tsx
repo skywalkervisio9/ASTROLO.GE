@@ -27,6 +27,23 @@ export default function LoadingRouteClient() {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [canReturnToBirth, setCanReturnToBirth] = useState(false);
 
+  // Lock body scroll while the loading overlay is mounted. The /loading page
+  // also renders BodyContent (the full app shell) so the document is taller
+  // than the viewport — without this lock the user can scroll the hidden
+  // shell out from behind the overlay and see a stray scrollbar.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, []);
+
   useEffect(() => {
     const supabase = createClient();
 
@@ -63,11 +80,13 @@ export default function LoadingRouteClient() {
       const w = window as unknown as Record<string, unknown>;
       w.__ASTROLO_LIVE_LOADING = true;
 
-      // Detect mode from URL: ?mode=generate-full means post-payment full reading
+      // Detect mode from URL: ?mode=generate-full means post-payment full reading;
+      // ?mode=fake-full is the dev CALL1 PREMIUM path (real Call 1 + stub Call 2).
       const urlParams = new URLSearchParams(window.location.search);
       const isGenerateFull = urlParams.get('mode') === 'generate-full';
+      const isFakeFull = urlParams.get('mode') === 'fake-full';
       const hasInvite = Boolean(urlParams.get('invite'));
-      const isFree = !isGenerateFull && !hasInvite;
+      const isFree = !isGenerateFull && !isFakeFull && !hasInvite;
 
       // Fetch user's language preference for loading screen
       let userLang: string = 'ka';
@@ -81,8 +100,10 @@ export default function LoadingRouteClient() {
 
       whenRuntimeReady().then(() => {
         const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string, durationMs?: number) => void) | undefined;
-        // 20s for free (Astrologer API only), 7 min for generate-full (AI reading)
-        if (fn) fn(userLang, isFree ? 20000 : 900000); // 900000ms = 15min
+        // 20s free (Astrologer API only), 60s fake-full (Call 1 only),
+        // 15min generate-full (full AI reading).
+        const duration = isFree ? 20000 : isFakeFull ? 60000 : 900000;
+        if (fn) fn(userLang, duration);
       });
 
       const { data: auth } = await supabase.auth.getUser();
@@ -92,17 +113,47 @@ export default function LoadingRouteClient() {
         return;
       }
 
-      // Early exit: already complete
-      const earlyCheck = await fetch('/api/onboarding/status', { credentials: 'include' });
-      if (earlyCheck.ok) {
-        const earlyStatus = await earlyCheck.json() as { status: string; complete?: boolean; shareSlug?: string };
-        if (earlyStatus.status === 'complete' && earlyStatus.shareSlug) {
-          window.location.href = `/r/${earlyStatus.shareSlug}`;
+      // Early exit: already complete. Skipped for fake-full — that mode is
+      // explicitly a re-generation and must run regardless of existing rows.
+      if (!isFakeFull) {
+        const earlyCheck = await fetch('/api/onboarding/status', { credentials: 'include' });
+        if (earlyCheck.ok) {
+          const earlyStatus = await earlyCheck.json() as { status: string; complete?: boolean; shareSlug?: string };
+          if (earlyStatus.status === 'complete' && earlyStatus.shareSlug) {
+            window.location.href = `/r/${earlyStatus.shareSlug}`;
+            return;
+          }
+        }
+      }
+
+      // ── DEV CALL1 PREMIUM: real Call 1 + cloned Call 2 (no Call 2 spend) ──
+      // Single round-trip — await the response and redirect with the returned
+      // slug. Polling would race against the existing reading_ka and bounce
+      // the user back to the previous slug before the dev route finishes.
+      if (isFakeFull) {
+        try {
+          const init = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
+          const res = await fetch('/api/dev/generate-fake-full', init);
+          if (!res.ok) {
+            const message = await res.text();
+            const trimmed = message.length > 240 ? message.slice(0, 240) + '…' : message;
+            setErrorText(`CALL1 PREMIUM failed (${res.status}): ${trimmed || 'no body'}`);
+            return;
+          }
+          const data = await res.json() as { shareSlug?: string };
+          if (data.shareSlug) {
+            window.location.href = `/r/${data.shareSlug}`;
+            return;
+          }
+          setErrorText('CALL1 PREMIUM returned no shareSlug.');
+          return;
+        } catch (err) {
+          console.error('[loading] generate-fake-full error:', err);
+          setErrorText(`CALL1 PREMIUM error: ${err instanceof Error ? err.message : String(err)}`);
           return;
         }
       }
 
-      // ── POST-PAYMENT MODE: trigger generate-full (two-step to stay within 300s) ──
       if (isGenerateFull) {
         try {
           // Step 1: Call 1 — chart analysis (idempotent, quick ~20-30s)

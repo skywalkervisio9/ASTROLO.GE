@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonForbidden, jsonServerError } from '@/lib/auth/http';
 import { isConnectionMember } from '@/lib/auth/policy';
+import { createAdminSupabase } from '@/lib/supabase/admin';
 
 export async function GET(
   req: NextRequest,
@@ -40,11 +41,30 @@ export async function GET(
       return NextResponse.json({ reading: null });
     }
 
+    // Fetch both users' chart data + share slugs in parallel
+    const admin = createAdminSupabase();
+    const [{ data: chartA }, { data: chartB }, { data: slugs }] = await Promise.all([
+      admin.from('chart_data').select('planets, points').eq('user_id', conn.inviter_id).maybeSingle(),
+      admin.from('chart_data').select('planets, points').eq('user_id', conn.invitee_id).maybeSingle(),
+      admin.from('natal_readings').select('user_id, share_slug').in('user_id', [conn.inviter_id, conn.invitee_id]),
+    ]);
+
+    const slugMap = new Map((slugs ?? []).map(r => [r.user_id, r.share_slug]));
+
+    const parsePlanets = (raw: unknown) => {
+      if (!raw) return null;
+      if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return null; } }
+      return raw;
+    };
+
     return NextResponse.json({
       reading: lang === 'ka' ? row.reading_ka : row.reading_en,
+      shareSlugA: slugMap.get(conn.inviter_id) ?? null,
+      shareSlugB: slugMap.get(conn.invitee_id) ?? null,
+      chartA: { planets: parsePlanets(chartA?.planets), points: parsePlanets(chartA?.points) },
+      chartB: { planets: parsePlanets(chartB?.planets), points: parsePlanets(chartB?.points) },
     });
   } catch (error: unknown) {
     return jsonServerError(error);
   }
 }
-
