@@ -394,8 +394,13 @@ export async function POST(req: NextRequest) {
 
     // ── FREE PATH: chart data only — no AI calls ──
     if (!isInvited) {
-      // Create a minimal natal_readings row to get a share_slug for redirect
-      const { data: existingSlug } = await supabase
+      // Use admin client: RLS on natal_readings can silently block the
+      // user-scope upsert, leaving the row without a share_slug — which
+      // strands the user on /loading because /api/onboarding/status
+      // returns shareSlug=null and LoadingRouteClient has nothing to
+      // redirect to.
+      const admin = createAdminSupabase();
+      const { data: existingSlug } = await admin
         .from('natal_readings')
         .select('id, share_slug')
         .eq('user_id', user.id)
@@ -404,10 +409,16 @@ export async function POST(req: NextRequest) {
       let shareSlug = (existingSlug as { share_slug?: string } | null)?.share_slug ?? null;
       if (!shareSlug) {
         shareSlug = generateShareSlug();
-        await supabase.from('natal_readings').upsert(
-          { user_id: user.id, share_slug: shareSlug },
-          { onConflict: 'user_id' }
-        );
+        const { error: upsertErr } = await admin
+          .from('natal_readings')
+          .upsert(
+            { user_id: user.id, share_slug: shareSlug },
+            { onConflict: 'user_id' }
+          );
+        if (upsertErr) {
+          console.error('[chart/generate] natal_readings upsert failed:', upsertErr);
+          throw new Error(`Failed to persist share_slug: ${upsertErr.message}`);
+        }
       }
 
       await clearOnboardingToken();

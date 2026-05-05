@@ -16,7 +16,6 @@ export default function AuthBridge() {
     const urlParams = new URLSearchParams(window.location.search);
     const forceBirthStep = urlParams.get("step") === "birth";
     const LEGACY_LS_KEY = "astrolo:lastGenerateRequest";
-    const LOGOUT_BOUND_ATTR = "data-authbridge-logout-bound";
     const BIRTH_BTN_DEBUG_BOUND_ATTR = "data-authbridge-birth-debug-bound";
     const AUTH_DEBUG =
       new URLSearchParams(window.location.search).get("debugAuth") === "1";
@@ -408,19 +407,9 @@ export default function AuthBridge() {
         }
       };
 
-      // ─── Logout ───
-      const logoutBtn = document.querySelector(".sb-logout");
-      if (
-        logoutBtn instanceof HTMLElement &&
-        logoutBtn.getAttribute(LOGOUT_BOUND_ATTR) !== "1"
-      ) {
-        logoutBtn.setAttribute(LOGOUT_BOUND_ATTR, "1");
-        logoutBtn.addEventListener("click", async (e) => {
-          e.preventDefault();
-          await supabase.auth.signOut();
-          window.location.reload();
-        });
-      }
+      // Logout is wired directly on the React button in BodyContent —
+      // see signOutAndGoAuth there. A duplicate native listener here
+      // would race with the React handler.
     }
 
     function showError(id: string, msg: string) {
@@ -561,14 +550,16 @@ export default function AuthBridge() {
       const user = session?.user ?? null;
       console.log("[AB] Session user:", user ? `${user.email} (${user.id})` : "none");
       if (user) {
-        // /auth is the login page — sign out and stay on the form.
-        // Exception: when ?step=birth or ?invite=... is present, the user was sent here
-        // by /post-auth to complete onboarding and MUST keep their session.
-        // Dev buttons do their own signOut before signIn, so no race.
+        // /auth with an active session: route the user to where they belong
+        // (/post-auth handles birth-form / /loading / /r/{slug} branching).
+        // Previously we signed them out here, which created a callback loop
+        // when post-OAuth redirects landed on /auth without ?step=birth.
+        // Exceptions: ?step=birth or ?invite=... must stay on /auth so the
+        // onboarding form renders. Dev buttons do their own signOut+signIn.
         const hasOnboardingIntent = forceBirthStep || urlParams.get('invite');
         if (window.location.pathname === '/auth' && !hasOnboardingIntent) {
-          console.log("[AB] On /auth with active session — signing out");
-          await supabase.auth.signOut();
+          console.log("[AB] On /auth with active session — routing via /post-auth");
+          window.location.replace('/post-auth');
           return;
         }
         await onAuthSuccess();

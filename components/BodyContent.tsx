@@ -4,6 +4,19 @@
 /** Full app markup (formerly content/body.html). */
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import SynastryViewWrapper from './synastry/SynastryViewWrapper';
+import { createClient } from '@/lib/supabase/client';
+
+// Sign the user out fully before navigating to /auth. Used by both the
+// sidebar logout and the dev AUTH button — without the explicit signOut,
+// AuthBridge would just bounce a still-authenticated user back to /r/{slug}.
+async function signOutAndGoAuth() {
+  try {
+    await createClient().auth.signOut();
+  } catch {
+    /* ignore — proceed to /auth either way */
+  }
+  window.location.href = '/auth';
+}
 
 // ─── Dev-mode unlock ─────────────────────────────────────────────────────
 // The ⚙ DEV toggle bar is the entry point on every device. Tapping it while
@@ -314,7 +327,7 @@ export default function BodyContent() {
 <button className="sb-share-icon" onClick={() => { window.print(); }} title="Print"><svg><use href="#gl-print"/></svg></button>
 </div></div>
 
-<div className="sb-footer"><button className="sb-logout" onClick={() => { alert("გასვლა..."); }}>გასვლა</button></div>
+<div className="sb-footer"><button className="sb-logout" onClick={signOutAndGoAuth}>გასვლა</button></div>
 </div>
 
 
@@ -638,7 +651,7 @@ export default function BodyContent() {
     <button className="dev-btn" onClick={() => setDevModeFlag(false)} title="Lock developer mode">🔒 Lock</button>
   </div>
   <div className="dev-label">VIEW</div>
-  <button className="dev-btn" onClick={() => { window.location.href = "/auth"; }} id="devAuth">☽ AUTH</button>
+  <button className="dev-btn" onClick={signOutAndGoAuth} id="devAuth">☽ AUTH</button>
   <button className="dev-btn active" onClick={() => { window.location.href = "/"; }} id="devNatal">⊙ NATAL</button>
   <div className="dev-row">
     <button className="dev-btn" onClick={(e) => { proto().switchSynastry?.("couple", e.currentTarget); }} id="devCouple">☌ COUPLE</button>

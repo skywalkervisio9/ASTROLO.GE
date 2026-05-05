@@ -270,14 +270,16 @@ export default function LoadingRouteClient() {
 
         if (status.status === 'complete') {
           if (navigated) return;
-          navigated = true;
           if (status.shareSlug) {
+            navigated = true;
             window.location.href = `/r/${status.shareSlug}`;
-          } else {
-            const finish = (window as unknown as { finishLoading?: () => void }).finishLoading;
-            if (finish) finish();
+            return;
           }
-          return;
+          // status.complete with no shareSlug used to fall through to a
+          // client-side `finishLoading()`, which left the URL on /loading
+          // and the natal view un-hydrated. Keep polling instead — the
+          // slug is written by chart/generate and should appear shortly.
+          continue;
         }
       }
     };

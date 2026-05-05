@@ -45,10 +45,13 @@ export async function GET() {
       return jsonOk({ status: 'queued', complete: false });
     }
 
-    // Load natal_readings row
+    // Load natal_readings row. The generation_* tracking columns were
+    // removed from the schema, so the SELECT here references only columns
+    // that are guaranteed to exist — otherwise PostgREST fails the whole
+    // query and shareSlug never makes it back to /loading.
     const { data: reading } = await admin
       .from('natal_readings')
-      .select('id, analysis_en, reading_ka, share_slug, generation_status, generation_error, generation_started_at')
+      .select('id, analysis_en, reading_ka, share_slug')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -57,33 +60,6 @@ export async function GET() {
       if (reading?.reading_ka) {
         const shareSlug = await ensureShareSlug(admin, reading.id, reading.share_slug);
         return jsonOk({ status: 'complete', complete: true, readingId: reading.id, shareSlug });
-      }
-      if (reading?.generation_status === 'failed') {
-        return jsonOk({
-          status: 'failed',
-          complete: false,
-          error: reading.generation_error ?? 'Generation failed',
-        });
-      }
-      // Stuck-row recovery: Vercel kills the generate-full function at maxDuration=300s.
-      // When that happens the row stays 'generating' forever and the client polls until
-      // its 7-min cap shows "Generation timed out" with no real diagnostic. Promote rows
-      // older than 7 min to 'failed' so the user sees an actionable error promptly.
-      if (
-        reading?.generation_status === 'generating' &&
-        reading.generation_started_at &&
-        Date.now() - new Date(reading.generation_started_at).getTime() > 7 * 60 * 1000
-      ) {
-        const errorMessage = 'Generation exceeded server time limit (5 min). The function was killed mid-run.';
-        await admin
-          .from('natal_readings')
-          .update({
-            generation_status: 'failed',
-            generation_error: errorMessage,
-            generation_finished_at: new Date().toISOString(),
-          })
-          .eq('id', reading.id);
-        return jsonOk({ status: 'failed', complete: false, error: errorMessage });
       }
       return jsonOk({ status: 'generating', complete: false });
     }
