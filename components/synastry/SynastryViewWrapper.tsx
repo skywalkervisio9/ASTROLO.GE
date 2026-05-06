@@ -71,7 +71,9 @@ export default function SynastryViewWrapper() {
     }
   }, []);
 
-  // Dev: trigger test synastry generation
+  // DEV-PANEL ONLY: trigger fake test synastry generation. Wired to the
+  // dev panel's "occupy" button via the dev-trigger-synastry event — never
+  // reachable from production sidebar UI.
   const triggerDevSynastry = useCallback(async () => {
     setGenerating(true);
     setGenProgress('Starting...');
@@ -150,7 +152,7 @@ export default function SynastryViewWrapper() {
     return () => window.removeEventListener('load-synastry', handler);
   }, [fetchReading]);
 
-  // Listen for dev trigger from prototype-runtime.js
+  // Listen for dev-panel test synastry trigger from prototype-runtime.js
   useEffect(() => {
     const handler = () => { triggerDevSynastry(); };
     window.addEventListener('dev-trigger-synastry', handler);
@@ -204,17 +206,17 @@ export default function SynastryViewWrapper() {
     });
   }, [fetchConnections, fetchReading, language]);
 
-  // Must be state + useEffect to avoid SSR hydration mismatch
-  const [isDev, setIsDev] = useState(false);
-  useEffect(() => {
-    setIsDev(window.location.hostname === 'localhost' || window.location.hostname.includes('vercel.app'));
-  }, []);
-
   const handleBackToNatal = () => {
     const btn = document.getElementById('devNatal');
     if (btn) {
       (window as unknown as Record<string, unknown> & { switchView?: (v: string, b: HTMLElement) => void }).switchView?.('natal', btn);
     }
+  };
+
+  // Open the prototype-runtime invite modal — the only path to fill an empty
+  // synastry slot. Synastry never auto-populates with fake data anymore.
+  const openInvite = () => {
+    (window as unknown as { openInviteModal?: () => void }).openInviteModal?.();
   };
 
   // ── Render states ──
@@ -263,20 +265,12 @@ export default function SynastryViewWrapper() {
     return (
       <div style={{ padding: '80px 20px', textAlign: 'center' }}>
         <p style={{ color: '#ff6b6b', marginBottom: '16px' }}>{error}</p>
-        {isDev && (
-          <button
-            className="bb"
-            style={{ color: 'var(--gold)', border: '1px solid var(--gold)', padding: '8px 20px', borderRadius: '8px' }}
-            onClick={triggerDevSynastry}
-          >
-            Retry
-          </button>
-        )}
       </div>
     );
   }
 
-  // Empty state — dev button or invite CTA
+  // Empty state — invite CTA. The only way to fill a synastry slot is to send
+  // an invite link and have a partner accept it.
   return (
     <div style={{ padding: '80px 20px', textAlign: 'center' }}>
       <div className="chero">
@@ -289,24 +283,21 @@ export default function SynastryViewWrapper() {
             : 'Invite a partner or friend for compatibility analysis'}
         </div>
 
-        {isDev && (
-          <button
-            onClick={triggerDevSynastry}
-            disabled={generating}
-            style={{
-              background: 'linear-gradient(135deg, rgba(201,168,76,.2), rgba(201,168,76,.05))',
-              border: '1px solid var(--gold)',
-              color: 'var(--gold)',
-              padding: '12px 28px',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              fontSize: '.95rem',
-              fontFamily: 'inherit',
-            }}
-          >
-            ⚡ Dev: Generate Test Synastry
-          </button>
-        )}
+        <button
+          onClick={openInvite}
+          style={{
+            background: 'linear-gradient(135deg, rgba(201,168,76,.2), rgba(201,168,76,.05))',
+            border: '1px solid var(--gold)',
+            color: 'var(--gold)',
+            padding: '12px 28px',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            fontSize: '.95rem',
+            fontFamily: 'inherit',
+          }}
+        >
+          {language === 'ka' ? 'მოიწვიე პარტნიორი' : 'Invite a partner'}
+        </button>
       </div>
     </div>
   );

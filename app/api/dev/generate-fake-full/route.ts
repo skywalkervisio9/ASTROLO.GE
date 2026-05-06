@@ -149,10 +149,6 @@ export async function POST(req: NextRequest) {
         tokens_call2_ka: 0,
         tokens_call2_en: 0,
         validation_warnings: ['DEV FAKE READING — cloned from another user, Call 2 skipped'],
-        generation_status: 'complete',
-        generation_error: null,
-        generation_started_at: new Date().toISOString(),
-        generation_finished_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
       .select('id, share_slug')
       .single();

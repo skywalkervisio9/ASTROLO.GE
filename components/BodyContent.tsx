@@ -313,7 +313,7 @@ export default function BodyContent() {
 <div className="sb-section-title">ჩემი რუკა<span className="sb-dob" id="sbDob"></span></div>
 <div className="sb-nav-row" id="sbNavRow">
   <div className="sb-nav-item active" onClick={() => { (window as unknown as Record<string, unknown> & { switchView?: (v: string) => void }).switchView?.('natal'); }}><span className="sb-nav-icon"><svg><use href="#gl-sun"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">ნატალური რუკა</span></div></div>
-  <div className="sb-nav-item has-partner" id="synNavItem"><span className="sb-nav-icon"><svg><use href="#gl-venus"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">სინასტრია</span><span className="sb-nav-partner" id="synPartnerName">(გიორგი მაისურაძე)</span></div><span className="mode-badge couple" id="modeBadge">მეწყვილე</span></div>
+  <div className="sb-nav-item" id="synNavItem"><span className="sb-nav-icon"><svg><use href="#gl-venus"/></svg></span><div className="sb-nav-text"><span className="sb-nav-label">სინასტრია</span><span className="sb-nav-partner" id="synPartnerName"></span></div><span className="mode-badge" id="modeBadge"></span></div>
   <div className="sb-nav-item invite-btn" id="inviteNavBtn" onClick={() => { proto().showUpgrade?.(); }}><span className="sb-nav-icon">+</span><div className="sb-nav-text"><span className="sb-nav-label" id="inviteBtnLabel">მოწვევა</span></div></div>
 </div>
 </div>

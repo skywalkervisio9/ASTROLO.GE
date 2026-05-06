@@ -47,17 +47,21 @@ function setMode(mode, btn) {
   const heroSub = document.getElementById('heroSub');
   const breadcrumbLabel = document.getElementById('breadcrumbLabel');
 
+  // Partner name is data-driven (set by real synastry connections, not by mode).
+  // setMode only flips the mode badge + hero copy; it must NOT clobber the
+  // partner name with a hardcoded placeholder.
+  var realPartner = _synastryPartnerName ? '(' + _synastryPartnerName + ')' : '';
   if (mode === 'couple') {
     modeBadge.className = 'mode-badge couple';
     modeBadge.textContent = 'მეწყვილე';
-    if (partnerName) partnerName.textContent = '(გიორგი მაისურაძე)';
+    if (partnerName) partnerName.textContent = realPartner;
     if (heroTitle) heroTitle.textContent = 'ვარსკვლავები ორისთვის';
     if (heroSub) heroSub.textContent = 'სინასტრიის სიღრმისეული ანალიზი';
     if (breadcrumbLabel) breadcrumbLabel.textContent = 'სინასტრია';
   } else {
     modeBadge.className = 'mode-badge friend';
     modeBadge.textContent = 'მეგობარი';
-    if (partnerName) partnerName.textContent = '(გიორგი მაისურაძე)';
+    if (partnerName) partnerName.textContent = realPartner;
     if (heroTitle) heroTitle.textContent = 'ვარსკვლავთა მეგობრობა';
     if (heroSub) heroSub.textContent = 'მეგობრული თავსებადობის ანალიზი';
     if (breadcrumbLabel) breadcrumbLabel.textContent = 'სინასტრია';
@@ -214,7 +218,11 @@ function occupySlot(slotNum, btn) {
   var unlocked = slotNum === 1 ? getSlot1Unlocked() : getSlot2Unlocked();
   if (!unlocked) return;
 
-  // Dev-style trigger hosts: localhost, Vercel previews, and main production domain.
+  // DEV-PANEL ONLY: Slot 1 "occupy" on dev/preview hosts triggers a real
+  // synastry-view test by calling /api/dev/test-synastry. This is the dev
+  // tool for previewing the synastry reading UI — it is NOT reachable from
+  // the production sidebar (the synastry nav item always routes empty
+  // slots to the invite modal).
   var host = window.location.hostname;
   var isDevTriggerHost =
     host === 'localhost' ||
@@ -252,7 +260,7 @@ function occupySlot(slotNum, btn) {
     return;
   }
 
-  // Non-dev / slot 2: original toggle behavior
+  // Slot 2 (or non-dev hosts): plain toggle of the dev override.
   if (slotNum === 1) {
     slot1OccupiedOverride = slot1OccupiedOverride ? null : true;
     btn.classList.toggle('active', !!slot1OccupiedOverride);
@@ -353,10 +361,17 @@ function rebuildSidebar() {
       occBtn.style.cursor = 'default';
     }
   } else if (s1Unlocked && s1Occupied) {
-    // Partner connected → show partner name & mode badge
+    // Partner connected → show partner name & mode badge.
+    // Use real partner data when available; otherwise leave name empty
+    // (dev override of "occupied" without a real connection is just a UI
+    // state — don't fabricate a name).
     synItem.classList.add('has-partner');
-    if (partnerName) partnerName.textContent = '(გიორგი მაისურაძე)';
-    if (modeBadge) { modeBadge.className = 'mode-badge friend'; modeBadge.textContent = 'მეგობარი'; }
+    if (partnerName) partnerName.textContent = _synastryPartnerName ? '(' + _synastryPartnerName + ')' : '';
+    var relType = _synastryRelType || 'couple';
+    if (modeBadge) {
+      modeBadge.className = 'mode-badge ' + relType;
+      modeBadge.textContent = relType === 'couple' ? 'მეწყვილე' : 'მეგობარი';
+    }
   } else if (s1Unlocked && !s1Occupied) {
     // Paid but no partner → pulsating CTA to invite
     synItem.classList.add('syn-cta-pulsate');
@@ -468,28 +483,10 @@ document.getElementById('synNavItem').onclick = function() {
   if (_synastryGenerated) { closeSidebar(); switchView('synastry'); return; }
   // FREE (or no unlocked slot): locked → premium payment page
   if (currentAccountType === 'free' || this.classList.contains('locked-syn')) { closeSidebar(); showPaymentPage('premium'); return; }
-  // Pulsating CTA → open invite modal (or test trigger on allowed hosts)
+  // Pulsating CTA → premium with an unlocked-but-empty slot → invite-link
+  // generation flow. No dev/fake-synastry shortcut: the only way to fill a
+  // slot is for a real partner to accept the invite.
   if (this.classList.contains('syn-cta-pulsate')) {
-    var host = window.location.hostname;
-    var isDevEnv =
-      host === 'localhost' ||
-      host.includes('vercel.app') ||
-      host === 'astrolo.ge' ||
-      host === 'www.astrolo.ge';
-    if (isDevEnv) {
-      // Dev mode: trigger synastry generation via React wrapper
-      this.classList.remove('syn-cta-pulsate');
-      this.classList.add('syn-generating');
-      var label = this.querySelector('.sb-nav-label');
-      if (label) {
-        var isEn = document.body.classList.contains('lang-en');
-        label.textContent = isEn ? '⟳ Generating...' : '⟳ იქმნება...';
-      }
-      closeSidebar();
-      switchView('synastry');
-      window.dispatchEvent(new CustomEvent('dev-trigger-synastry'));
-      return;
-    }
     openInviteModal();
     return;
   }

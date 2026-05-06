@@ -94,18 +94,6 @@ export async function POST() {
       return NextResponse.json({ error: 'Call 1 analysis not found — call /api/reading/generate-call1 first' }, { status: 400 });
     }
 
-    // Mark generation in-flight so a silent crash leaves a 'generating' row that
-    // the polling timeout can promote to 'failed' on the next status check.
-    await admin
-      .from('natal_readings')
-      .update({
-        generation_status: 'generating',
-        generation_error: null,
-        generation_started_at: new Date().toISOString(),
-        generation_finished_at: null,
-      })
-      .eq('user_id', authUser.id);
-
     try {
       // Call 2: KA + EN in parallel
       const call2 = await runNatalCall2(analysis, context, storedAspects ?? undefined);
@@ -118,7 +106,10 @@ export async function POST() {
       const finalReadingKa = injectAndClean(call2.readingKa, planetTable, aspectsKa);
       const finalReadingEn = injectAndClean(call2.readingEn, planetTable, aspectsEn);
 
-      const shareSlug = generateShareSlug();
+      // Preserve the slug the user already has (e.g. from the free path) so
+      // any previously shared links keep working. Only mint a new one if there
+      // isn't one yet.
+      const shareSlug = existingReading?.share_slug ?? generateShareSlug();
 
       // Upsert — works for both new rows (free→premium) and existing rows (invited→invited+)
       const { data: saved, error: saveError } = await admin
@@ -136,9 +127,6 @@ export async function POST() {
           tokens_call2_ka: call2.meta.tokensCall2Ka,
           tokens_call2_en: call2.meta.tokensCall2En,
           validation_warnings: call2.meta.validationWarnings,
-          generation_status: 'complete',
-          generation_error: null,
-          generation_finished_at: new Date().toISOString(),
         }, { onConflict: 'user_id' })
         .select('id, share_slug')
         .single();
@@ -151,18 +139,7 @@ export async function POST() {
 
       return NextResponse.json({ status: 'complete', readingId: saved?.id, shareSlug: saved?.share_slug });
     } catch (call2Error: unknown) {
-      const message = call2Error instanceof Error
-        ? `${call2Error.name}: ${call2Error.message}`
-        : String(call2Error);
       console.error('[generate-full] Call 2 failed:', call2Error);
-      await admin
-        .from('natal_readings')
-        .update({
-          generation_status: 'failed',
-          generation_error: message.slice(0, 2000),
-          generation_finished_at: new Date().toISOString(),
-        })
-        .eq('user_id', authUser.id);
       throw call2Error;
     }
   } catch (error: unknown) {
