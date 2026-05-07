@@ -545,7 +545,6 @@ export default function BodyContent() {
       </div>
       <div className="auth-invite-hero-body">
         <div className="auth-invite-hero-eyebrow">
-          <span className="auth-invite-hero-dot"></span>
           <span className="auth-invite-hero-eyebrow-text">მოწვევა · სინასტრია</span>
         </div>
         <h2 className="auth-invite-hero-title">მიწვეული ხარ ვარსკვლავურ თავსებადობაზე</h2>
