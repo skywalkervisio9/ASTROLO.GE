@@ -96,11 +96,12 @@ export function canAccessSection(user: User, _sectionKey: string): boolean {
   return hasFullReading(user);
 }
 
+/** Slots remaining for UI / limits. Premium & invited+ may generate many invite links (each pending synastry). */
 export function getAvailableInviteSlots(user: User, usedSlots: number): number {
-  const totalSlots = user.account_type === 'premium'
-    ? 1 + user.invite_slots_purchased
-    : user.invite_slots_purchased; // invited+ with purchased slot
-  return totalSlots - usedSlots;
+  if (user.account_type === 'premium' || user.account_type === 'invited+') {
+    return Math.max(0, 10_000 - usedSlots);
+  }
+  return user.invite_slots_purchased - usedSlots;
 }
 
 export function canInvite(user: User, usedSlots: number): boolean {

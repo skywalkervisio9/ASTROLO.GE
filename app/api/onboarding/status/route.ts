@@ -66,8 +66,9 @@ export async function GET() {
 
     // ── INVITED: needs Call 1 (analysis_en) ──
     if (user?.account_type === 'invited' || user?.account_type === 'invited+') {
-      if (reading?.analysis_en) {
-        return jsonOk({ status: 'complete', complete: true });
+      if (reading?.analysis_en && reading?.id) {
+        const shareSlug = await ensureShareSlug(admin, reading.id, reading.share_slug);
+        return jsonOk({ status: 'complete', complete: true, readingId: reading.id, shareSlug });
       }
       return jsonOk({ status: 'generating', complete: false });
     }
@@ -91,5 +92,12 @@ async function ensureShareSlug(
     .from('natal_readings')
     .update({ share_slug: slug })
     .eq('id', readingId);
-  return error ? null : slug;
+  if (!error) return slug;
+  // RLS or race: try resolve by id again (another writer may have set slug)
+  const { data: row } = await admin
+    .from('natal_readings')
+    .select('share_slug')
+    .eq('id', readingId)
+    .maybeSingle();
+  return row?.share_slug ?? null;
 }

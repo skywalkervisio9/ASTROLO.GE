@@ -184,9 +184,27 @@ interface SynastryViewProps {
   chartB?: ChartPersonData | null;
   shareSlugA?: string | null;
   shareSlugB?: string | null;
+  /** When set with synastryConnectionId, participants can copy `/s/{slug}` and toggle visibility. */
+  synastryShareSlug?: string | null;
+  synastryConnectionId?: string | null;
+  synastryIsPublic?: boolean;
+  /** Read-only cue on `/s/[slug]` public page (no toggle). */
+  publicSynastrySlug?: string | null;
 }
 
-export default function SynastryView({ reading, language, onBackToNatal, chartA, chartB, shareSlugA, shareSlugB }: SynastryViewProps) {
+export default function SynastryView({
+  reading,
+  language,
+  onBackToNatal,
+  chartA,
+  chartB,
+  shareSlugA,
+  shareSlugB,
+  synastryShareSlug,
+  synastryConnectionId,
+  synastryIsPublic: synastryPublicInitial,
+  publicSynastrySlug,
+}: SynastryViewProps) {
   setRenderLang(language);
   const isFriend = reading.meta.type === 'synastry_friend';
   const sectionKeys = isFriend ? FRIEND_SECTIONS : COUPLE_SECTIONS;
@@ -298,6 +316,41 @@ export default function SynastryView({ reading, language, onBackToNatal, chartA,
     ? (language === 'ka' ? 'მეგობრული თავსებადობის ანალიზი' : 'Friendship Compatibility Analysis')
     : (language === 'ka' ? 'სინასტრიის სიღრმისეული ანალიზი' : 'Deep Synastry Analysis');
 
+  const [synastryIsPublicUI, setSynastryIsPublicUI] = useState(synastryPublicInitial !== false);
+  useEffect(() => {
+    setSynastryIsPublicUI(synastryPublicInitial !== false);
+  }, [synastryPublicInitial, synastryShareSlug]);
+
+  const canShareSyn =
+    !!(synastryShareSlug && synastryConnectionId && synastryShareSlug.length > 0);
+
+  const copySynastryLink = async () => {
+    if (!synastryShareSlug) return;
+    const href =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/s/${synastryShareSlug}`
+        : '';
+    if (!href) return;
+    try {
+      await navigator.clipboard.writeText(href);
+    } catch {
+      prompt(language === 'ka' ? 'ბმული' : 'Link', href);
+    }
+  };
+
+  const toggleSynastryPublic = async () => {
+    if (!synastryConnectionId) return;
+    const next = !synastryIsPublicUI;
+    const res = await fetch('/api/synastry/visibility', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connectionId: synastryConnectionId, isPublic: next }),
+    });
+    if (!res.ok) return;
+    setSynastryIsPublicUI(next);
+  };
+
   return (
     <>
       <div style={{ height: '56px' }} />
@@ -313,7 +366,15 @@ export default function SynastryView({ reading, language, onBackToNatal, chartA,
             <span>{language === 'ka' ? 'სინასტრია' : 'Synastry'}</span>
           </button>
           <span className="ndv">·</span>
-          <button className="bb">
+          <button
+            type="button"
+            className="bb"
+            disabled={!shareSlugB}
+            onClick={() =>
+              shareSlugB ? (window.location.href = `/r/${shareSlugB}`) : undefined
+            }
+            style={!shareSlugB ? { opacity: 0.45, cursor: 'default' } : undefined}
+          >
             {meta.personB.name} {language === 'ka' ? 'რუკა' : 'Chart'} →
           </button>
         </div>
@@ -324,6 +385,53 @@ export default function SynastryView({ reading, language, onBackToNatal, chartA,
           <SigilSVG />
           <h1>{heroTitle}</h1>
           <div className="tg">{heroSub}</div>
+          {canShareSyn && (
+            <div style={{ marginTop: 18, display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => copySynastryLink()}
+                style={{
+                  background: 'rgba(201,168,76,.1)',
+                  border: '1px solid var(--gold)',
+                  color: 'var(--gold)',
+                  padding: '8px 16px',
+                  borderRadius: 10,
+                  fontSize: '.82rem',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {language === 'ka' ? 'სინასტრიის ლინკი' : 'Copy synastry link'}
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleSynastryPublic()}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  color: synastryIsPublicUI ? 'var(--gold)' : 'var(--muted)',
+                  padding: '8px 16px',
+                  borderRadius: 10,
+                  fontSize: '.82rem',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {synastryIsPublicUI
+                  ? language === 'ka'
+                    ? 'საჯარო წილი'
+                    : 'Public link ON'
+                  : language === 'ka'
+                    ? 'პრივატული'
+                    : 'Public link OFF'}
+              </button>
+            </div>
+          )}
+          {publicSynastrySlug && (
+            <div className="tg" style={{ marginTop: 12, fontSize: '.78rem', opacity: 0.55 }}>
+              {language === 'ka' ? `გასაზიარებელი გვერდი: /s/${publicSynastrySlug}` : `Share path: /s/${publicSynastrySlug}`}
+            </div>
+          )}
         </div>
 
         {/* Partner Cards */}
@@ -339,7 +447,7 @@ export default function SynastryView({ reading, language, onBackToNatal, chartA,
             </div>
             <div className="bridge-line" />
           </div>
-          <PartnerCard person={meta.personB} language={language} chart={chartB ?? undefined} />
+          <PartnerCard person={meta.personB} language={language} chart={chartB ?? undefined} shareSlug={shareSlugB ?? undefined} />
         </div>
 
         {/* Compatibility Wheel */}
@@ -347,7 +455,7 @@ export default function SynastryView({ reading, language, onBackToNatal, chartA,
 
         {/* Category Scores */}
         <div className="cats section-reveal vis">
-          {Object.entries(meta.categoryScores).map(([key, score]) => (
+          {Object.entries(meta.categoryScores ?? {}).map(([key, score]) => (
             <CategoryBar
               key={key}
               category={key}

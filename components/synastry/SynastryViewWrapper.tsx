@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import SynastryView from './SynastryView';
 import type { SynastryReadingData, ChartPersonData } from './SynastryView';
 import type { Language } from '@/types/user';
+import { withCsrfHeaders } from '@/lib/auth/client';
 
 interface Connection {
   id: string;
@@ -25,6 +26,9 @@ export default function SynastryViewWrapper() {
   const [chartB, setChartB] = useState<ChartPersonData | null>(null);
   const [shareSlugA, setShareSlugA] = useState<string | null>(null);
   const [shareSlugB, setShareSlugB] = useState<string | null>(null);
+  const [synastryShareSlug, setSynastryShareSlug] = useState<string | null>(null);
+  const [synastryIsPublic, setSynastryIsPublic] = useState(true);
+  const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -32,24 +36,35 @@ export default function SynastryViewWrapper() {
   const [error, setError] = useState<string | null>(null);
   const [language] = useState<Language>('ka');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoGenStartedRef = useRef(false);
 
   // Fetch connections on mount
   const fetchConnections = useCallback(async () => {
     try {
       const res = await fetch('/api/synastry/connections', { credentials: 'include' });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn('[synastry] /api/synastry/connections failed', res.status);
+        return [];
+      }
       const data = await res.json();
-      setConnections(data.connections ?? []);
-      return data.connections ?? [];
+      const list = data.connections ?? [];
+      setConnections(list);
+      return list as Connection[];
     } catch {
-      // Not logged in or no connections
+      console.warn('[synastry] /api/synastry/connections network error');
     }
     return [];
   }, []);
 
   // Fetch a specific reading
-  const fetchReading = useCallback(async (connectionId: string, lang: Language = 'ka') => {
-    setLoading(true);
+  const fetchReading = useCallback(async (
+    connectionId: string,
+    lang: Language = 'ka',
+    opts?: { quiet?: boolean },
+  ) => {
+    if (!opts?.quiet) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const res = await fetch(`/api/synastry/reading/${connectionId}?lang=${lang}`, {
@@ -57,17 +72,22 @@ export default function SynastryViewWrapper() {
       });
       if (!res.ok) throw new Error('Failed to fetch reading');
       const data = await res.json();
+      setActiveConnectionId(connectionId);
       if (data.reading) {
         setReading(data.reading);
         setChartA(data.chartA ?? null);
         setChartB(data.chartB ?? null);
         setShareSlugA(data.shareSlugA ?? null);
         setShareSlugB(data.shareSlugB ?? null);
+        setSynastryShareSlug(data.synastryShareSlug ?? null);
+        setSynastryIsPublic(data.synastryIsPublic !== false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load synastry reading');
     } finally {
-      setLoading(false);
+      if (!opts?.quiet) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -188,22 +208,106 @@ export default function SynastryViewWrapper() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [generating, fetchConnections, fetchReading, language]);
 
-  // Auto-load reading on mount if one exists — and notify sidebar
+  // Auto-load or generate on mount — accepted pairs often have no row yet (internal trigger missed).
   useEffect(() => {
-    fetchConnections().then((conns) => {
-      const ready = conns?.find((c: Connection) => c.status === 'reading_generated');
-      if (ready) {
-        fetchReading(ready.id, language);
-        // Notify prototype-runtime.js so sidebar shows the partner
-        window.dispatchEvent(new CustomEvent('synastry-ready', {
-          detail: {
-            connectionId: ready.id,
-            relationshipType: ready.relationship_type,
-            user2: { name: ready.partner_name || 'Partner' },
-          },
-        }));
+    let cancelled = false;
+
+    const dispatchReady = (c: Connection) => {
+      window.dispatchEvent(new CustomEvent('synastry-ready', {
+        detail: {
+          connectionId: c.id,
+          relationshipType: c.relationship_type,
+          user2: { name: c.partner_name || 'Partner' },
+        },
+      }));
+    };
+
+    (async () => {
+      let conns = await fetchConnections();
+      for (let attempt = 0; attempt < 8 && !cancelled && conns.length === 0; attempt++) {
+        await new Promise((r) => setTimeout(r, 600));
+        conns = await fetchConnections();
       }
-    });
+      if (cancelled || conns.length === 0) return;
+
+      const withPartner = conns.filter((c) => c.invitee_id);
+      const ready = withPartner.find((c) => c.status === 'reading_generated');
+      if (ready) {
+        await fetchReading(ready.id, language);
+        dispatchReady(ready);
+        return;
+      }
+
+      const needsGen = withPartner.find(
+        (c) => c.invitee_id && (c.status === 'accepted' || c.status === 'pending'),
+      );
+      if (!needsGen || autoGenStartedRef.current) return;
+      autoGenStartedRef.current = true;
+
+      setLoading(true);
+      try {
+        const probe = await fetch(`/api/synastry/reading/${needsGen.id}?lang=${language}`, {
+          credentials: 'include',
+        });
+        if (!probe.ok) {
+          autoGenStartedRef.current = false;
+          setLoading(false);
+          setError(
+            language === 'ka'
+              ? `სინასტრიის ჩატვირთვა ვერ მოხერხდა (${probe.status})`
+              : `Could not load synastry (${probe.status})`,
+          );
+          return;
+        }
+        const pdata = await probe.json() as { reading?: unknown };
+        if (pdata.reading) {
+          await fetchReading(needsGen.id, language, { quiet: true });
+          dispatchReady(needsGen);
+          return;
+        }
+
+        setLoading(false);
+        setGenerating(true);
+        setGenProgress(language === 'ka' ? 'სინასტრია იქმნება...' : 'Generating synastry…');
+
+        window.dispatchEvent(new CustomEvent('synastry-generation-started'));
+        let genOk = false;
+        try {
+          const startInit = await withCsrfHeaders({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ connection_id: needsGen.id }),
+          });
+          const startRes = await fetch('/api/synastry/start', startInit);
+          genOk = startRes.ok;
+          if (!startRes.ok) {
+            let msg = await startRes.text();
+            try {
+              const j = JSON.parse(msg) as { error?: string };
+              if (j.error) msg = j.error;
+            } catch { /* plain text */ }
+            setError(msg || `Synastry failed (${startRes.status})`);
+            setGenerating(false);
+            autoGenStartedRef.current = false;
+            return;
+          }
+
+          await fetchReading(needsGen.id, language, { quiet: true });
+          dispatchReady(needsGen);
+        } finally {
+          window.dispatchEvent(new CustomEvent('synastry-generation-ended', { detail: { ok: genOk } }));
+        }
+      } finally {
+        setLoading(false);
+        setGenerating(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      autoGenStartedRef.current = false;
+    };
   }, [fetchConnections, fetchReading, language]);
 
   const handleBackToNatal = () => {
@@ -223,7 +327,18 @@ export default function SynastryViewWrapper() {
 
   // Has reading → show it
   if (reading) {
-    return <SynastryView reading={reading} language={language} onBackToNatal={handleBackToNatal} chartA={chartA} chartB={chartB} shareSlugA={shareSlugA} shareSlugB={shareSlugB} />;
+    return <SynastryView
+      reading={reading}
+      language={language}
+      onBackToNatal={handleBackToNatal}
+      chartA={chartA}
+      chartB={chartB}
+      shareSlugA={shareSlugA}
+      shareSlugB={shareSlugB}
+      synastryShareSlug={synastryShareSlug}
+      synastryConnectionId={activeConnectionId}
+      synastryIsPublic={synastryIsPublic}
+    />;
   }
 
   // Generating → show progress

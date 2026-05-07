@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { withCsrfHeaders } from '@/lib/auth/client';
 import { whenRuntimeReady } from '@/lib/runtime-ready';
+import { normalizeInviteCode } from '@/lib/utils/invite';
 import type { GenerateChartRequest } from '@/types/api';
 import type { Gender } from '@/types/user';
 
@@ -21,6 +22,59 @@ function sleep(ms: number) {
 function shouldReturnToBirth(status: number, message: string) {
   if (status === 400) return true;
   return /Missing birth data fields|Invalid|Unauthorized/i.test(message);
+}
+
+/** Existing onboarded users skip chart/generate — synastry invite is accepted here. Idempotent (409 ok). */
+function ownerReadingUrl(slug: string, focusSynastry: boolean) {
+  return focusSynastry ? `/r/${slug}?synastry=1` : `/r/${slug}`;
+}
+
+async function postInviteAcceptFromLoading(code: string | null | undefined): Promise<string | null> {
+  if (!code) return null;
+  try {
+    const acceptInit = await withCsrfHeaders({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ code: normalizeInviteCode(code) }),
+    });
+    const acceptRes = await fetch('/api/invite/accept', acceptInit);
+    const payload = await acceptRes.json().catch(() => ({})) as { connection_id?: string; error?: string };
+    if (!acceptRes.ok && acceptRes.status !== 409) {
+      const detail = payload.error ?? '';
+      console.warn('[loading] invite/accept failed', acceptRes.status, detail);
+    }
+    return payload.connection_id ?? null;
+  } catch (e) {
+    console.warn('[loading] invite/accept error', e);
+    return null;
+  }
+}
+
+/** Run full synastry generation here so redirect lands with a finished reading (internal trigger often never fires). */
+async function awaitSynastryKickoffAfterInvite(connectionId?: string | null): Promise<boolean> {
+  window.dispatchEvent(new CustomEvent('synastry-generation-started'));
+  let ok = false;
+  try {
+    const init = await withCsrfHeaders({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(connectionId ? { connection_id: connectionId } : {}),
+    });
+    const res = await fetch('/api/synastry/start', init);
+    const txt = await res.text().catch(() => '');
+    ok = res.ok;
+    if (!res.ok) {
+      console.warn('[loading] synastry/start failed', res.status, txt);
+    }
+    return ok;
+  } catch (e) {
+    console.warn('[loading] synastry/start error', e);
+    return false;
+  } finally {
+    window.dispatchEvent(new CustomEvent('synastry-generation-ended', { detail: { ok } }));
+  }
 }
 
 export default function LoadingRouteClient() {
@@ -65,13 +119,26 @@ export default function LoadingRouteClient() {
           return;
         }
         if (status.status !== 'complete') return;
-        navigated = true;
-        if (status.shareSlug) {
-          window.location.href = `/r/${status.shareSlug}`;
-        } else {
+        const invTab = new URLSearchParams(window.location.search).get('invite');
+        // complete but slug not written yet (e.g. ensureShareSlug lag) — never finishLoading on invite flow
+        if (!status.shareSlug) {
+          if (invTab) return;
+          navigated = true;
           const finish = (window as unknown as { finishLoading?: () => void }).finishLoading;
           if (finish) finish();
+          return;
         }
+        const connId = invTab ? await postInviteAcceptFromLoading(invTab) : null;
+        if (invTab) {
+          const ok = await awaitSynastryKickoffAfterInvite(connId);
+          if (!ok) {
+            setErrorText('Synastry generation failed to start. Please retry.');
+            setCanReturnToBirth(false);
+            return;
+          }
+        }
+        navigated = true;
+        window.location.href = ownerReadingUrl(status.shareSlug, Boolean(invTab));
       } catch { /* ignore — polling loop will retry */ }
     };
     document.addEventListener('visibilitychange', checkOnVisible);
@@ -85,7 +152,8 @@ export default function LoadingRouteClient() {
       const urlParams = new URLSearchParams(window.location.search);
       const isGenerateFull = urlParams.get('mode') === 'generate-full';
       const isFakeFull = urlParams.get('mode') === 'fake-full';
-      const hasInvite = Boolean(urlParams.get('invite'));
+      const inviteFromUrl = urlParams.get('invite');
+      const hasInvite = Boolean(inviteFromUrl);
       const isFree = !isGenerateFull && !isFakeFull && !hasInvite;
 
       // Fetch user's language preference for loading screen
@@ -120,7 +188,16 @@ export default function LoadingRouteClient() {
         if (earlyCheck.ok) {
           const earlyStatus = await earlyCheck.json() as { status: string; complete?: boolean; shareSlug?: string };
           if (earlyStatus.status === 'complete' && earlyStatus.shareSlug) {
-            window.location.href = `/r/${earlyStatus.shareSlug}`;
+            const connId = await postInviteAcceptFromLoading(inviteFromUrl);
+            if (inviteFromUrl) {
+              const ok = await awaitSynastryKickoffAfterInvite(connId);
+              if (!ok) {
+                setErrorText('Synastry generation failed to start. Please retry.');
+                setCanReturnToBirth(false);
+                return;
+              }
+            }
+            window.location.href = ownerReadingUrl(earlyStatus.shareSlug, Boolean(inviteFromUrl));
             return;
           }
         }
@@ -271,8 +348,17 @@ export default function LoadingRouteClient() {
         if (status.status === 'complete') {
           if (navigated) return;
           if (status.shareSlug) {
+            const connId = await postInviteAcceptFromLoading(inviteFromUrl);
+            if (inviteFromUrl) {
+              const ok = await awaitSynastryKickoffAfterInvite(connId);
+              if (!ok) {
+                setErrorText('Synastry generation failed to start. Please retry.');
+                setCanReturnToBirth(false);
+                return;
+              }
+            }
             navigated = true;
-            window.location.href = `/r/${status.shareSlug}`;
+            window.location.href = ownerReadingUrl(status.shareSlug, Boolean(inviteFromUrl));
             return;
           }
           // status.complete with no shareSlug used to fall through to a

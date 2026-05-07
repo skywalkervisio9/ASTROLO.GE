@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { generateSynastryReading } from '@/lib/AIgeneration/pipeline';
 import { generateInviteCode } from '@/lib/utils/invite';
+import { generateShareSlug } from '@/lib/chart/reading-helpers';
+import { extractSynastryScores } from '@/lib/synastry/share-helpers';
 
 export const maxDuration = 300; // 5 min timeout for AI generation
 
@@ -204,6 +206,10 @@ export async function POST(req: NextRequest) {
         // ── Step 6: Store reading ──
         send('Storing synastry reading...');
 
+        const scores = extractSynastryScores(
+          result.readingEn as unknown as Record<string, unknown>,
+        );
+
         const { error: synErr } = await admin.from('synastry_readings').insert({
           connection_id: connectionId,
           user1_id: pick1.user_id,
@@ -212,6 +218,9 @@ export async function POST(req: NextRequest) {
           analysis_en: result.analysis,
           reading_ka: result.readingKa,
           reading_en: result.readingEn,
+          compatibility_score: scores.compatibility_score,
+          category_scores: scores.category_scores,
+          share_slug: generateShareSlug(),
           prompt_version: 'SYSTEM-PROMPT-Couple_s4',
           model_call2: result.meta.modelCall2,
           tokens_call2_ka: result.meta.tokensCall2Ka,

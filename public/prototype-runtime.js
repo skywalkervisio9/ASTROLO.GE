@@ -212,6 +212,7 @@ var _synastryGenerated = false;
 var _synastryPartnerName = null;
 var _synastryConnectionId = null;
 var _synastryRelType = null;
+var _synastryGenerating = false;
 
 function occupySlot(slotNum, btn) {
   // Get effective unlock state
@@ -317,7 +318,7 @@ function rebuildSidebar() {
   synItem.style.display = '';
   synItem.style.opacity = '';
   synItem.style.pointerEvents = '';
-  synItem.classList.remove('has-partner', 'syn-cta-pulsate', 'locked-syn');
+  synItem.classList.remove('has-partner', 'syn-cta-pulsate', 'locked-syn', 'syn-generating');
 
   // Get effective slot states (tier defaults + dev overrides)
   const s1Unlocked = getSlot1Unlocked();
@@ -336,6 +337,19 @@ function rebuildSidebar() {
 
   // Show invite button for non-free tiers
   if (inviteBtn) inviteBtn.style.display = '';
+
+  // ─── SLOT 1: in-flight AI generation (invitee /loading or inviter poll) ───
+  if (_synastryGenerating && s1Unlocked) {
+    synItem.classList.add('has-partner', 'syn-generating');
+    if (partnerName) {
+      partnerName.textContent = document.body.classList.contains('lang-en')
+        ? '(Generating…)'
+        : '(იქმნება…)';
+    }
+    if (modeBadge) { modeBadge.className = 'mode-badge'; modeBadge.textContent = ''; }
+    buildSlot2NavItem(synItem, s2Unlocked, s2Occupied);
+    return;
+  }
 
   // ─── SLOT 1 ───
   // If synastry was generated in this session, keep it permanently occupied
@@ -479,6 +493,7 @@ document.querySelector('#sbNavRow .sb-nav-item:first-child').onclick = function(
   switchView('natal', document.getElementById('devNatal'));
 };
 document.getElementById('synNavItem').onclick = function() {
+  if (_synastryGenerating) { closeSidebar(); switchView('synastry'); return; }
   // If synastry already generated, just show it
   if (_synastryGenerated) { closeSidebar(); switchView('synastry'); return; }
   // FREE (or no unlocked slot): locked → premium payment page
@@ -495,11 +510,21 @@ document.getElementById('synNavItem').onclick = function() {
   switchView('synastry');
 };
 
+window.addEventListener('synastry-generation-started', function() {
+  _synastryGenerating = true;
+  rebuildSidebar();
+});
+window.addEventListener('synastry-generation-ended', function() {
+  _synastryGenerating = false;
+  rebuildSidebar();
+});
+
 // Listen for synastry ready event from React wrapper
 window.addEventListener('synastry-ready', function(e) {
   var detail = e.detail || {};
   var name = (detail.user2 && detail.user2.name) ? detail.user2.name : 'Partner';
 
+  _synastryGenerating = false;
   // Permanently mark synastry as generated
   _synastryGenerated = true;
   _synastryPartnerName = name;

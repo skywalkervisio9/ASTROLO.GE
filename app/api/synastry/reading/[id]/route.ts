@@ -7,6 +7,7 @@ import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonForbidden, jsonServerError } from '@/lib/auth/http';
 import { isConnectionMember } from '@/lib/auth/policy';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { generateShareSlug } from '@/lib/chart/reading-helpers';
 
 export async function GET(
   req: NextRequest,
@@ -32,21 +33,43 @@ export async function GET(
       return jsonForbidden();
     }
 
-    const { data: row, error } = await supabase
+    const admin = createAdminSupabase();
+
+    let { data: readingRow } = await admin
       .from('synastry_readings')
-      .select('reading_ka, reading_en')
+      .select('reading_ka, reading_en, share_slug, is_public')
       .eq('connection_id', id)
-      .single();
-    if (error) {
+      .maybeSingle();
+
+    if (!readingRow) {
       return NextResponse.json({ reading: null });
     }
 
-    // Fetch both users' chart data + share slugs in parallel
-    const admin = createAdminSupabase();
+    let shareSlugSyn = typeof readingRow.share_slug === 'string' ? readingRow.share_slug : null;
+    let isPublicSyn = readingRow.is_public !== false;
+
+    if (!shareSlugSyn) {
+      const newSlug = generateShareSlug();
+      const { error: slugErr } = await admin
+        .from('synastry_readings')
+        .update({ share_slug: newSlug })
+        .eq('connection_id', id);
+      if (!slugErr) {
+        shareSlugSyn = newSlug;
+        readingRow = { ...readingRow, share_slug: newSlug };
+      }
+    }
+    const userIdsForNatal = [conn.inviter_id, conn.invitee_id].filter(
+      (uid): uid is string => typeof uid === 'string' && !!uid,
+    );
     const [{ data: chartA }, { data: chartB }, { data: slugs }] = await Promise.all([
       admin.from('chart_data').select('planets, points').eq('user_id', conn.inviter_id).maybeSingle(),
-      admin.from('chart_data').select('planets, points').eq('user_id', conn.invitee_id).maybeSingle(),
-      admin.from('natal_readings').select('user_id, share_slug').in('user_id', [conn.inviter_id, conn.invitee_id]),
+      conn.invitee_id
+        ? admin.from('chart_data').select('planets, points').eq('user_id', conn.invitee_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      userIdsForNatal.length > 0
+        ? admin.from('natal_readings').select('user_id, share_slug').in('user_id', userIdsForNatal)
+        : Promise.resolve({ data: [] as { user_id: string; share_slug: string | null }[] }),
     ]);
 
     const slugMap = new Map((slugs ?? []).map(r => [r.user_id, r.share_slug]));
@@ -58,9 +81,12 @@ export async function GET(
     };
 
     return NextResponse.json({
-      reading: lang === 'ka' ? row.reading_ka : row.reading_en,
+      reading: lang === 'ka' ? readingRow.reading_ka : readingRow.reading_en,
       shareSlugA: slugMap.get(conn.inviter_id) ?? null,
       shareSlugB: slugMap.get(conn.invitee_id) ?? null,
+      synastryShareSlug: shareSlugSyn,
+      synastryIsPublic: isPublicSyn,
+      synastryConnectionId: id,
       chartA: { planets: parsePlanets(chartA?.planets), points: parsePlanets(chartA?.points) },
       chartB: { planets: parsePlanets(chartB?.planets), points: parsePlanets(chartB?.points) },
     });

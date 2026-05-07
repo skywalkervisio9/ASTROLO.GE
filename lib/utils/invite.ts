@@ -14,3 +14,8 @@ export function generateInviteCode(length = 7): string {
   }
   return result;
 }
+
+/** Canonical form for URL/body codes — DB stores lowercase alphanumeric. */
+export function normalizeInviteCode(raw: string): string {
+  return raw.trim().toLowerCase();
+}

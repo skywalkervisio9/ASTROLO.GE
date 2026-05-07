@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { asNonEmptyString } from '@/lib/auth/validators';
+import { normalizeInviteCode } from '@/lib/utils/invite';
 
 export async function GET(
   _req: NextRequest,
@@ -12,7 +13,7 @@ export async function GET(
 ) {
   try {
     const { code: rawCode } = await params;
-    const code = asNonEmptyString(rawCode);
+    const code = asNonEmptyString(normalizeInviteCode(typeof rawCode === 'string' ? rawCode : ''));
     if (!code) {
       return NextResponse.json({ valid: false, error: 'Invalid invite code' });
     }

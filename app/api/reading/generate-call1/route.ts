@@ -12,6 +12,7 @@ import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonServerError } from '@/lib/auth/http';
 import { requireCsrfOrThrow } from '@/lib/auth/csrf';
 import { hasFullReading } from '@/types/user';
+import { tryTriggerSynastryForUserConnections } from '@/lib/synastry/trigger-generation';
 import type { User } from '@/types/user';
 
 export const runtime = 'nodejs';
@@ -70,6 +71,8 @@ export async function POST() {
         model_call1: call1.model,
         tokens_call1: call1.tokens,
       }, { onConflict: 'user_id' });
+
+    await tryTriggerSynastryForUserConnections(authUser.id);
 
     return NextResponse.json({ status: 'done' });
   } catch (error: unknown) {

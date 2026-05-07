@@ -4,7 +4,9 @@
 /** Full app markup (formerly content/body.html). */
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import SynastryViewWrapper from './synastry/SynastryViewWrapper';
+import SynastryConnectionSync from './SynastryConnectionSync';
 import { createClient } from '@/lib/supabase/client';
+import { createSynastryInviteLink } from '@/lib/invite/create-invite-link';
 
 // Sign the user out fully before navigating to /auth. Used by both the
 // sidebar logout and the dev AUTH button — without the explicit signOut,
@@ -160,6 +162,10 @@ export default function BodyContent() {
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const unlockInputRef = useRef<HTMLInputElement>(null);
 
+  /** Invite modal: React must own `disabled` — static JSX `disabled` was always true and re-applied on every render, blocking clicks. */
+  const [inviteKind, setInviteKind] = useState<'couple' | 'friend' | null>(null);
+  const [inviteGenPhase, setInviteGenPhase] = useState<'idle' | 'loading' | 'success'>('idle');
+
   const openUnlockDialog = useCallback(() => {
     setUnlockError(null);
     setUnlockOpen(true);
@@ -190,6 +196,64 @@ export default function BodyContent() {
     document.getElementById('devPanel')?.classList.toggle('open');
   }, [openUnlockDialog]);
 
+  /** Reset invite UI whenever the modal closes (any path). */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const el = document.getElementById('inviteModal');
+    if (!el) return;
+    const sync = () => {
+      if (!el.classList.contains('open')) {
+        setInviteKind(null);
+        setInviteGenPhase('idle');
+      }
+    };
+    const obs = new MutationObserver(sync);
+    obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+    sync();
+    return () => obs.disconnect();
+  }, []);
+
+  /** Real invite link — does not depend on prototype-runtime / AuthBridge timing. */
+  const handleInviteLinkGenerate = useCallback(async () => {
+    const isEn = document.body.classList.contains('lang-en');
+    if (!inviteKind) {
+      window.alert(isEn ? 'Select couple or friend first.' : 'ჯერ აირჩიე მეწყვილე ან მეგობარი.');
+      return;
+    }
+
+    const relationship_type = inviteKind;
+    const inviteBtn = document.getElementById('inviteGenBtn') as HTMLButtonElement | null;
+    const inviteUrlEl = document.getElementById('inviteLinkUrl');
+    const inviteBox = document.getElementById('inviteLinkBox');
+    if (!inviteBtn) return;
+
+    setInviteGenPhase('loading');
+
+    try {
+      const result = await createSynastryInviteLink(relationship_type);
+      if (!result.ok) {
+        console.warn('[invite/create]', result.error);
+        window.alert(result.error);
+        setInviteGenPhase('idle');
+        return;
+      }
+
+      if (inviteUrlEl) {
+        inviteUrlEl.textContent = result.url.replace(/^https?:\/\//, '');
+      }
+      if (inviteBox) inviteBox.classList.add('show');
+
+      try {
+        await navigator.clipboard?.writeText(result.url);
+      } catch { /* still success */ }
+      setInviteGenPhase('success');
+    } catch (e) {
+      console.error('[invite/create]', e);
+      window.alert(e instanceof Error ? e.message : String(e));
+      setInviteGenPhase('idle');
+    }
+  }, [inviteKind]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const w = window as unknown as { unlockDev?: () => void; lockDev?: () => void };
@@ -200,6 +264,32 @@ export default function BodyContent() {
       delete w.lockDev;
     };
   }, [openUnlockDialog]);
+
+  /** After invite flow we land on /r/[slug]?synastry=1 — switch tab once prototype-runtime is up (retry; single tick often races). */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('synastry') !== '1') return;
+    let tries = 0;
+    const path = window.location.pathname;
+    const strip = () => {
+      sp.delete('synastry');
+      const q = sp.toString();
+      window.history.replaceState({}, '', q ? `${path}?${q}` : path);
+    };
+    const id = window.setInterval(() => {
+      tries += 1;
+      const sw = proto().switchView;
+      if (typeof sw === 'function') {
+        sw('synastry');
+        strip();
+        window.clearInterval(id);
+      } else if (tries >= 80) {
+        window.clearInterval(id);
+      }
+    }, 150);
+    return () => window.clearInterval(id);
+  }, []);
 
   // ─── Promo code state for the premium payment page ───
   // Default "astrolo10" applies the existing -₾5 discount on first paint.
@@ -292,8 +382,21 @@ export default function BodyContent() {
     : promoVariant === 'invalid' ? '#e57373'
     : 'var(--txd)';
 
+  void promoLangTick;
+  const inviteGenBtnLabel =
+    inviteGenPhase === 'loading'
+      ? (promoIsEn ? 'Generating...' : 'იქმნება...')
+      : inviteGenPhase === 'success'
+        ? (promoIsEn ? '✓ Copied!' : '✓ დაკოპირდა!')
+        : inviteKind === 'couple'
+          ? (promoIsEn ? 'Create link (Couple)' : 'ბმულის შექმნა (მეწყვილე)')
+          : inviteKind === 'friend'
+            ? (promoIsEn ? 'Create link (Friend)' : 'ბმულის შექმნა (მეგობარი)')
+            : (promoIsEn ? 'Choose type' : 'აირჩიე ტიპი');
+
   return (
 <div>
+<SynastryConnectionSync />
 <div className="stars" id="stars"></div>
 <canvas id="shootingStar" style={{position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 300}}></canvas>
 <div className="pbar" id="prog"></div>
@@ -332,18 +435,18 @@ export default function BodyContent() {
 
 
 <div className="invite-modal" id="inviteModal">
-<div className="invite-modal-bg" onClick={() => { proto().closeInviteModal?.(); }}></div>
+<div className="invite-modal-bg" onClick={() => { setInviteKind(null); setInviteGenPhase('idle'); proto().closeInviteModal?.(); }}></div>
 <div className="invite-modal-card">
 <div className="invite-title" id="inviteModalTitle">ვის ეგზავნება ბმული?</div>
 <div className="invite-sub" id="inviteModalSub">აირჩიე კავშირის ტიპი — ბმული ავტომატურად გენერირდება</div>
 <div className="invite-price-tag" id="invitePriceTag"></div>
 <div className="invite-opts" id="inviteOptsWrap">
-  <div className="invite-opt" onClick={(e) => { proto().selectInviteType?.("couple", e.currentTarget); }}>
+  <div className="invite-opt" onClick={(e) => { setInviteKind('couple'); proto().selectInviteType?.("couple", e.currentTarget); }}>
     <span className="invite-opt-icon"><span className="gi gi-pl"><svg><use href="#gl-moon"/></svg></span> <span className="gi gi-pl"><svg><use href="#gl-sun"/></svg></span></span>
     <div className="invite-opt-label">მეწყვილე</div>
     <div className="invite-opt-desc">რომანტიკული პარტნიორი — სრული სინასტრია</div>
   </div>
-  <div className="invite-opt" onClick={(e) => { proto().selectInviteType?.("friend", e.currentTarget); }}>
+  <div className="invite-opt" onClick={(e) => { setInviteKind('friend'); proto().selectInviteType?.("friend", e.currentTarget); }}>
     <span className="invite-opt-icon">✦ ✦</span>
     <div className="invite-opt-label">მეგობარი</div>
     <div className="invite-opt-desc">მეგობრული თავსებადობა — ზოგადი ანალიზი</div>
@@ -361,8 +464,13 @@ export default function BodyContent() {
   <button className="invite-link-copy" onClick={(e) => { proto().copyInviteLink?.(e.currentTarget); }}>კოპირება</button>
 </div>
 <div className="invite-actions" id="inviteActions">
-  <button className="invite-btn-secondary" onClick={() => { proto().closeInviteModal?.(); }}>დახურვა</button>
-  <button className="invite-btn-primary" id="inviteGenBtn" disabled onClick={() => { proto().generateInviteLink?.(); }}>აირჩიე ტიპი</button>
+  <button className="invite-btn-secondary" onClick={() => { setInviteKind(null); setInviteGenPhase('idle'); proto().closeInviteModal?.(); }}>დახურვა</button>
+  <button
+    className="invite-btn-primary"
+    id="inviteGenBtn"
+    disabled={inviteKind === null || inviteGenPhase === 'loading' || inviteGenPhase === 'success'}
+    onClick={() => { void handleInviteLinkGenerate(); }}
+  >{inviteGenBtnLabel}</button>
 </div>
 </div>
 </div>
