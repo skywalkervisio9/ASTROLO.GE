@@ -9,25 +9,22 @@ export default function AuthPageClient() {
     const err = params.get('error');
     const invite = params.get('invite');
 
-    // Invite-link arrival: surface a banner so the visitor knows why they
-    // landed on /auth (vs. a normal sign-in). Same toast pattern as ?error=private.
+    // Invite-link arrival: flip a body attribute that reveals the inline
+    // .auth-invite-hero block at the top of the auth-card (see globals.css).
+    // English visitors get translated copy injected over the KA defaults.
     if (invite) {
-      const isKa = (document.documentElement.lang || 'ka').startsWith('ka');
-      const msg = isKa
-        ? 'თქვენ მიწვევის ბმულით შემოხვედით — გაიარეთ რეგისტრაცია ან შესვლა, რომ დაიწყოთ თავსებადობა.'
-        : 'You opened a synastry invite. Sign in or sign up to start your compatibility reading.';
-      const banner = document.createElement('div');
-      banner.className = 'auth-invite-banner';
-      banner.setAttribute('role', 'status');
-      banner.textContent = msg;
-      banner.style.cssText =
-        'position:fixed;top:16px;left:50%;transform:translateX(-50%);' +
-        'z-index:9999;padding:12px 20px;border-radius:10px;' +
-        'background:rgba(245,217,138,0.12);border:1px solid rgba(245,217,138,0.35);' +
-        'color:#f5d98a;font-size:14px;max-width:560px;text-align:center;' +
-        'backdrop-filter:blur(6px);box-shadow:0 6px 24px rgba(0,0,0,0.4);cursor:pointer';
-      banner.onclick = () => banner.remove();
-      document.body.appendChild(banner);
+      document.body.setAttribute('data-invite-arrival', 'true');
+      const isEn = !(document.documentElement.lang || 'ka').startsWith('ka');
+      if (isEn) {
+        const eyebrow = document.querySelector('.auth-invite-hero-eyebrow-text');
+        const title = document.querySelector('.auth-invite-hero-title');
+        const sub = document.querySelector('.auth-invite-hero-sub');
+        if (eyebrow) eyebrow.textContent = 'invitation · synastry';
+        if (title) title.textContent = "You've been invited to a synastry reading";
+        if (sub) sub.textContent = 'Sign up or sign in — your inviter is waiting on the other side of the chart.';
+      }
+      const hero = document.getElementById('authInviteHero');
+      if (hero) hero.setAttribute('aria-hidden', 'false');
     }
 
     // Surface a "reading is private" banner when redirected here from /r/[slug].
