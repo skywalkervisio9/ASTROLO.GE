@@ -1,8 +1,8 @@
 'use client';
 
-// Client-side handoff so we use the same Supabase session as the browser.
-// Server getUser() on /inv often misses cookies (localhost vs 127.0.0.1, timing),
-// which skipped /post-auth?invite= and left users stuck on /r/ with no accept.
+// Invite links always sign the visitor out before landing on /auth?invite=…
+// so both new visitors and pre-logged-in users see the same intro UI and the
+// inviter can never accept their own link by accident.
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -21,17 +21,13 @@ export default function InviteGate({ rawCode }: { rawCode: string }) {
     let cancelled = false;
     (async () => {
       const supabase = createClient();
-      const { data: { session }, error } = await supabase.auth.getSession();
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        if (!cancelled) setNote(e instanceof Error ? e.message : 'Sign-out failed');
+      }
       if (cancelled) return;
-      if (error) {
-        setNote(error.message);
-      }
-      const q = `invite=${encodeURIComponent(code)}`;
-      if (session?.user) {
-        window.location.replace(`/post-auth?${q}`);
-      } else {
-        window.location.replace(`/auth?${q}`);
-      }
+      window.location.replace(`/auth?invite=${encodeURIComponent(code)}`);
     })();
 
     return () => { cancelled = true; };
