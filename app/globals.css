@@ -883,8 +883,11 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .auth-invite-hero-orbit{width:72px;height:72px;border:1px solid var(--gd);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;background:rgba(201,168,76,.04);animation:sp 60s linear infinite}
 .auth-invite-hero-orbit::before{content:'';position:absolute;inset:-7px;border:1px solid rgba(201,168,76,.12);border-radius:50%}
 .auth-invite-hero-orbit::after{content:'';position:absolute;inset:-14px;border:1px solid rgba(201,168,76,.06);border-radius:50%}
-.auth-invite-hero-glyph{display:inline-flex;align-items:center;gap:6px;color:var(--gold);line-height:1;animation:sp 60s linear infinite reverse}
-.auth-invite-hero-glyph-a,.auth-invite-hero-glyph-b{display:inline-block;font-size:18px;line-height:1}
+.auth-invite-hero-glyph{position:relative;display:block;width:34px;height:34px;color:var(--gold);animation:binaryOrbit 6s linear infinite}
+.auth-invite-hero-glyph-a,.auth-invite-hero-glyph-b{position:absolute;top:50%;left:50%;width:18px;height:18px;font-size:18px;line-height:1;text-align:center;margin:-9px 0 0 -9px}
+.auth-invite-hero-glyph-a{transform:translateX(-10px)}
+.auth-invite-hero-glyph-b{transform:translateX(10px);opacity:.85}
+@keyframes binaryOrbit{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .auth-invite-hero-body{position:relative;max-width:340px}
 .auth-invite-hero-eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:.56rem;letter-spacing:.24em;color:var(--gold);text-transform:uppercase;margin-bottom:10px;opacity:.85}
 .auth-invite-hero-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px rgba(201,168,76,.6);animation:pulse 2s ease infinite}
