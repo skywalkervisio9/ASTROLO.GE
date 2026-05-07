@@ -152,6 +152,21 @@ const ELEMENT_PALETTE: Record<string, { c: string; bg: string; hover: string; gl
   gold:   { c: 'var(--gold)',   bg: 'rgba(201,168,76,.13)',  hover: 'rgba(201,168,76,.22)',  glow: 'rgba(201,168,76,.06)',  glow2: 'rgba(201,168,76,.04)'  },
 };
 
+// "{Name}'s chart →" / "{Name}-ს რუკა →" — used to label the partner card.
+// Georgian: vowel-ending names take "ს", consonant-ending take "ის",
+// non-Georgian (Latin) names get "-ს" so the suffix reads cleanly.
+function chartPossessive(name: string, language: Language): string {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) return language === 'ka' ? 'რუკა →' : 'Chart →';
+  if (language === 'en') return `${trimmed}'s Chart →`;
+  const last = trimmed.slice(-1);
+  const isGeorgian = /[Ⴀ-ჿ]/.test(last);
+  const isGeorgianVowel = 'აეიოუ'.includes(last);
+  if (isGeorgianVowel) return `${trimmed}ს რუკა →`;
+  if (isGeorgian) return `${trimmed}ის რუკა →`;
+  return `${trimmed}-ს რუკა →`;
+}
+
 // English zodiac sign → Georgian name (AI emits English signs in meta.personA/B regardless of language)
 const SIGN_KA: Record<string, string> = {
   aries: 'ვერძი',
@@ -391,7 +406,7 @@ export default function SynastryView({
             }
             style={!otherSlug ? { opacity: 0.45, cursor: 'default' } : undefined}
           >
-            {otherPerson.name} {language === 'ka' ? 'რუკა' : 'Chart'} →
+            {chartPossessive(otherPerson.name, language)}
           </button>
         </div>
 
@@ -452,7 +467,7 @@ export default function SynastryView({
 
         {/* Partner Cards */}
         <div className="pcards section-reveal vis">
-          <PartnerCard person={otherPerson} language={language} chart={otherChart ?? undefined} shareSlug={otherSlug ?? undefined} />
+          <PartnerCard person={viewerPerson} isYou language={language} chart={viewerChart ?? undefined} shareSlug={viewerSlug ?? undefined} />
           <div className="bridge">
             <div className="bridge-line" />
             <div className="bridge-icon">
@@ -463,7 +478,7 @@ export default function SynastryView({
             </div>
             <div className="bridge-line" />
           </div>
-          <PartnerCard person={viewerPerson} isYou language={language} chart={viewerChart ?? undefined} shareSlug={viewerSlug ?? undefined} />
+          <PartnerCard person={otherPerson} language={language} chart={otherChart ?? undefined} shareSlug={otherSlug ?? undefined} />
         </div>
 
         {/* Compatibility Wheel */}
@@ -613,6 +628,7 @@ function PartnerCard({
     <div className="pc" onClick={handleCardClick} style={shareSlug ? { cursor: 'pointer' } : undefined}>
       {isYou && <div className="pc-you-dot" />}
       {isYou && <div className="pc-tooltip">{language === 'ka' ? 'ჩემი რუკა →' : 'My Chart →'}</div>}
+      {!isYou && shareSlug && <div className="pc-other-tag">{chartPossessive(person.name, language)}</div>}
       <div className="pc-avatar"><span className="pc-avatar-letter">{initial}</span></div>
       <div className="pc-name">{person.name}</div>
       <div className="pc-sub">{renderText(`${localizeSign(person.sun, language)} · ${localizeSign(person.moon, language)} · ${localizeSign(person.asc, language)}`)}</div>

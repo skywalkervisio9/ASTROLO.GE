@@ -651,6 +651,8 @@ body[data-view="payment"] .main-natal,body[data-view="payment"] .synastry-wrap,b
 .pc-you-dot{position:absolute;top:14px;right:14px;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px rgba(201,168,76,.4);animation:pulse 2s ease infinite}
 .pc-tooltip{position:absolute;top:12px;left:12px;font-size:.56rem;color:var(--gd);letter-spacing:.08em;opacity:0;transition:opacity .4s;font-family:var(--fb)}
 .pc:hover .pc-tooltip{opacity:1}
+.pc-other-tag{position:absolute;top:12px;left:14px;font-size:.6rem;color:var(--gd);letter-spacing:.08em;font-family:var(--fb);opacity:.85;transition:color .3s,opacity .3s}
+.pc:hover .pc-other-tag{color:var(--gold);opacity:1}
 .pc-avatar{width:64px;height:64px;border-radius:50%;margin:0 auto 14px;border:1.5px solid rgba(201,168,76,.15);background:rgba(201,168,76,.04);display:flex;align-items:center;justify-content:center;position:relative;transition:all .5s var(--ease)}
 .pc:hover .pc-avatar{border-color:rgba(201,168,76,.35);box-shadow:0 0 20px rgba(201,168,76,.08)}
 .pc-avatar-letter{font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:400;color:var(--gold)}
