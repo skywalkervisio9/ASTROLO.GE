@@ -21,7 +21,7 @@ export default function AuthPageClient() {
         const sub = document.querySelector('.auth-invite-hero-sub');
         if (eyebrow) eyebrow.textContent = 'invitation · synastry';
         if (title) title.textContent = "You've been invited to a synastry reading";
-        if (sub) sub.textContent = 'Sign up or sign in — your inviter is waiting on the other side of the chart.';
+        if (sub) sub.textContent = 'Sign up or sign in';
       }
       const hero = document.getElementById('authInviteHero');
       if (hero) hero.setAttribute('aria-hidden', 'false');
