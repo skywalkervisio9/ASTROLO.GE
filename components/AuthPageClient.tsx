@@ -7,6 +7,25 @@ export default function AuthPageClient() {
     const params = new URLSearchParams(window.location.search);
     const step = params.get('step');
     const err = params.get('error');
+    const invite = params.get('invite');
+
+    // Invite-link arrival: flip a body attribute that reveals the inline
+    // .auth-invite-hero block at the top of the auth-card (see globals.css).
+    // English visitors get translated copy injected over the KA defaults.
+    if (invite) {
+      document.body.setAttribute('data-invite-arrival', 'true');
+      const isEn = !(document.documentElement.lang || 'ka').startsWith('ka');
+      if (isEn) {
+        const eyebrow = document.querySelector('.auth-invite-hero-eyebrow-text');
+        const title = document.querySelector('.auth-invite-hero-title');
+        const sub = document.querySelector('.auth-invite-hero-sub');
+        if (eyebrow) eyebrow.textContent = 'invitation · synastry';
+        if (title) title.textContent = "You've been invited to a synastry reading";
+        if (sub) sub.textContent = 'Sign up or sign in';
+      }
+      const hero = document.getElementById('authInviteHero');
+      if (hero) hero.setAttribute('aria-hidden', 'false');
+    }
 
     // Surface a "reading is private" banner when redirected here from /r/[slug].
     // Uses a one-shot toast injected into the auth view; dismisses on click.

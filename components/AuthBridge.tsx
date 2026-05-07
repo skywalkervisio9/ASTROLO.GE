@@ -607,17 +607,24 @@ export default function AuthBridge() {
       const user = session?.user ?? null;
       console.log("[AB] Session user:", user ? `${user.email} (${user.id})` : "none");
       if (user) {
+        // Invite-link arrival on /auth must always force re-auth — /inv signs
+        // the user out, but the session can briefly leak through if cookies
+        // haven't propagated. Stay on /auth and clear it so the visitor sees
+        // the invite banner and signs in fresh. Skip when step=birth: that
+        // URL shape is reached after a successful signup-with-invite and the
+        // session we'd nuke is the one the user just created.
+        if (window.location.pathname === '/auth' && urlParams.get('invite') && !forceBirthStep) {
+          console.log("[AB] On /auth?invite= with stale session — signing out");
+          await supabase.auth.signOut();
+          return;
+        }
         // /auth with an active session: route the user to where they belong
         // (/post-auth handles birth-form / /loading / /r/{slug} branching).
         // Previously we signed them out here, which created a callback loop
         // when post-OAuth redirects landed on /auth without ?step=birth.
-        // Only ?step=birth keeps you on /auth (signup → DOB). ?invite= alone must
-        // not block: existing users pasting a link need /post-auth → /loading (accept).
         if (window.location.pathname === '/auth' && !forceBirthStep) {
-          const inv = urlParams.get('invite');
-          const dest = inv ? `/post-auth?invite=${encodeURIComponent(inv)}` : '/post-auth';
-          console.log("[AB] On /auth with active session — routing via", dest);
-          window.location.replace(dest);
+          console.log("[AB] On /auth with active session — routing via /post-auth");
+          window.location.replace('/post-auth');
           return;
         }
         await onAuthSuccess();
