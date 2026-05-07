@@ -471,6 +471,17 @@ export default function BodyContent() {
     disabled={inviteKind === null || inviteGenPhase === 'loading' || inviteGenPhase === 'success'}
     onClick={() => { void handleInviteLinkGenerate(); }}
   >{inviteGenBtnLabel}</button>
+  <button
+    className="invite-btn-unlock"
+    id="inviteSlotPurchaseBtn"
+    style={{display: 'none'}}
+    onClick={() => { proto().closeInviteModal?.(); proto().showPaymentPage?.('synastry-slot'); }}
+  >
+    <span className="invite-unlock-key" aria-hidden="true">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </span>
+    <span id="inviteSlotPurchaseLabel">სლოტის განბლოკვა — ₾5</span>
+  </button>
 </div>
 </div>
 </div>

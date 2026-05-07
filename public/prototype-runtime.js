@@ -571,41 +571,77 @@ function openInviteModal() {
   closeSidebar();
   selectedInviteType = null;
   const modal = document.getElementById('inviteModal');
+  const card = modal.querySelector('.invite-modal-card');
   const optsWrap = document.getElementById('inviteOptsWrap');
   const upgradeWrap = document.getElementById('inviteUpgrade');
   const actions = document.getElementById('inviteActions');
   const priceTag = document.getElementById('invitePriceTag');
   const title = document.getElementById('inviteModalTitle');
   const sub = document.getElementById('inviteModalSub');
+  const genBtn = document.getElementById('inviteGenBtn');
+  const unlockBtn = document.getElementById('inviteSlotPurchaseBtn');
+  const unlockLabel = document.getElementById('inviteSlotPurchaseLabel');
+  const isEn = document.body.classList.contains('lang-en');
 
   document.querySelectorAll('.invite-opt').forEach(o => o.classList.remove('selected'));
   document.getElementById('inviteLinkBox').classList.remove('show');
   priceTag.classList.remove('show'); priceTag.textContent = '';
+  card.classList.remove('purchase-mode');
+  if (unlockBtn) unlockBtn.style.display = 'none';
+  if (genBtn) genBtn.style.display = '';
 
   if (currentAccountType === 'free') {
     // Free users go to premium payment page instead
     closeInviteModal();
     showPaymentPage('premium');
     return;
-  } else {
-    title.textContent = 'ვის ეგზავნება ბმული?';
-    sub.textContent = 'აირჩიე კავშირის ტიპი — ბმული ავტომატურად გენერირდება';
+  }
+
+  // If slot 1 is occupied, opening the invite modal means the user is trying
+  // to buy an additional synastry slot — lock the type cards and route the
+  // primary CTA to the dedicated paySynastrySlot page.
+  const needsPurchase = getSlot1Occupied();
+
+  if (needsPurchase) {
+    card.classList.add('purchase-mode');
+    title.textContent = isEn ? 'Unlock another synastry slot' : 'ახალი სინასტრიის სლოტი';
+    sub.textContent = isEn
+      ? 'Your free slot is taken. Add a slot to invite another person — couple or friend.'
+      : 'შენი უფასო სლოტი დაკავებულია. დაამატე ახალი სლოტი მეწყვილის ან მეგობრის მოსაწვევად.';
     optsWrap.style.display = 'flex';
     upgradeWrap.style.display = 'none';
     actions.style.display = 'flex';
-    document.getElementById('inviteGenBtn').disabled = true;
-    document.getElementById('inviteGenBtn').textContent = 'აირჩიე ტიპი';
-    // Show ₾5 price tag when all free slots are occupied (buying additional)
-    const s1Occ = getSlot1Occupied();
-    const needsPurchase = s1Occ; // if slot 1 is occupied, next invite costs ₾5
-    if (needsPurchase) {
-      priceTag.textContent = '₾5 — დამატებითი სინასტრია';
-      priceTag.classList.add('show');
+    priceTag.textContent = isEn ? '₾5 — additional synastry' : '₾5 — დამატებითი სინასტრია';
+    priceTag.classList.add('show');
+    if (unlockLabel) unlockLabel.textContent = isEn ? 'Unlock slot — ₾5' : 'სლოტის განბლოკვა — ₾5';
+    if (unlockBtn) unlockBtn.style.display = '';
+  } else {
+    title.textContent = isEn ? 'Who is the link for?' : 'ვის ეგზავნება ბმული?';
+    sub.textContent = isEn
+      ? 'Choose a connection type — the link generates automatically.'
+      : 'აირჩიე კავშირის ტიპი — ბმული ავტომატურად გენერირდება';
+    optsWrap.style.display = 'flex';
+    upgradeWrap.style.display = 'none';
+    actions.style.display = 'flex';
+    if (genBtn) {
+      genBtn.disabled = true;
+      genBtn.textContent = isEn ? 'Choose type' : 'აირჩიე ტიპი';
     }
   }
   modal.classList.add('open');
 }
-function closeInviteModal() { document.getElementById('inviteModal').classList.remove('open'); }
+function closeInviteModal() {
+  const modal = document.getElementById('inviteModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  // Clean purchase-mode state so the next open starts from a known baseline.
+  const card = modal.querySelector('.invite-modal-card');
+  if (card) card.classList.remove('purchase-mode');
+  const unlockBtn = document.getElementById('inviteSlotPurchaseBtn');
+  if (unlockBtn) unlockBtn.style.display = 'none';
+  const genBtn = document.getElementById('inviteGenBtn');
+  if (genBtn) genBtn.style.display = '';
+}
 function selectInviteType(type, el) {
   selectedInviteType = type;
   document.querySelectorAll('.invite-opt').forEach(o => o.classList.remove('selected'));
@@ -635,6 +671,15 @@ function showUpgrade() {
   } else {
     // All paid tiers → open invite modal (handles slot purchase internally)
     openInviteModal();
+  }
+}
+// Lock-wrap "Unlock Full Analysis" CTA — invited users pay ₾5 for natal unlock,
+// free users go to premium. Only invoked from sections gated by !_canAccess.
+function unlockFullReading() {
+  if (currentAccountType === 'free') {
+    showPaymentPage('premium');
+  } else {
+    showPaymentPage('natal-unlock');
   }
 }
 
@@ -2863,7 +2908,7 @@ function _buildLockWrap(sectionKey, section, iconId) {
   // Gate — lock icon + CTA
   html += '<div class="lp-gate">';
   html += '<div class="lp-lock-icon">' + lockSvg + '</div>';
-  html += '<button class="btn-unlock" onclick="showUpgrade()">' + _esc(unlockLabel) + '</button>';
+  html += '<button class="btn-unlock" onclick="unlockFullReading()">' + _esc(unlockLabel) + '</button>';
   html += '</div>';
 
   html += '</div></div>';
