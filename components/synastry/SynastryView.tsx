@@ -190,6 +190,11 @@ interface SynastryViewProps {
   synastryIsPublic?: boolean;
   /** Read-only cue on `/s/[slug]` public page (no toggle). */
   publicSynastrySlug?: string | null;
+  /** True when the logged-in viewer is the inviter (personA). Used to put
+   * the viewer's card on the right and align breadcrumb / "you" semantics
+   * with whoever is actually viewing. Defaults true so the public /s/[slug]
+   * page (no real viewer) keeps the inviter-on-left default. */
+  viewerIsInviter?: boolean;
 }
 
 export default function SynastryView({
@@ -204,6 +209,7 @@ export default function SynastryView({
   synastryConnectionId,
   synastryIsPublic: synastryPublicInitial,
   publicSynastrySlug,
+  viewerIsInviter = true,
 }: SynastryViewProps) {
   setRenderLang(language);
   const isFriend = reading.meta.type === 'synastry_friend';
@@ -309,6 +315,16 @@ export default function SynastryView({
   }, [sections, scrollToSection]);
 
   const { meta } = reading;
+  // The reading data is keyed personA/personB by inviter/invitee. Map both
+  // sides onto viewer/other so the UI can put the logged-in user on the
+  // right and surface "ჩემი რუკა" / isYou semantics on their card,
+  // regardless of which side the AI labelled them.
+  const viewerPerson = viewerIsInviter ? meta.personA : meta.personB;
+  const otherPerson  = viewerIsInviter ? meta.personB : meta.personA;
+  const viewerChart  = viewerIsInviter ? chartA : chartB;
+  const otherChart   = viewerIsInviter ? chartB : chartA;
+  const viewerSlug   = viewerIsInviter ? shareSlugA : shareSlugB;
+  const otherSlug    = viewerIsInviter ? shareSlugB : shareSlugA;
   const heroTitle = isFriend
     ? (language === 'ka' ? 'ვარსკვლავთა მეგობრობა' : 'Starbound Friendship')
     : (language === 'ka' ? 'ვარსკვლავები ორისთვის' : 'Stars for Two');
@@ -357,7 +373,7 @@ export default function SynastryView({
       <div className="ct">
         {/* Breadcrumb */}
         <div className="bnav">
-          <button className="bb" onClick={() => shareSlugA ? window.location.href = `/r/${shareSlugA}` : onBackToNatal?.()}>
+          <button className="bb" onClick={() => viewerSlug ? window.location.href = `/r/${viewerSlug}` : onBackToNatal?.()}>
             ← {language === 'ka' ? 'ჩემი რუკა' : 'My Chart'}
           </button>
           <span className="ndv">·</span>
@@ -369,13 +385,13 @@ export default function SynastryView({
           <button
             type="button"
             className="bb"
-            disabled={!shareSlugB}
+            disabled={!otherSlug}
             onClick={() =>
-              shareSlugB ? (window.location.href = `/r/${shareSlugB}`) : undefined
+              otherSlug ? (window.location.href = `/r/${otherSlug}`) : undefined
             }
-            style={!shareSlugB ? { opacity: 0.45, cursor: 'default' } : undefined}
+            style={!otherSlug ? { opacity: 0.45, cursor: 'default' } : undefined}
           >
-            {meta.personB.name} {language === 'ka' ? 'რუკა' : 'Chart'} →
+            {otherPerson.name} {language === 'ka' ? 'რუკა' : 'Chart'} →
           </button>
         </div>
 
@@ -436,7 +452,7 @@ export default function SynastryView({
 
         {/* Partner Cards */}
         <div className="pcards section-reveal vis">
-          <PartnerCard person={meta.personA} isYou language={language} chart={chartA ?? undefined} shareSlug={shareSlugA ?? undefined} />
+          <PartnerCard person={otherPerson} language={language} chart={otherChart ?? undefined} shareSlug={otherSlug ?? undefined} />
           <div className="bridge">
             <div className="bridge-line" />
             <div className="bridge-icon">
@@ -447,7 +463,7 @@ export default function SynastryView({
             </div>
             <div className="bridge-line" />
           </div>
-          <PartnerCard person={meta.personB} language={language} chart={chartB ?? undefined} shareSlug={shareSlugB ?? undefined} />
+          <PartnerCard person={viewerPerson} isYou language={language} chart={viewerChart ?? undefined} shareSlug={viewerSlug ?? undefined} />
         </div>
 
         {/* Compatibility Wheel */}
