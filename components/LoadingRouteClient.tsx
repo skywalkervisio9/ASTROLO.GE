@@ -209,7 +209,11 @@ export default function LoadingRouteClient() {
       // the user back to the previous slug before the dev route finishes.
       if (isFakeFull) {
         try {
-          const init = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
+          const init = await withCsrfHeaders({
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'x-dev-password': 'astrolo' },
+          });
           const res = await fetch('/api/dev/generate-fake-full', init);
           if (!res.ok) {
             const message = await res.text();
