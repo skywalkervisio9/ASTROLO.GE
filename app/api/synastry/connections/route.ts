@@ -16,7 +16,8 @@ export async function GET() {
     const { data: conns, error: connError } = await supabase
       .from('synastry_connections')
       .select('*')
-      .or(`inviter_id.eq.${authUser.id},invitee_id.eq.${authUser.id}`);
+      .or(`inviter_id.eq.${authUser.id},invitee_id.eq.${authUser.id}`)
+      .order('updated_at', { ascending: false });
 
     if (connError) throw connError;
 

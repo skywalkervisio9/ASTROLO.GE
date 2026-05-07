@@ -19,6 +19,8 @@ import { jsonBadRequest, jsonServerError } from '@/lib/auth/http';
 import { requireCsrfOrThrow } from '@/lib/auth/csrf';
 import { clearOnboardingToken } from '@/lib/auth/onboarding';
 import { invalidateNatalChart } from '@/lib/data/natal-reading';
+import { tryTriggerSynastryForConnection } from '@/lib/synastry/trigger-generation';
+import { normalizeInviteCode } from '@/lib/utils/invite';
 
 // This handler performs long-running network work (external astrology API + LLM calls),
 // so it must run on the Node.js runtime on Vercel (Edge functions time out quickly).
@@ -445,11 +447,30 @@ export async function POST(req: NextRequest) {
       }, { onConflict: 'user_id' });
     }
 
-    // 4. Handle invite accept + fire-and-forget synastry trigger
-    await handleInviteAccept(supabase, user.id, body.invite_code!);
+    // Ensure share_slug (admin) so /loading can redirect to /r/[slug] like free tier.
+    const adminInvite = createAdminSupabase();
+    const { data: nrInvite } = await adminInvite
+      .from('natal_readings')
+      .select('id, share_slug')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    let inviteShareSlug = (nrInvite as { share_slug?: string | null } | null)?.share_slug ?? null;
+    if (!inviteShareSlug) {
+      inviteShareSlug = generateShareSlug();
+      const { error: slugErr } = await adminInvite
+        .from('natal_readings')
+        .upsert({ user_id: user.id, share_slug: inviteShareSlug }, { onConflict: 'user_id' });
+      if (slugErr) {
+        console.error('[chart/generate] invited share_slug upsert failed:', slugErr);
+      }
+    }
+
+    // 4. Handle invite accept + deferred synastry trigger when both have Call 1
+    await handleInviteAccept(user.id, body.invite_code!);
 
     await clearOnboardingToken();
-    return NextResponse.json({ status: 'complete', userId: user.id });
+    return NextResponse.json({ status: 'complete', userId: user.id, shareSlug: inviteShareSlug });
   } catch (error: unknown) {
     console.error('Chart generation error:', error);
     return jsonServerError(error);
@@ -459,62 +480,46 @@ export async function POST(req: NextRequest) {
 /**
  * Handle invite code acceptance and trigger synastry generation
  */
-async function handleInviteAccept(
-  supabase: Awaited<ReturnType<typeof requireAuthContext>>['supabase'],
-  userId: string,
-  inviteCode: string
-) {
-  // Validate and use the invite code
-  const { data: code } = await supabase
+async function handleInviteAccept(userId: string, inviteCodeRaw: string) {
+  const inviteCode = normalizeInviteCode(inviteCodeRaw);
+  const admin = createAdminSupabase();
+
+  const { data: code } = await admin
     .from('invite_codes')
     .select('*')
     .eq('code', inviteCode)
     .eq('status', 'active')
-    .single();
+    .maybeSingle();
 
   if (!code) return;
 
-  // Mark code as used
-  await supabase
+  if (code.inviter_id === userId) return;
+
+  const { data: conn } = await admin
+    .from('synastry_connections')
+    .select('id')
+    .eq('invite_code', inviteCode)
+    .maybeSingle();
+
+  if (!conn?.id) {
+    console.error('[chart/generate] handleInviteAccept: no synastry_connections for code', inviteCode);
+    return;
+  }
+
+  await admin
     .from('invite_codes')
     .update({ status: 'used', used_by: userId, used_at: new Date().toISOString() })
     .eq('id', code.id);
 
-  // Update the connection
-  await supabase
+  await admin
     .from('synastry_connections')
     .update({ invitee_id: userId, status: 'accepted' })
-    .eq('invite_code', inviteCode);
+    .eq('id', conn.id);
 
-  // Set user as invited
-  await supabase
-    .from('users')
-    .update({ account_type: 'invited' })
-    .eq('id', userId);
-
-  // Fire synastry generation in background (non-blocking)
-  // Both users need analysis_en (Call 1) before synastry can run
-  const { data: connection } = await supabase
-    .from('synastry_connections')
-    .select('id, inviter_id')
-    .eq('invite_code', inviteCode)
-    .single();
-
-  if (connection) {
-    const { data: inviterReading } = await supabase
-      .from('natal_readings')
-      .select('analysis_en')
-      .eq('user_id', connection.inviter_id)
-      .maybeSingle();
-
-    if (inviterReading?.analysis_en) {
-      // Both users have Call 1 — trigger synastry generation
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
-      fetch(`${baseUrl}/api/synastry/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-internal-secret': process.env.INTERNAL_SECRET ?? '' },
-        body: JSON.stringify({ connection_id: connection.id }),
-      }).catch((err) => console.error('[synastry trigger] fetch failed:', err));
-    }
+  const { data: profile } = await admin.from('users').select('account_type').eq('id', userId).maybeSingle();
+  if (profile?.account_type === 'free') {
+    await admin.from('users').update({ account_type: 'invited' }).eq('id', userId);
   }
+
+  await tryTriggerSynastryForConnection(conn.id);
 }

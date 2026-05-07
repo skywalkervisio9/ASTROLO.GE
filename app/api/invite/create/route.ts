@@ -52,10 +52,6 @@ export async function POST(req: NextRequest) {
     const code = generateInviteCode();
     const slotNumber = (usedSlots ?? 0) + 1;
 
-    // Determine if this slot requires payment
-    const freeSlots = profile.account_type === 'premium' ? 1 : 0;
-    const requiresPayment = slotNumber > freeSlots;
-
     // Create invite code
     const { error: codeError } = await supabase
       .from('invite_codes')
@@ -85,7 +81,7 @@ export async function POST(req: NextRequest) {
       code,
       url,
       slot_number: slotNumber,
-      requires_payment: requiresPayment,
+      requires_payment: false,
     });
   } catch (error: unknown) {
     return jsonServerError(error);

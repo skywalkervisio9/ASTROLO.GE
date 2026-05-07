@@ -9,6 +9,7 @@
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { withCsrfHeaders } from "@/lib/auth/client";
+import { createSynastryInviteLink } from "@/lib/invite/create-invite-link";
 
 export default function AuthBridge() {
   useEffect(() => {
@@ -242,6 +243,51 @@ export default function AuthBridge() {
         if (success) success.style.display = "block";
       };
 
+      // ─── Synastry Invite Link Generation (real backend) ───
+      // Overrides prototype-runtime's fake random-code generator so the modal
+      // creates real invite_codes + synastry_connections rows.
+      w.generateInviteLink = async () => {
+        const selectedEl = document.querySelector(".invite-opt.selected");
+        const allOpts = Array.from(document.querySelectorAll(".invite-opt"));
+        const selectedIdx = selectedEl ? allOpts.indexOf(selectedEl) : -1;
+        const relationship_type = selectedIdx === 1 ? "friend" : "couple";
+        const inviteBtn = document.getElementById("inviteGenBtn") as HTMLButtonElement | null;
+        const inviteUrlEl = document.getElementById("inviteLinkUrl");
+        const inviteBox = document.getElementById("inviteLinkBox");
+
+        if (!inviteBtn) return;
+        inviteBtn.disabled = true;
+        const prevText = inviteBtn.textContent || "";
+        inviteBtn.textContent = isEn() ? "Generating..." : "იქმნება...";
+
+        try {
+          const result = await createSynastryInviteLink(relationship_type);
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+
+          if (inviteUrlEl) inviteUrlEl.textContent = result.url.replace(/^https?:\/\//, "");
+          if (inviteBox) inviteBox.classList.add("show");
+
+          try {
+            await navigator.clipboard?.writeText(result.url);
+            inviteBtn.textContent = isEn() ? "✓ Copied!" : "✓ დაკოპირდა!";
+          } catch {
+            inviteBtn.textContent = isEn() ? "Link ready" : "ბმული მზადაა";
+          }
+        } catch (err) {
+          console.error("[AB] invite/create failed:", err);
+          inviteBtn.textContent = isEn() ? "Try again" : "სცადე თავიდან";
+        } finally {
+          if (!inviteBtn.textContent?.includes("✓")) {
+            inviteBtn.disabled = false;
+            if (!inviteBtn.textContent || inviteBtn.textContent === prevText) {
+              inviteBtn.textContent = prevText;
+            }
+          }
+        }
+      };
+
       // ─── Birth Data Submit ───
       // Also assigned to __authBirthSubmit — a namespace the prototype runtime never
       // touches — so the button can call it directly without racing against
@@ -434,15 +480,26 @@ export default function AuthBridge() {
           const statusRes = await fetch('/api/onboarding/status', { credentials: 'include' });
           if (statusRes.ok) {
             const s = await statusRes.json() as { status: string; shareSlug?: string | null };
-            if (s.status === 'complete' && s.shareSlug) {
-              console.log("[AB] onAuthSuccess: reading exists, redirecting to", `/r/${s.shareSlug}`);
-              window.location.href = `/r/${s.shareSlug}`;
-              return;
+            if (s.status === 'complete') {
+              const inviteParam = new URLSearchParams(window.location.search).get('invite');
+              if (inviteParam) {
+                console.log("[AB] onAuthSuccess: complete + invite → /loading for accept");
+                window.location.href = `/loading?invite=${encodeURIComponent(inviteParam)}`;
+                return;
+              }
+              if (s.shareSlug) {
+                console.log("[AB] onAuthSuccess: reading exists, redirecting to", `/r/${s.shareSlug}`);
+                window.location.href = `/r/${s.shareSlug}`;
+                return;
+              }
             }
             // Chart is still being generated (crash recovery) — send back to loading
             if (s.status === 'generating') {
               console.log("[AB] onAuthSuccess: generation in progress, redirecting to /loading");
-              window.location.href = '/loading';
+              const inviteGen = new URLSearchParams(window.location.search).get('invite');
+              window.location.href = inviteGen
+                ? `/loading?invite=${encodeURIComponent(inviteGen)}`
+                : '/loading';
               return;
             }
           }
@@ -554,12 +611,13 @@ export default function AuthBridge() {
         // (/post-auth handles birth-form / /loading / /r/{slug} branching).
         // Previously we signed them out here, which created a callback loop
         // when post-OAuth redirects landed on /auth without ?step=birth.
-        // Exceptions: ?step=birth or ?invite=... must stay on /auth so the
-        // onboarding form renders. Dev buttons do their own signOut+signIn.
-        const hasOnboardingIntent = forceBirthStep || urlParams.get('invite');
-        if (window.location.pathname === '/auth' && !hasOnboardingIntent) {
-          console.log("[AB] On /auth with active session — routing via /post-auth");
-          window.location.replace('/post-auth');
+        // Only ?step=birth keeps you on /auth (signup → DOB). ?invite= alone must
+        // not block: existing users pasting a link need /post-auth → /loading (accept).
+        if (window.location.pathname === '/auth' && !forceBirthStep) {
+          const inv = urlParams.get('invite');
+          const dest = inv ? `/post-auth?invite=${encodeURIComponent(inv)}` : '/post-auth';
+          console.log("[AB] On /auth with active session — routing via", dest);
+          window.location.replace(dest);
           return;
         }
         await onAuthSuccess();

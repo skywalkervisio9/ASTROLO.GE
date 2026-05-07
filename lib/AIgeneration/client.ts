@@ -20,6 +20,34 @@ const _anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   : null;
 
+const TRANSIENT_RETRIES = 3;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTransientProviderError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /503|429|Service Unavailable|high demand|temporar|overload|rate limit/i.test(msg);
+}
+
+async function withTransientRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= TRANSIENT_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const retriable = isTransientProviderError(err);
+      if (!retriable || attempt >= TRANSIENT_RETRIES) break;
+      const backoffMs = 700 * Math.pow(2, attempt) + Math.floor(Math.random() * 250);
+      console.warn(`[ai:${label}] transient error, retrying (${attempt + 1}/${TRANSIENT_RETRIES}) in ${backoffMs}ms`, err);
+      await sleep(backoffMs);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+
 export async function callClaude(
   systemPrompt: string,
   userMessage: string,
@@ -29,18 +57,20 @@ export async function callClaude(
 ): Promise<ClaudeResponse> {
   // Prefer Anthropic if configured
   if (_anthropic) {
-    const res = await _anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: maxTokens,
-      system: [
-        {
-          type: 'text',
-          text: systemPrompt,
-          cache_control: { type: 'ephemeral' }, // cache for 5 min — saves cost on retries & parallel calls
-        },
-      ],
-      messages: [{ role: 'user', content: userMessage }],
-    });
+    const res = await withTransientRetry('anthropic', () =>
+      _anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: maxTokens,
+        system: [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' }, // cache for 5 min — saves cost on retries & parallel calls
+          },
+        ],
+        messages: [{ role: 'user', content: userMessage }],
+      })
+    );
 
     const text = res.content
       .filter((c) => c.type === 'text')
@@ -74,7 +104,7 @@ export async function callClaude(
       },
     });
 
-    const result = await model.generateContent(userMessage);
+    const result = await withTransientRetry('gemini', () => model.generateContent(userMessage));
     const response = result.response;
     const text = response.text();
     if (!text) throw new Error('No text response from Gemini');
