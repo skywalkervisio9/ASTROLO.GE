@@ -531,7 +531,12 @@ export default function BodyContent() {
 <div className="auth-wrap" id="authWrap">
   <div className="auth-card">
     <div className="auth-invite-hero" id="authInviteHero" aria-hidden="true">
-      <div className="auth-invite-hero-orbit"><span className="auth-invite-hero-glyph">☌</span></div>
+      <div className="auth-invite-hero-orbit">
+        <span className="auth-invite-hero-glyph">
+          <span className="auth-invite-hero-glyph-a">✦</span>
+          <span className="auth-invite-hero-glyph-b">✦</span>
+        </span>
+      </div>
       <div className="auth-invite-hero-body">
         <div className="auth-invite-hero-eyebrow">
           <span className="auth-invite-hero-dot"></span>
