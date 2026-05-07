@@ -610,8 +610,10 @@ export default function AuthBridge() {
         // Invite-link arrival on /auth must always force re-auth — /inv signs
         // the user out, but the session can briefly leak through if cookies
         // haven't propagated. Stay on /auth and clear it so the visitor sees
-        // the invite banner and signs in fresh.
-        if (window.location.pathname === '/auth' && urlParams.get('invite')) {
+        // the invite banner and signs in fresh. Skip when step=birth: that
+        // URL shape is reached after a successful signup-with-invite and the
+        // session we'd nuke is the one the user just created.
+        if (window.location.pathname === '/auth' && urlParams.get('invite') && !forceBirthStep) {
           console.log("[AB] On /auth?invite= with stale session — signing out");
           await supabase.auth.signOut();
           return;
