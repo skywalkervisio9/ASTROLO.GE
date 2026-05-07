@@ -530,6 +530,12 @@ export default function BodyContent() {
 <div id="view-auth">
 <div className="auth-wrap" id="authWrap">
   <div className="auth-card">
+    <div className="steps-bar" id="stepsBar">
+      <div className="step-dot active" id="sd1"></div><div className="step-line" id="sl1"></div>
+      <div className="step-dot" id="sd2"></div><div className="step-line" id="sl2"></div>
+      <div className="step-dot" id="sd3"></div>
+    </div>
+
     <div className="auth-invite-hero" id="authInviteHero" aria-hidden="true">
       <div className="auth-invite-hero-orbit">
         <span className="auth-invite-hero-glyph">
@@ -546,13 +552,7 @@ export default function BodyContent() {
         <p className="auth-invite-hero-sub">შექმენი ანგარიში ან შედი არსებულზე — შენი მოწვევის გამცემი ელოდება.</p>
       </div>
     </div>
-    <div className="steps-bar" id="stepsBar">
-      <div className="step-dot active" id="sd1"></div><div className="step-line" id="sl1"></div>
-      <div className="step-dot" id="sd2"></div><div className="step-line" id="sl2"></div>
-      <div className="step-dot" id="sd3"></div>
-    </div>
 
-    
     <div className="auth-page active" id="page-login">
       <div className="auth-sigil"><div className="auth-sigil-icon">☽</div></div>
       <div className="auth-header"><h1>შესვლა</h1><div className="sub">შენი ციური ნახაზი გელოდება</div></div>
