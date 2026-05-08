@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { withCsrfHeaders } from '@/lib/auth/client';
+import { createClient } from '@/lib/supabase/client';
 import type { User, AccountType } from '@/types/user';
 
 /* ── Tier display config ── */
@@ -447,6 +448,10 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
                         const init = await withCsrfHeaders({ method: 'DELETE', credentials: 'include' });
                         const res = await fetch('/api/user/delete', init);
                         if (res.ok) {
+                          // Clear client-side session so /auth doesn't see a
+                          // dangling token for a now-deleted user and bounce
+                          // through /post-auth in a redirect loop.
+                          try { await createClient().auth.signOut(); } catch { /* ignore */ }
                           window.location.href = '/auth';
                         } else {
                           const err = await res.json().catch(() => ({}));
