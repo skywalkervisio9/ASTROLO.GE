@@ -28,6 +28,7 @@ export default function SynastryViewWrapper() {
   const [shareSlugB, setShareSlugB] = useState<string | null>(null);
   const [synastryShareSlug, setSynastryShareSlug] = useState<string | null>(null);
   const [synastryIsPublic, setSynastryIsPublic] = useState(true);
+  const [viewerIsInviter, setViewerIsInviter] = useState<boolean>(true);
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,6 +82,7 @@ export default function SynastryViewWrapper() {
         setShareSlugB(data.shareSlugB ?? null);
         setSynastryShareSlug(data.synastryShareSlug ?? null);
         setSynastryIsPublic(data.synastryIsPublic !== false);
+        setViewerIsInviter(data.viewerIsInviter !== false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load synastry reading');
@@ -338,6 +340,7 @@ export default function SynastryViewWrapper() {
       synastryShareSlug={synastryShareSlug}
       synastryConnectionId={activeConnectionId}
       synastryIsPublic={synastryIsPublic}
+      viewerIsInviter={viewerIsInviter}
     />;
   }
 

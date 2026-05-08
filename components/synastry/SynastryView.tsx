@@ -152,6 +152,21 @@ const ELEMENT_PALETTE: Record<string, { c: string; bg: string; hover: string; gl
   gold:   { c: 'var(--gold)',   bg: 'rgba(201,168,76,.13)',  hover: 'rgba(201,168,76,.22)',  glow: 'rgba(201,168,76,.06)',  glow2: 'rgba(201,168,76,.04)'  },
 };
 
+// "{Name}'s chart →" / "{Name}-ს რუკა →" — used to label the partner card.
+// Georgian: vowel-ending names take "ს", consonant-ending take "ის",
+// non-Georgian (Latin) names get "-ს" so the suffix reads cleanly.
+function chartPossessive(name: string, language: Language): string {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) return language === 'ka' ? 'რუკა →' : 'Chart →';
+  if (language === 'en') return `${trimmed}'s Chart →`;
+  const last = trimmed.slice(-1);
+  const isGeorgian = /[Ⴀ-ჿ]/.test(last);
+  const isGeorgianVowel = 'აეიოუ'.includes(last);
+  if (isGeorgianVowel) return `${trimmed}ს რუკა →`;
+  if (isGeorgian) return `${trimmed}ის რუკა →`;
+  return `${trimmed}-ს რუკა →`;
+}
+
 // English zodiac sign → Georgian name (AI emits English signs in meta.personA/B regardless of language)
 const SIGN_KA: Record<string, string> = {
   aries: 'ვერძი',
@@ -190,6 +205,11 @@ interface SynastryViewProps {
   synastryIsPublic?: boolean;
   /** Read-only cue on `/s/[slug]` public page (no toggle). */
   publicSynastrySlug?: string | null;
+  /** True when the logged-in viewer is the inviter (personA). Used to put
+   * the viewer's card on the right and align breadcrumb / "you" semantics
+   * with whoever is actually viewing. Defaults true so the public /s/[slug]
+   * page (no real viewer) keeps the inviter-on-left default. */
+  viewerIsInviter?: boolean;
 }
 
 export default function SynastryView({
@@ -200,10 +220,8 @@ export default function SynastryView({
   chartB,
   shareSlugA,
   shareSlugB,
-  synastryShareSlug,
-  synastryConnectionId,
-  synastryIsPublic: synastryPublicInitial,
   publicSynastrySlug,
+  viewerIsInviter = true,
 }: SynastryViewProps) {
   setRenderLang(language);
   const isFriend = reading.meta.type === 'synastry_friend';
@@ -309,17 +327,22 @@ export default function SynastryView({
   }, [sections, scrollToSection]);
 
   const { meta } = reading;
+  // The reading data is keyed personA/personB by inviter/invitee. Map both
+  // sides onto viewer/other so the UI can put the logged-in user on the
+  // right and surface "ჩემი რუკა" / isYou semantics on their card,
+  // regardless of which side the AI labelled them.
+  const viewerPerson = viewerIsInviter ? meta.personA : meta.personB;
+  const otherPerson  = viewerIsInviter ? meta.personB : meta.personA;
+  const viewerChart  = viewerIsInviter ? chartA : chartB;
+  const otherChart   = viewerIsInviter ? chartB : chartA;
+  const viewerSlug   = viewerIsInviter ? shareSlugA : shareSlugB;
+  const otherSlug    = viewerIsInviter ? shareSlugB : shareSlugA;
   const heroTitle = isFriend
     ? (language === 'ka' ? 'ვარსკვლავთა მეგობრობა' : 'Starbound Friendship')
     : (language === 'ka' ? 'ვარსკვლავები ორისთვის' : 'Stars for Two');
   const heroSub = isFriend
     ? (language === 'ka' ? 'მეგობრული თავსებადობის ანალიზი' : 'Friendship Compatibility Analysis')
     : (language === 'ka' ? 'სინასტრიის სიღრმისეული ანალიზი' : 'Deep Synastry Analysis');
-
-  const [synastryIsPublicUI, setSynastryIsPublicUI] = useState(synastryPublicInitial !== false);
-  useEffect(() => {
-    setSynastryIsPublicUI(synastryPublicInitial !== false);
-  }, [synastryPublicInitial, synastryShareSlug]);
 
   const [deletedAccountOpen, setDeletedAccountOpen] = useState(false);
   const openChart = useCallback(async (slug: string) => {
@@ -339,43 +362,13 @@ export default function SynastryView({
     }
   }, []);
 
-  const canShareSyn =
-    !!(synastryShareSlug && synastryConnectionId && synastryShareSlug.length > 0);
-
-  const copySynastryLink = async () => {
-    if (!synastryShareSlug) return;
-    const href =
-      typeof window !== 'undefined'
-        ? `${window.location.origin}/s/${synastryShareSlug}`
-        : '';
-    if (!href) return;
-    try {
-      await navigator.clipboard.writeText(href);
-    } catch {
-      prompt(language === 'ka' ? 'ბმული' : 'Link', href);
-    }
-  };
-
-  const toggleSynastryPublic = async () => {
-    if (!synastryConnectionId) return;
-    const next = !synastryIsPublicUI;
-    const res = await fetch('/api/synastry/visibility', {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ connectionId: synastryConnectionId, isPublic: next }),
-    });
-    if (!res.ok) return;
-    setSynastryIsPublicUI(next);
-  };
-
   return (
     <>
       <div style={{ height: '56px' }} />
       <div className="ct">
         {/* Breadcrumb */}
         <div className="bnav">
-          <button className="bb" onClick={() => shareSlugA ? openChart(shareSlugA) : onBackToNatal?.()}>
+          <button className="bb" onClick={() => viewerSlug ? openChart(viewerSlug) : onBackToNatal?.()}>
             ← {language === 'ka' ? 'ჩემი რუკა' : 'My Chart'}
           </button>
           <span className="ndv">·</span>
@@ -387,11 +380,11 @@ export default function SynastryView({
           <button
             type="button"
             className="bb"
-            disabled={!shareSlugB}
-            onClick={() => shareSlugB && openChart(shareSlugB)}
-            style={!shareSlugB ? { opacity: 0.45, cursor: 'default' } : undefined}
+            disabled={!otherSlug}
+            onClick={() => otherSlug && openChart(otherSlug)}
+            style={!otherSlug ? { opacity: 0.45, cursor: 'default' } : undefined}
           >
-            {meta.personB.name} {language === 'ka' ? 'რუკა' : 'Chart'} →
+            {chartPossessive(otherPerson.name, language)}
           </button>
         </div>
 
@@ -401,48 +394,6 @@ export default function SynastryView({
           <SigilSVG />
           <h1>{heroTitle}</h1>
           <div className="tg">{heroSub}</div>
-          {canShareSyn && (
-            <div style={{ marginTop: 18, display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={() => copySynastryLink()}
-                style={{
-                  background: 'rgba(201,168,76,.1)',
-                  border: '1px solid var(--gold)',
-                  color: 'var(--gold)',
-                  padding: '8px 16px',
-                  borderRadius: 10,
-                  fontSize: '.82rem',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {language === 'ka' ? 'სინასტრიის ლინკი' : 'Copy synastry link'}
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleSynastryPublic()}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid var(--border)',
-                  color: synastryIsPublicUI ? 'var(--gold)' : 'var(--muted)',
-                  padding: '8px 16px',
-                  borderRadius: 10,
-                  fontSize: '.82rem',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {synastryIsPublicUI
-                  ? language === 'ka'
-                    ? 'საჯარო წილი'
-                    : 'Public link ON'
-                  : language === 'ka'
-                    ? 'პრივატული'
-                    : 'Public link OFF'}
-              </button>
-            </div>
-          )}
           {publicSynastrySlug && (
             <div className="tg" style={{ marginTop: 12, fontSize: '.78rem', opacity: 0.55 }}>
               {language === 'ka' ? `გასაზიარებელი გვერდი: /s/${publicSynastrySlug}` : `Share path: /s/${publicSynastrySlug}`}
@@ -452,7 +403,7 @@ export default function SynastryView({
 
         {/* Partner Cards */}
         <div className="pcards section-reveal vis">
-          <PartnerCard person={meta.personA} isYou language={language} chart={chartA ?? undefined} shareSlug={shareSlugA ?? undefined} onOpenChart={openChart} />
+          <PartnerCard person={viewerPerson} isYou language={language} chart={viewerChart ?? undefined} shareSlug={viewerSlug ?? undefined} onOpenChart={openChart} />
           <div className="bridge">
             <div className="bridge-line" />
             <div className="bridge-icon">
@@ -463,7 +414,7 @@ export default function SynastryView({
             </div>
             <div className="bridge-line" />
           </div>
-          <PartnerCard person={meta.personB} language={language} chart={chartB ?? undefined} shareSlug={shareSlugB ?? undefined} onOpenChart={openChart} />
+          <PartnerCard person={otherPerson} language={language} chart={otherChart ?? undefined} shareSlug={otherSlug ?? undefined} onOpenChart={openChart} />
         </div>
 
         {/* Compatibility Wheel */}
@@ -646,6 +597,7 @@ function PartnerCard({
     <div className="pc" onClick={handleCardClick} style={shareSlug ? { cursor: 'pointer' } : undefined}>
       {isYou && <div className="pc-you-dot" />}
       {isYou && <div className="pc-tooltip">{language === 'ka' ? 'ჩემი რუკა →' : 'My Chart →'}</div>}
+      {!isYou && shareSlug && <div className="pc-other-tag">{chartPossessive(person.name, language)}</div>}
       <div className="pc-avatar"><span className="pc-avatar-letter">{initial}</span></div>
       <div className="pc-name">{person.name}</div>
       <div className="pc-sub">{renderText(`${localizeSign(person.sun, language)} · ${localizeSign(person.moon, language)} · ${localizeSign(person.asc, language)}`)}</div>

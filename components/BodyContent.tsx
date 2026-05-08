@@ -536,7 +536,22 @@ export default function BodyContent() {
       <div className="step-dot" id="sd3"></div>
     </div>
 
-    
+    <div className="auth-invite-hero" id="authInviteHero" aria-hidden="true">
+      <div className="auth-invite-hero-orbit">
+        <span className="auth-invite-hero-glyph">
+          <span className="auth-invite-hero-glyph-a">✦</span>
+          <span className="auth-invite-hero-glyph-b">✦</span>
+        </span>
+      </div>
+      <div className="auth-invite-hero-body">
+        <div className="auth-invite-hero-eyebrow">
+          <span className="auth-invite-hero-eyebrow-text">მოწვევა · სინასტრია</span>
+        </div>
+        <h2 className="auth-invite-hero-title">მიწვეული ხარ ვარსკვლავურ თავსებადობაზე</h2>
+        <p className="auth-invite-hero-sub">შექმენი ანგარიში ან შედი არსებულზე</p>
+      </div>
+    </div>
+
     <div className="auth-page active" id="page-login">
       <div className="auth-sigil"><div className="auth-sigil-icon">☽</div></div>
       <div className="auth-header"><h1>შესვლა</h1><div className="sub">შენი ციური ნახაზი გელოდება</div></div>
