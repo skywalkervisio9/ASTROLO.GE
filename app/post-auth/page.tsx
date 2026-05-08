@@ -25,11 +25,12 @@ export default async function PostAuthPage({
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    // Stale auth cookies (e.g. deleted user) — clear them before bouncing.
-    // Without this, AuthBridge on /auth reads the same cookies via getSession()
-    // and redirects back here, looping forever.
-    try { await supabase.auth.signOut(); } catch { /* ignore */ }
-    redirect(invite ? `/auth?invite=${encodeURIComponent(invite)}` : '/auth');
+    // Stale auth cookies (e.g. deleted user) — bounce through the
+    // clear-session Route Handler. Server Components can't modify
+    // cookies, so calling signOut() here is a no-op and the next
+    // /auth load would just see the same cookies and loop back.
+    const target = invite ? `/auth?invite=${encodeURIComponent(invite)}` : '/auth';
+    redirect(`/api/auth/clear-session?next=${encodeURIComponent(target)}`);
   }
 
   await ensureUserProfileRow({ user });
