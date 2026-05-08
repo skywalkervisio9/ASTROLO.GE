@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonServerError } from '@/lib/auth/http';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { createServerSupabase } from '@/lib/supabase/server';
 import { requireCsrfOrThrow } from '@/lib/auth/csrf';
 
 export async function DELETE() {
@@ -35,6 +36,16 @@ export async function DELETE() {
     // Delete the auth user (removes session + login ability)
     const { error: authErr } = await admin.auth.admin.deleteUser(uid);
     if (authErr) throw authErr;
+
+    // Clear SSR auth cookies so /auth doesn't loop redirecting through
+    // /post-auth: the deleted user's JWT lingers in cookies until we
+    // explicitly sign out the SSR client.
+    try {
+      const ssr = await createServerSupabase();
+      await ssr.auth.signOut();
+    } catch {
+      /* best-effort — client-side signOut also runs after this returns */
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {

@@ -1857,7 +1857,7 @@ function handleBirthData() {
   const h = document.getElementById('birth-hour');
   for (let i = 0; i < 24; i++) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); h.appendChild(o); }
   const mn = document.getElementById('birth-min');
-  for (let i = 0; i < 60; i += 5) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); mn.appendChild(o); }
+  for (let i = 0; i < 60; i++) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); mn.appendChild(o); }
 })();
 
 // Enter key → click the step's primary submit button
