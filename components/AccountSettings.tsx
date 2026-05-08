@@ -444,10 +444,8 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
                     onClick={async () => {
                       setDeleting(true);
                       try {
-                        const res = await fetch('/api/user/delete', {
-                          method: 'DELETE',
-                          ...withCsrfHeaders({}),
-                        });
+                        const init = await withCsrfHeaders({ method: 'DELETE', credentials: 'include' });
+                        const res = await fetch('/api/user/delete', init);
                         if (res.ok) {
                           window.location.href = '/auth';
                         } else {
