@@ -25,6 +25,10 @@ export default async function PostAuthPage({
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
+    // Stale auth cookies (e.g. deleted user) — clear them before bouncing.
+    // Without this, AuthBridge on /auth reads the same cookies via getSession()
+    // and redirects back here, looping forever.
+    try { await supabase.auth.signOut(); } catch { /* ignore */ }
     redirect(invite ? `/auth?invite=${encodeURIComponent(invite)}` : '/auth');
   }
 
