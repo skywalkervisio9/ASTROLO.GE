@@ -169,11 +169,11 @@ export default function LoadingRouteClient() {
       whenRuntimeReady().then(() => {
         const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string, durationMs?: number) => void) | undefined;
         // 20s free (Astrologer API only), 60s fake-full (Call 1 only),
-        // 4min invite (chart + synastry), 10min generate-full (full AI reading).
+        // 4min invite (chart + synastry), 6min generate-full (full AI reading).
         const duration = isFree ? 20000
           : isFakeFull ? 60000
           : hasInvite ? 240000
-          : 600000;
+          : 360000;
         if (fn) fn(userLang, duration);
       });
 
