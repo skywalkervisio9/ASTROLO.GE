@@ -30,6 +30,10 @@ export async function DELETE() {
     // Synastry connections reference the user — delete those too
     await admin.from('synastry_connections').delete().or(`inviter_id.eq.${uid},invitee_id.eq.${uid}`);
 
+    // invite_codes.used_by has no ON DELETE clause, so leftover references
+    // here block the auth.users cascade with "Database error deleting user".
+    await admin.from('invite_codes').update({ used_by: null }).eq('used_by', uid);
+
     // Delete the public users row
     await admin.from('users').delete().eq('id', uid);
 
