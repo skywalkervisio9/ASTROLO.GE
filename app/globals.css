@@ -1123,3 +1123,32 @@ body[data-view="auth"] .tb .pb { display: none; }
   .reading-skel-bar{animation:none;background:rgba(201,168,76,.06)}
   .reading-skel{transition:none}
 }
+
+/* ═══ NOT-FOUND PAGE ═══ */
+.nf-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;background:radial-gradient(ellipse at center,rgba(201,168,76,.04),transparent 60%),var(--bg)}
+.nf-stars{position:absolute;inset:0;pointer-events:none}
+.nf-star{position:absolute;width:2px;height:2px;background:rgba(255,255,255,.5);border-radius:50%;animation:nfTw 3s ease-in-out infinite alternate}
+@keyframes nfTw{0%{opacity:.1}100%{opacity:.7}}
+.nf-card{position:relative;z-index:1;max-width:520px;width:100%;text-align:center;padding:48px 28px;border:1px solid rgba(201,168,76,.08);border-radius:18px;background:linear-gradient(180deg,rgba(24,24,34,.6),rgba(17,17,24,.6));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.nf-sigil{width:96px;height:96px;margin:0 auto 24px;animation:nfSp 60s linear infinite}
+@keyframes nfSp{to{transform:rotate(360deg)}}
+.nf-title-ka{font-family:'Noto Serif Georgian',serif;font-weight:500;font-size:1.5rem;color:var(--gold);letter-spacing:.02em;margin-bottom:6px}
+.nf-title-en{font-family:'Cormorant Garamond',serif;font-weight:400;font-style:italic;font-size:1.05rem;color:var(--silver);letter-spacing:.05em;margin-bottom:22px}
+.nf-body-ka{font-family:'Noto Sans Georgian',sans-serif;font-size:.92rem;color:var(--tx);line-height:1.7;margin-bottom:8px;max-width:380px;margin-inline:auto}
+.nf-body-en{font-family:'Outfit',sans-serif;font-size:.82rem;color:var(--txd);line-height:1.6;margin-bottom:28px;max-width:380px;margin-inline:auto}
+.nf-cta{display:inline-flex;align-items:center;gap:10px;padding:11px 24px;border:1px solid rgba(201,168,76,.3);border-radius:100px;background:rgba(201,168,76,.04);color:var(--gold);text-decoration:none;font-size:.82rem;letter-spacing:.04em;transition:all .3s ease}
+.nf-cta:hover{border-color:var(--gold);background:rgba(201,168,76,.08);box-shadow:0 0 24px rgba(201,168,76,.12)}
+.nf-cta-ka{font-family:'Noto Sans Georgian',sans-serif}
+.nf-cta-en{font-family:'Outfit',sans-serif;color:var(--silver)}
+.nf-cta-sep{color:var(--gd);opacity:.6}
+
+/* ═══ DELETED-ACCOUNT MODAL ═══ */
+.dam-overlay{position:fixed;inset:0;z-index:400;background:rgba(10,10,15,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:24px;animation:damFade .25s ease}
+@keyframes damFade{from{opacity:0}to{opacity:1}}
+.dam-card{position:relative;max-width:380px;width:100%;background:linear-gradient(180deg,var(--sf2),var(--sf));border:1px solid rgba(201,168,76,.12);border-radius:16px;padding:32px 24px 24px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.5);animation:damRise .3s var(--ease)}
+@keyframes damRise{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.dam-sigil{width:64px;height:64px;margin:0 auto 18px;opacity:.85}
+.dam-title{font-weight:500;font-size:1.05rem;color:var(--gold);letter-spacing:.02em;margin-bottom:10px;font-family:var(--fd)}
+.dam-body{font-size:.85rem;color:var(--silver);line-height:1.6;margin-bottom:22px;font-family:var(--fb)}
+.dam-cta{display:inline-block;padding:9px 28px;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.25);border-radius:100px;color:var(--gold);font-family:inherit;font-size:.78rem;letter-spacing:.04em;cursor:pointer;transition:all .3s ease}
+.dam-cta:hover{background:rgba(201,168,76,.12);border-color:var(--gold)}

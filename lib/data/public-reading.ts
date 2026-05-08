@@ -137,6 +137,24 @@ export async function getReadingOwnership(slug: string): Promise<ReadingOwnershi
   return body ? { user_id: body.user_id, is_public: body.is_public } : null;
 }
 
+// Boolean-only lookup, kept cheap so /api/reading/exists doesn't pull the full
+// reading body on cold cache (called speculatively before navigation).
+export function getReadingExistsBySlug(slug: string): Promise<boolean> {
+  return unstable_cache(
+    async (): Promise<boolean> => {
+      const admin = createAdminSupabase();
+      const { data } = await admin
+        .from('natal_readings')
+        .select('share_slug')
+        .eq('share_slug', slug)
+        .maybeSingle();
+      return !!data;
+    },
+    ['public-reading:exists', slug],
+    { revalidate: BODY_REVALIDATE, tags: [slugTag(slug)] },
+  )();
+}
+
 export type ReadingMeta = {
   user_id: string;
   is_public: boolean;

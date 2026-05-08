@@ -321,6 +321,24 @@ export default function SynastryView({
     setSynastryIsPublicUI(synastryPublicInitial !== false);
   }, [synastryPublicInitial, synastryShareSlug]);
 
+  const [deletedAccountOpen, setDeletedAccountOpen] = useState(false);
+  const openChart = useCallback(async (slug: string) => {
+    try {
+      const res = await fetch(
+        `/api/reading/exists?slug=${encodeURIComponent(slug)}`,
+        { credentials: 'include' },
+      );
+      const data = (await res.json().catch(() => null)) as { exists?: boolean } | null;
+      if (data?.exists) {
+        window.location.href = `/r/${slug}`;
+      } else {
+        setDeletedAccountOpen(true);
+      }
+    } catch {
+      window.location.href = `/r/${slug}`;
+    }
+  }, []);
+
   const canShareSyn =
     !!(synastryShareSlug && synastryConnectionId && synastryShareSlug.length > 0);
 
@@ -357,7 +375,7 @@ export default function SynastryView({
       <div className="ct">
         {/* Breadcrumb */}
         <div className="bnav">
-          <button className="bb" onClick={() => shareSlugA ? window.location.href = `/r/${shareSlugA}` : onBackToNatal?.()}>
+          <button className="bb" onClick={() => shareSlugA ? openChart(shareSlugA) : onBackToNatal?.()}>
             ← {language === 'ka' ? 'ჩემი რუკა' : 'My Chart'}
           </button>
           <span className="ndv">·</span>
@@ -370,9 +388,7 @@ export default function SynastryView({
             type="button"
             className="bb"
             disabled={!shareSlugB}
-            onClick={() =>
-              shareSlugB ? (window.location.href = `/r/${shareSlugB}`) : undefined
-            }
+            onClick={() => shareSlugB && openChart(shareSlugB)}
             style={!shareSlugB ? { opacity: 0.45, cursor: 'default' } : undefined}
           >
             {meta.personB.name} {language === 'ka' ? 'რუკა' : 'Chart'} →
@@ -436,7 +452,7 @@ export default function SynastryView({
 
         {/* Partner Cards */}
         <div className="pcards section-reveal vis">
-          <PartnerCard person={meta.personA} isYou language={language} chart={chartA ?? undefined} shareSlug={shareSlugA ?? undefined} />
+          <PartnerCard person={meta.personA} isYou language={language} chart={chartA ?? undefined} shareSlug={shareSlugA ?? undefined} onOpenChart={openChart} />
           <div className="bridge">
             <div className="bridge-line" />
             <div className="bridge-icon">
@@ -447,7 +463,7 @@ export default function SynastryView({
             </div>
             <div className="bridge-line" />
           </div>
-          <PartnerCard person={meta.personB} language={language} chart={chartB ?? undefined} shareSlug={shareSlugB ?? undefined} />
+          <PartnerCard person={meta.personB} language={language} chart={chartB ?? undefined} shareSlug={shareSlugB ?? undefined} onOpenChart={openChart} />
         </div>
 
         {/* Compatibility Wheel */}
@@ -498,7 +514,38 @@ export default function SynastryView({
           <div className="footer-copy">© 2026 ASTROLO.GE</div>
         </footer>
       </div>
+
+      {deletedAccountOpen && (
+        <DeletedAccountModal language={language} onClose={() => setDeletedAccountOpen(false)} />
+      )}
     </>
+  );
+}
+
+function DeletedAccountModal({ language, onClose }: { language: Language; onClose: () => void }) {
+  return (
+    <div className="dam-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="dam-card" onClick={(e) => e.stopPropagation()}>
+        <div className="dam-sigil" aria-hidden>
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(201,168,76,.25)" strokeWidth="1" />
+            <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(201,168,76,.12)" strokeWidth=".6" strokeDasharray="2 4" />
+            <path d="M35 35 L65 65 M65 35 L35 65" stroke="var(--gold)" strokeWidth="1.4" strokeLinecap="round" opacity=".55" />
+          </svg>
+        </div>
+        <h3 className="dam-title">
+          {language === 'ka' ? 'რუკა აღარ არსებობს' : 'Chart no longer exists'}
+        </h3>
+        <p className="dam-body">
+          {language === 'ka'
+            ? 'ამ მომხმარებელმა წაშალა ანგარიში. მისი რუკა აღარ არის ხელმისაწვდომი.'
+            : 'This person has deleted their account. Their chart is no longer available.'}
+        </p>
+        <button type="button" className="dam-cta" onClick={onClose}>
+          {language === 'ka' ? 'გასაგებია' : 'OK'}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -544,12 +591,14 @@ function PartnerCard({
   language,
   chart,
   shareSlug,
+  onOpenChart,
 }: {
   person: { name: string; sun: string; moon: string; asc: string };
   isYou?: boolean;
   language: Language;
   chart?: ChartPersonData;
   shareSlug?: string;
+  onOpenChart?: (slug: string) => void;
 }) {
   const initial = person.name.charAt(0).toUpperCase();
 
@@ -591,7 +640,7 @@ function PartnerCard({
     planetRows.push({ glyph: 'ASC', label: 'ASC', sign: person.asc, degree: '', retrograde: false });
   }
 
-  const handleCardClick = shareSlug ? () => { window.location.href = `/r/${shareSlug}`; } : undefined;
+  const handleCardClick = shareSlug && onOpenChart ? () => onOpenChart(shareSlug) : undefined;
 
   return (
     <div className="pc" onClick={handleCardClick} style={shareSlug ? { cursor: 'pointer' } : undefined}>
