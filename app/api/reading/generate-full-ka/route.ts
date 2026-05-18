@@ -30,13 +30,17 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 export async function POST() {
+  // readingId is captured outside the try so the catch can write generation_status='failed'
+  // even when the failure happens deep inside Call 2.
+  let readingId: string | null = null;
+  const admin = createAdminSupabase();
+
   try {
     await requireCsrfOrThrow();
     const auth = await requireAuthContext();
     if (auth.response || !auth.authUser) return auth.response ?? NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { authUser } = auth;
-    const admin = createAdminSupabase();
 
     const { data: profile } = await admin
       .from('users')
@@ -61,6 +65,8 @@ export async function POST() {
       return NextResponse.json({ error: 'natal_readings row missing — run /api/reading/generate-call1 first' }, { status: 400 });
     }
 
+    readingId = existing.id;
+
     if (existing.reading_ka) {
       return NextResponse.json({ status: 'cached', readingId: existing.id, shareSlug: existing.share_slug });
     }
@@ -68,6 +74,21 @@ export async function POST() {
     if (!existing.analysis_en) {
       return NextResponse.json({ error: 'Call 1 analysis not found — run /api/reading/generate-call1 first' }, { status: 400 });
     }
+
+    // Mark this row as actively generating before the long-running call.
+    // The status route uses generation_started_at to promote stuck rows to
+    // 'failed' once they've passed Vercel's 300s kill window. Resetting
+    // generation_error here ensures a retry after a prior failure clears
+    // the stale error from the row.
+    await admin
+      .from('natal_readings')
+      .update({
+        generation_status: 'generating',
+        generation_started_at: new Date().toISOString(),
+        generation_finished_at: null,
+        generation_error: null,
+      })
+      .eq('id', existing.id);
 
     const { data: chartRow } = await admin
       .from('chart_data')
@@ -102,6 +123,9 @@ export async function POST() {
         prompt_version: PROMPT_VERSION,
         model_call2: call2.model,
         tokens_call2_ka: call2.tokensIn + call2.tokensOut,
+        generation_status: 'complete',
+        generation_finished_at: new Date().toISOString(),
+        generation_error: null,
       })
       .eq('id', existing.id)
       .select('id, share_slug')
@@ -114,6 +138,24 @@ export async function POST() {
     return NextResponse.json({ status: 'complete', readingId: saved?.id, shareSlug: saved?.share_slug });
   } catch (error: unknown) {
     console.error('[generate-full-ka] error:', error);
+    // Best-effort failure write so the polling loop surfaces a real error
+    // instead of waiting 15 min for the silent timeout. Truncated to keep
+    // the column small; full stack is in Vercel logs.
+    if (readingId) {
+      const message = error instanceof Error ? error.message : String(error);
+      try {
+        await admin
+          .from('natal_readings')
+          .update({
+            generation_status: 'failed',
+            generation_finished_at: new Date().toISOString(),
+            generation_error: message.slice(0, 1000),
+          })
+          .eq('id', readingId);
+      } catch (writeErr) {
+        console.error('[generate-full-ka] failed to write failure status:', writeErr);
+      }
+    }
     return jsonServerError(error);
   }
 }
