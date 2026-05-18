@@ -90,10 +90,7 @@ export async function runNatalCall2(
   chartContext: string,
   chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
 ): Promise<Call2Result> {
-  const aspectsSection = chartAspects && chartAspects.length > 0
-    ? `\n\nKey Aspects (interpret 2–5 of these in aspectInterpretations — see schema rules):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
-    : '';
-  const userMsg = `Chart Analysis:\n${analysis}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
+  const userMsg = buildCall2UserMessage(analysis, chartContext, chartAspects);
 
   const [readingKa, readingEn] = await Promise.all([
     generateSingleReading(userMsg, 'ka'),
@@ -119,6 +116,48 @@ export async function runNatalCall2(
       validationWarnings: [...readingKa.warnings, ...readingEn.warnings],
     },
   };
+}
+
+export interface Call2SingleResult {
+  reading: Record<string, unknown>;
+  aspectInterpretations: AspectInterpretation[];
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  warnings: string[];
+}
+
+/**
+ * Call 2 for a single language. The split-route variant — each language runs
+ * inside its own Vercel function so the 300s budget isn't shared.
+ */
+export async function runNatalCall2Single(
+  language: Language,
+  analysis: string,
+  chartContext: string,
+  chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
+): Promise<Call2SingleResult> {
+  const userMsg = buildCall2UserMessage(analysis, chartContext, chartAspects);
+  const r = await generateSingleReading(userMsg, language);
+  return {
+    reading: r.parsed,
+    aspectInterpretations: r.aspectInterpretations,
+    model: r.model,
+    tokensIn: r.inputTokens,
+    tokensOut: r.outputTokens,
+    warnings: r.warnings,
+  };
+}
+
+function buildCall2UserMessage(
+  analysis: string,
+  chartContext: string,
+  chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
+): string {
+  const aspectsSection = chartAspects && chartAspects.length > 0
+    ? `\n\nKey Aspects (interpret 2–5 of these in aspectInterpretations — see schema rules):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
+    : '';
+  return `Chart Analysis:\n${analysis}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
 }
 
 /** Full pipeline: Call 1 + Call 2. Used for premium users at signup (dev mode). */
@@ -174,10 +213,12 @@ async function generateSingleReading(
 }> {
   const prompt = getNatalCall2Prompt(language);
   // Georgian is ~2 chars/token (Mkhedruli script); English is ~4 chars/token.
-  // Full KA reading ≈ 35K tokens; EN ≈ 10K tokens. The headroom above the typical
-  // size lets a single retry still fit inside the 300s function budget — bigger
-  // caps push KA wall time over the limit and fail without producing output.
-  const maxTokens = language === 'ka' ? 40000 : 24000;
+  // Production KA outputs were landing at 39–43k tokens, right at the previous
+  // 40k cap. Hitting the cap truncates JSON mid-write, triggering the repair +
+  // section-completion cascade, which then blew the 300s function budget. 32k
+  // forces the model to stay under the ceiling instead of bumping it, which
+  // eliminates the cascade for nearly all charts.
+  const maxTokens = language === 'ka' ? 32000 : 20000;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
