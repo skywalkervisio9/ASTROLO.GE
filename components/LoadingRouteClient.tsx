@@ -249,18 +249,14 @@ export default function LoadingRouteClient() {
             setErrorText(`Full reading generation failed (${res1.status}): ${trimmed || 'no body'}`);
             console.error('[loading] generate-call1 failed', res1.status, message);
           } else {
-            // Step 2: fire KA and EN in parallel as separate functions. Each
-            // gets its own 300s budget — sharing one budget timed out for the
-            // long KA generation about half the time. Completion is detected
-            // entirely by the polling loop below (waits for reading_ka).
-            const fireLang = async (path: string) => {
-              const init = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
-              fetch(path, init).catch((err) =>
-                console.error(`[loading] ${path} network error (expected on long runs):`, err)
+            // Step 2: fire generate-full without awaiting — it can run up to 300s on the
+            // server and write to DB even if the HTTP connection drops before it responds.
+            // Completion is detected entirely by the polling loop below.
+            withCsrfHeaders({ method: 'POST', credentials: 'include' }).then((init2) => {
+              fetch('/api/reading/generate-full', init2).catch((err) =>
+                console.error('[loading] generate-full network error (expected on long runs):', err)
               );
-            };
-            fireLang('/api/reading/generate-full-ka');
-            fireLang('/api/reading/generate-full-en');
+            });
           }
         } catch {
           console.error('[loading] error starting full generation');

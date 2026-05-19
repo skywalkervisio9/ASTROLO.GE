@@ -4,7 +4,6 @@
 // Call 2: Full reading (Georgian + English, client-facing)
 // ============================================================
 
-import { jsonrepair } from 'jsonrepair';
 import { callClaude } from './client';
 import {
   normalizeNatalReadingShape,
@@ -91,7 +90,10 @@ export async function runNatalCall2(
   chartContext: string,
   chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
 ): Promise<Call2Result> {
-  const userMsg = buildCall2UserMessage(analysis, chartContext, chartAspects);
+  const aspectsSection = chartAspects && chartAspects.length > 0
+    ? `\n\nKey Aspects (interpret 2–5 of these in aspectInterpretations — see schema rules):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
+    : '';
+  const userMsg = `Chart Analysis:\n${analysis}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
 
   const [readingKa, readingEn] = await Promise.all([
     generateSingleReading(userMsg, 'ka'),
@@ -117,48 +119,6 @@ export async function runNatalCall2(
       validationWarnings: [...readingKa.warnings, ...readingEn.warnings],
     },
   };
-}
-
-export interface Call2SingleResult {
-  reading: Record<string, unknown>;
-  aspectInterpretations: AspectInterpretation[];
-  model: string;
-  tokensIn: number;
-  tokensOut: number;
-  warnings: string[];
-}
-
-/**
- * Call 2 for a single language. The split-route variant — each language runs
- * inside its own Vercel function so the 300s budget isn't shared.
- */
-export async function runNatalCall2Single(
-  language: Language,
-  analysis: string,
-  chartContext: string,
-  chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
-): Promise<Call2SingleResult> {
-  const userMsg = buildCall2UserMessage(analysis, chartContext, chartAspects);
-  const r = await generateSingleReading(userMsg, language);
-  return {
-    reading: r.parsed,
-    aspectInterpretations: r.aspectInterpretations,
-    model: r.model,
-    tokensIn: r.inputTokens,
-    tokensOut: r.outputTokens,
-    warnings: r.warnings,
-  };
-}
-
-function buildCall2UserMessage(
-  analysis: string,
-  chartContext: string,
-  chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
-): string {
-  const aspectsSection = chartAspects && chartAspects.length > 0
-    ? `\n\nKey Aspects (interpret 2–5 of these in aspectInterpretations — see schema rules):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
-    : '';
-  return `Chart Analysis:\n${analysis}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
 }
 
 /** Full pipeline: Call 1 + Call 2. Used for premium users at signup (dev mode). */
@@ -217,8 +177,7 @@ async function generateSingleReading(
   // Production KA outputs were landing at 39–43k tokens, right at the previous
   // 40k cap. Hitting the cap truncates JSON mid-write, triggering the repair +
   // section-completion cascade, which then blew the 300s function budget. 32k
-  // forces the model to stay under the ceiling instead of bumping it, which
-  // eliminates the cascade for nearly all charts.
+  // forces the model to stay under the ceiling instead of bumping it.
   const maxTokens = language === 'ka' ? 32000 : 20000;
   let lastError: unknown = null;
 
@@ -372,27 +331,12 @@ async function parseOrRepairJSON(raw: string): Promise<unknown> {
   try {
     return parseClaudeJSON(raw);
   } catch (initialErr) {
-    console.warn('[pipeline] Initial JSON parse failed, attempting jsonrepair', initialErr);
-  }
-
-  // First repair attempt: the jsonrepair library runs in-process in
-  // milliseconds and handles the common Gemini failure modes — missing
-  // commas, unescaped chars inside strings, trailing junk after the
-  // top-level object, mid-stream truncation. Previously this step was
-  // an LLM call that ate 30–60s and frequently failed twice in a row,
-  // cascading the whole function past Vercel's 300s kill window.
-  try {
-    const repaired = jsonrepair(stripCodeFences(raw));
-    return JSON.parse(repaired);
-  } catch (libErr) {
-    console.warn('[pipeline] jsonrepair failed, falling back to LLM repair', libErr);
+    console.warn('[pipeline] Initial JSON parse failed, attempting repair pass', initialErr);
     console.warn('[pipeline] Raw response preview (first 500 chars):', raw.slice(0, 500));
     console.warn('[pipeline] Raw response tail (last 200 chars):', raw.slice(-200));
     console.warn('[pipeline] Raw response total length:', raw.length);
   }
 
-  // Last resort: ask another model to repair. Only reached when the
-  // structural damage is beyond what jsonrepair can fix on its own.
   const repairSystemPrompt = [
     'You are a strict JSON repair engine.',
     'Output exactly one valid JSON object and nothing else.',
@@ -409,15 +353,8 @@ async function parseOrRepairJSON(raw: string): Promise<unknown> {
   ].join('\n');
 
   const repaired = await callClaude(repairSystemPrompt, repairUserMessage, 65536);
-  console.warn('[pipeline] LLM repair response preview (first 500 chars):', repaired.text.slice(0, 500));
+  console.warn('[pipeline] Repair response preview (first 500 chars):', repaired.text.slice(0, 500));
   return parseClaudeJSON(repaired.text);
-}
-
-function stripCodeFences(raw: string): string {
-  return raw
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/i, '')
-    .trim();
 }
 
 function extractMissingNatalSections(errors: string[]): string[] {
