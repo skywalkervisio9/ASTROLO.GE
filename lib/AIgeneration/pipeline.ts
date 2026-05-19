@@ -4,6 +4,7 @@
 // Call 2: Full reading (Georgian + English, client-facing)
 // ============================================================
 
+import { jsonrepair } from 'jsonrepair';
 import { callClaude } from './client';
 import {
   normalizeNatalReadingShape,
@@ -371,12 +372,27 @@ async function parseOrRepairJSON(raw: string): Promise<unknown> {
   try {
     return parseClaudeJSON(raw);
   } catch (initialErr) {
-    console.warn('[pipeline] Initial JSON parse failed, attempting repair pass', initialErr);
+    console.warn('[pipeline] Initial JSON parse failed, attempting jsonrepair', initialErr);
+  }
+
+  // First repair attempt: the jsonrepair library runs in-process in
+  // milliseconds and handles the common Gemini failure modes — missing
+  // commas, unescaped chars inside strings, trailing junk after the
+  // top-level object, mid-stream truncation. Previously this step was
+  // an LLM call that ate 30–60s and frequently failed twice in a row,
+  // cascading the whole function past Vercel's 300s kill window.
+  try {
+    const repaired = jsonrepair(stripCodeFences(raw));
+    return JSON.parse(repaired);
+  } catch (libErr) {
+    console.warn('[pipeline] jsonrepair failed, falling back to LLM repair', libErr);
     console.warn('[pipeline] Raw response preview (first 500 chars):', raw.slice(0, 500));
     console.warn('[pipeline] Raw response tail (last 200 chars):', raw.slice(-200));
     console.warn('[pipeline] Raw response total length:', raw.length);
   }
 
+  // Last resort: ask another model to repair. Only reached when the
+  // structural damage is beyond what jsonrepair can fix on its own.
   const repairSystemPrompt = [
     'You are a strict JSON repair engine.',
     'Output exactly one valid JSON object and nothing else.',
@@ -393,8 +409,15 @@ async function parseOrRepairJSON(raw: string): Promise<unknown> {
   ].join('\n');
 
   const repaired = await callClaude(repairSystemPrompt, repairUserMessage, 65536);
-  console.warn('[pipeline] Repair response preview (first 500 chars):', repaired.text.slice(0, 500));
+  console.warn('[pipeline] LLM repair response preview (first 500 chars):', repaired.text.slice(0, 500));
   return parseClaudeJSON(repaired.text);
+}
+
+function stripCodeFences(raw: string): string {
+  return raw
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .trim();
 }
 
 function extractMissingNatalSections(errors: string[]): string[] {
