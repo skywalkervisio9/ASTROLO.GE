@@ -405,8 +405,11 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
                   </div>
                 ))}
               </div>
-              {/* Buy extra slot CTA — only for premium/invited+ */}
-              {(user.account_type === 'premium' || (user.account_type === 'invited' && user.natal_chart_unlocked)) && (
+              {/* Buy extra slot CTA — premium and invited+ (legacy 'invited + natal_unlocked'
+                  kept for rows from before the invited+ tier-promotion shipped). */}
+              {(user.account_type === 'premium'
+                || user.account_type === 'invited+'
+                || (user.account_type === 'invited' && user.natal_chart_unlocked)) && (
                 <button className="stg-slot-buy" onClick={() => {
                   const w = window as unknown as Record<string, unknown>;
                   const showPay = w.showPaymentPage as ((type: string) => void) | undefined;

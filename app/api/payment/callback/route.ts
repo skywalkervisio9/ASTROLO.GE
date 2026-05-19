@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { asEnum } from '@/lib/auth/validators';
+import { reconcileAccountTypeAfterPurchase } from '@/lib/payment/tier';
 
 export async function GET(req: NextRequest) {
   try {
@@ -71,6 +72,7 @@ export async function GET(req: NextRequest) {
             .from('users')
             .update({ natal_chart_unlocked: true })
             .eq('id', payment.user_id);
+          await reconcileAccountTypeAfterPurchase(payment.user_id);
           break;
 
         case 'invite_slot':
@@ -87,6 +89,7 @@ export async function GET(req: NextRequest) {
               invite_slots_purchased: (user?.invite_slots_purchased ?? 0) + 1,
             })
             .eq('id', payment.user_id);
+          await reconcileAccountTypeAfterPurchase(payment.user_id);
           break;
       }
 
