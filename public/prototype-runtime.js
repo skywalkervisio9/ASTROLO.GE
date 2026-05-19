@@ -3,6 +3,10 @@
 // ═══════════════════════════════════════════════════════════
 
 let currentAccountType = 'premium';
+// Paid extra-slot count from users.invite_slots_purchased. Slot 2+ unlock
+// follows this number — tier alone isn't enough, since invited+ users may
+// have reached that tier via natal_unlock without buying any extra slots.
+let currentInviteSlotsPurchased = 0;
 let discountOn = true;
 // Slot overrides: null = follow tier defaults, true/false = dev override
 let slot1UnlockedOverride = null;
@@ -287,8 +291,10 @@ function getSlot1Occupied() {
 }
 function getSlot2Unlocked() {
   if (slot2UnlockedOverride !== null) return slot2UnlockedOverride;
-  // Tier defaults: premium+=unlocked, invited+=unlocked
-  return currentAccountType === 'premium-plus' || currentAccountType === 'invited-plus';
+  // Slot 2+ unlock follows the paid count, not the tier string. An invited+
+  // user who reached the tier via natal_unlock alone (no extra slot paid)
+  // would otherwise incorrectly see slot 2 unlocked.
+  return currentInviteSlotsPurchased >= 1;
 }
 function getSlot2Occupied() {
   if (slot2OccupiedOverride !== null) return slot2OccupiedOverride;
@@ -3012,7 +3018,13 @@ function hydrateReading(reading, user) {
   var paEl = document.querySelector('.pa');
   if (paEl) paEl.textContent = (user.full_name || user.email || '?')[0].toUpperCase();
 
-  // 2. Set tier
+  // 2. Set tier + paid-slot count
+  // invited-plus (the JS-internal tier string) gates UI affordances that
+  // assume the user has full reading access — so we map there only when
+  // natal_chart_unlocked is true. invited+ users without natal unlock keep
+  // the 'invited' UI gate; the paid-slot count below independently controls
+  // slot 2 visibility for them.
+  currentInviteSlotsPurchased = Number(user.invite_slots_purchased) || 0;
   var tierMap = { free: 'free', premium: 'premium', invited: 'invited', 'invited+': 'invited' };
   var mappedTier = tierMap[user.account_type] || 'free';
   if (user.natal_chart_unlocked && (user.account_type === 'invited' || user.account_type === 'invited+')) mappedTier = 'invited-plus';

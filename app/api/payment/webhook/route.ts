@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
 import { jsonBadRequest, jsonOk, jsonServerError } from '@/lib/auth/http';
 import { invalidateUserProfile } from '@/lib/data/public-reading';
+import { reconcileAccountTypeAfterPurchase } from '@/lib/payment/tier';
 
 type WebhookPayload = {
   event_id?: string;
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
             break;
           case 'natal_unlock':
             await admin.from('users').update({ natal_chart_unlocked: true }).eq('id', payment.user_id);
+            await reconcileAccountTypeAfterPurchase(payment.user_id);
             invalidateUserProfile(payment.user_id);
             break;
           case 'invite_slot': {
@@ -83,6 +85,8 @@ export async function POST(req: NextRequest) {
               .from('users')
               .update({ invite_slots_purchased: (user?.invite_slots_purchased ?? 0) + 1 })
               .eq('id', payment.user_id);
+            await reconcileAccountTypeAfterPurchase(payment.user_id);
+            invalidateUserProfile(payment.user_id);
             break;
           }
         }
