@@ -45,12 +45,13 @@ export async function GET() {
       return jsonOk({ status: 'queued', complete: false });
     }
 
-    // generation_* columns are populated by /api/reading/generate-full-ka
-    // so silent failures surface here as 'failed' instead of the client
-    // waiting out its 15-min poll cap.
+    // Load natal_readings row. The generation_* tracking columns were
+    // removed from the schema, so the SELECT here references only columns
+    // that are guaranteed to exist — otherwise PostgREST fails the whole
+    // query and shareSlug never makes it back to /loading.
     const { data: reading } = await admin
       .from('natal_readings')
-      .select('id, analysis_en, reading_ka, share_slug, generation_status, generation_error, generation_started_at')
+      .select('id, analysis_en, reading_ka, share_slug')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -59,23 +60,6 @@ export async function GET() {
       if (reading?.reading_ka) {
         const shareSlug = await ensureShareSlug(admin, reading.id, reading.share_slug);
         return jsonOk({ status: 'complete', complete: true, readingId: reading.id, shareSlug });
-      }
-      if (reading?.generation_status === 'failed') {
-        return jsonOk({ status: 'failed', complete: false, error: reading.generation_error ?? 'Generation failed' });
-      }
-      // Promote rows past Vercel's 300s kill window — anything older than
-      // 6 min in 'generating' is dead (the function was killed before it
-      // could write its own failure status).
-      if (
-        reading?.generation_status === 'generating'
-        && reading.generation_started_at
-        && Date.now() - new Date(reading.generation_started_at).getTime() > 360_000
-      ) {
-        return jsonOk({
-          status: 'failed',
-          complete: false,
-          error: 'Generation exceeded the 5-minute server budget. The function was killed before it could write a reading.',
-        });
       }
       return jsonOk({ status: 'generating', complete: false });
     }
