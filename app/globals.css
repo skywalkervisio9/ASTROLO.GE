@@ -1174,3 +1174,52 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .dam-body{font-size:.85rem;color:var(--silver);line-height:1.6;margin-bottom:22px;font-family:var(--fb)}
 .dam-cta{display:inline-block;padding:9px 28px;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.25);border-radius:100px;color:var(--gold);font-family:inherit;font-size:.78rem;letter-spacing:.04em;cursor:pointer;transition:all .3s ease}
 .dam-cta:hover{background:rgba(201,168,76,.12);border-color:var(--gold)}
+
+/* ═══ SYNASTRY COSMIC STATE — empty / generating / loading ═══ */
+.sycos{position:relative;min-height:calc(100vh - 140px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px 96px;overflow:hidden}
+.sycos-starfield{position:absolute;inset:0;pointer-events:none;z-index:0}
+.sycos-star{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--gold);opacity:0;animation:sycosTw 5s ease-in-out infinite}
+.sycos-star.s2{background:var(--silver);width:1.5px;height:1.5px}
+.sycos-star.s3{background:var(--rose);width:1.5px;height:1.5px}
+@keyframes sycosTw{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:var(--tw-max,.55);transform:scale(1)}}
+.sycos-glow{position:absolute;top:38%;left:50%;width:640px;height:640px;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(201,168,76,.06) 0%,rgba(196,122,138,.03) 35%,transparent 70%);pointer-events:none;animation:sycosBreathe 7s ease-in-out infinite;z-index:0}
+@keyframes sycosBreathe{0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
+.sycos-scene{position:relative;width:240px;height:240px;margin:0 auto 32px;z-index:1}
+.sycos-ring{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(201,168,76,.14);animation:sp 90s linear infinite}
+.sycos-ring::before{content:'';position:absolute;inset:14px;border-radius:50%;border:1px dashed rgba(201,168,76,.08)}
+.sycos-ring::after{content:'';position:absolute;inset:32px;border-radius:50%;border:1px solid rgba(196,122,138,.06)}
+.sycos-orbit{position:absolute;inset:0;animation:sycosOrbit 14s linear infinite;transform-origin:center}
+@keyframes sycosOrbit{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.sycos-orbit-line{position:absolute;top:50%;left:6%;width:88%;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(201,168,76,.08) 12%,rgba(201,168,76,.42) 30%,rgba(196,122,138,.5) 50%,rgba(123,107,170,.42) 70%,rgba(123,107,170,.08) 88%,transparent 100%);transform-origin:center;filter:drop-shadow(0 0 4px rgba(201,168,76,.15))}
+.sycos-orb{position:absolute;top:50%;width:22px;height:22px;margin-top:-11px;border-radius:50%}
+.sycos-orb-a{left:2%;background:radial-gradient(circle,rgba(228,199,107,.95) 0%,rgba(201,168,76,.45) 45%,rgba(201,168,76,.0) 75%);box-shadow:0 0 16px rgba(228,199,107,.55),0 0 32px rgba(201,168,76,.28)}
+.sycos-orb-b{right:2%;background:radial-gradient(circle,rgba(228,180,196,.95) 0%,rgba(196,122,138,.45) 45%,rgba(196,122,138,.0) 75%);box-shadow:0 0 16px rgba(228,180,196,.55),0 0 32px rgba(196,122,138,.28)}
+.sycos-orb::after{content:'';position:absolute;inset:35%;border-radius:50%;background:#fff;opacity:.85}
+.sycos-glyph{position:absolute;top:50%;left:50%;width:62px;height:62px;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;border-radius:50%;background:radial-gradient(circle,rgba(10,10,15,.95) 30%,rgba(10,10,15,0) 75%);animation:sycosGlyph 3.2s ease-in-out infinite;z-index:2}
+.sycos-glyph svg{width:30px;height:30px;color:var(--gold);fill:var(--gold)}
+@keyframes sycosGlyph{0%,100%{filter:drop-shadow(0 0 8px rgba(201,168,76,.45))}50%{filter:drop-shadow(0 0 20px rgba(201,168,76,.75))}}
+.sycos-spark{position:absolute;top:50%;left:50%;width:80px;height:80px;transform:translate(-50%,-50%);pointer-events:none;animation:sp 22s linear infinite reverse;z-index:1}
+.sycos-spark span{position:absolute;top:0;left:50%;width:2px;height:6px;margin-left:-1px;background:linear-gradient(180deg,rgba(201,168,76,.55),transparent);transform-origin:1px 40px;border-radius:2px}
+.sycos-content{position:relative;z-index:1;text-align:center;max-width:440px;margin:0 auto}
+.sycos-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gd);margin-bottom:14px;opacity:.7;animation:fadeUp .8s var(--ease) both}
+.sycos-eyebrow::before,.sycos-eyebrow::after{content:'';width:18px;height:1px;background:rgba(201,168,76,.3)}
+.sycos-title{font-family:'Cormorant Garamond',var(--fd);font-size:1.85rem;font-weight:400;color:var(--gold);letter-spacing:.05em;margin:0 0 12px;text-align:center;animation:fadeUp .8s var(--ease) .05s both;background:linear-gradient(180deg,var(--gold-bright) 0%,var(--gold) 60%,var(--gd) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.sycos-sub{font-size:.88rem;color:var(--silver);opacity:.72;max-width:380px;text-align:center;line-height:1.75;margin:0 auto 30px;animation:fadeUp .8s var(--ease) .12s both}
+.sycos-cta{display:inline-flex;align-items:center;gap:10px;padding:13px 32px;background:linear-gradient(135deg,rgba(201,168,76,.18),rgba(201,168,76,.04));border:1px solid rgba(201,168,76,.4);border-radius:100px;color:var(--gold);font-family:inherit;font-size:.92rem;letter-spacing:.04em;cursor:pointer;transition:all .4s var(--ease);animation:fadeUp .8s var(--ease) .2s both}
+.sycos-cta:hover{border-color:var(--gold);background:linear-gradient(135deg,rgba(201,168,76,.26),rgba(201,168,76,.08));box-shadow:0 0 28px rgba(201,168,76,.2);transform:translateY(-1px)}
+.sycos-cta svg{width:14px;height:14px}
+.sycos-msg{min-height:24px;font-size:.85rem;color:var(--gold);opacity:.88;letter-spacing:.01em;transition:opacity .45s ease;font-family:var(--fb);margin-top:4px}
+.sycos-msg.fade{opacity:0}
+.sycos-progress{position:relative;width:220px;height:2px;background:rgba(201,168,76,.08);border-radius:100px;margin:22px auto 0;overflow:hidden}
+.sycos-progress::after{content:'';position:absolute;top:0;left:-40%;width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--gold-bright),transparent);animation:sycosSlide 2.4s ease-in-out infinite}
+@keyframes sycosSlide{0%{left:-40%}100%{left:100%}}
+.sycos-note{margin-top:22px;font-size:.7rem;color:var(--txd);opacity:.65;letter-spacing:.05em;animation:fadeUp .8s var(--ease) .25s both}
+.sycos-err{margin-top:14px;font-size:.82rem;color:#f6a89a;max-width:380px;text-align:center;line-height:1.6}
+@media (max-width:480px){
+  .sycos-scene{width:200px;height:200px}
+  .sycos-glow{width:480px;height:480px}
+  .sycos-title{font-size:1.55rem}
+  .sycos-orb{width:18px;height:18px;margin-top:-9px}
+  .sycos-glyph{width:54px;height:54px}
+  .sycos-glyph svg{width:26px;height:26px}
+}
