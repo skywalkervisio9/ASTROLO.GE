@@ -51,31 +51,6 @@ async function postInviteAcceptFromLoading(code: string | null | undefined): Pro
   }
 }
 
-/** Run full synastry generation here so redirect lands with a finished reading (internal trigger often never fires). */
-async function awaitSynastryKickoffAfterInvite(connectionId?: string | null): Promise<boolean> {
-  window.dispatchEvent(new CustomEvent('synastry-generation-started'));
-  let ok = false;
-  try {
-    const init = await withCsrfHeaders({
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(connectionId ? { connection_id: connectionId } : {}),
-    });
-    const res = await fetch('/api/synastry/start', init);
-    const txt = await res.text().catch(() => '');
-    ok = res.ok;
-    if (!res.ok) {
-      console.warn('[loading] synastry/start failed', res.status, txt);
-    }
-    return ok;
-  } catch (e) {
-    console.warn('[loading] synastry/start error', e);
-    return false;
-  } finally {
-    window.dispatchEvent(new CustomEvent('synastry-generation-ended', { detail: { ok } }));
-  }
-}
 
 export default function LoadingRouteClient() {
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -128,14 +103,9 @@ export default function LoadingRouteClient() {
           if (finish) finish();
           return;
         }
-        const connId = invTab ? await postInviteAcceptFromLoading(invTab) : null;
         if (invTab) {
-          const ok = await awaitSynastryKickoffAfterInvite(connId);
-          if (!ok) {
-            setErrorText('Synastry generation failed to start. Please retry.');
-            setCanReturnToBirth(false);
-            return;
-          }
+          // Accept invite, then hand off to the synastry view's cosmic loader.
+          await postInviteAcceptFromLoading(invTab);
         }
         navigated = true;
         window.location.href = ownerReadingUrl(status.shareSlug, Boolean(invTab));
@@ -169,10 +139,12 @@ export default function LoadingRouteClient() {
       whenRuntimeReady().then(() => {
         const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string, durationMs?: number) => void) | undefined;
         // 20s free (Astrologer API only), 60s fake-full (Call 1 only),
-        // 4min invite (chart + synastry), 6min generate-full (full AI reading).
+        // 30s invite (Astrologer API only — Call 1 + synastry deferred to the
+        //              synastry-view cosmic loader on /r/[slug]?synastry=1),
+        // 6min generate-full (full AI reading).
         const duration = isFree ? 20000
           : isFakeFull ? 60000
-          : hasInvite ? 240000
+          : hasInvite ? 30000
           : 360000;
         if (fn) fn(userLang, duration);
       });
@@ -191,15 +163,12 @@ export default function LoadingRouteClient() {
         if (earlyCheck.ok) {
           const earlyStatus = await earlyCheck.json() as { status: string; complete?: boolean; shareSlug?: string };
           if (earlyStatus.status === 'complete' && earlyStatus.shareSlug) {
-            const connId = await postInviteAcceptFromLoading(inviteFromUrl);
-            if (inviteFromUrl) {
-              const ok = await awaitSynastryKickoffAfterInvite(connId);
-              if (!ok) {
-                setErrorText('Synastry generation failed to start. Please retry.');
-                setCanReturnToBirth(false);
-                return;
-              }
-            }
+            // Accept the invite synchronously so the connection exists, but
+            // don't block on synastry AI here — the synastry view's cosmic
+            // loader handles that wait with proper UI. Falls back to legacy
+            // blocking behavior only if accept itself failed unexpectedly.
+            await postInviteAcceptFromLoading(inviteFromUrl);
+            navigated = true;
             window.location.href = ownerReadingUrl(earlyStatus.shareSlug, Boolean(inviteFromUrl));
             return;
           }
@@ -318,6 +287,21 @@ export default function LoadingRouteClient() {
               }
               setErrorText('Reading generation is temporarily overloaded. Please wait and retry.');
               setCanReturnToBirth(false);
+            } else if (hasInvite) {
+              // Invited path: chart/generate returns as soon as the astrologer
+              // API completes + invite is accepted. Call 1 + synastry are
+              // running in the background — the synastry view's cosmic loader
+              // takes over from here, so we redirect immediately instead of
+              // polling for analysis_en (which would re-add the long wait).
+              const data = await generateRes.json().catch(() => null) as { shareSlug?: string } | null;
+              if (data?.shareSlug) {
+                navigated = true;
+                window.location.href = ownerReadingUrl(data.shareSlug, true);
+                return;
+              }
+              // Fall through to polling if the response didn't include a slug —
+              // legacy clients or transient errors. Polling still works because
+              // /api/onboarding/status will eventually report complete.
             }
           } catch {
             setErrorText('Temporary network issue while starting generation. Retrying...');
@@ -355,15 +339,9 @@ export default function LoadingRouteClient() {
         if (status.status === 'complete') {
           if (navigated) return;
           if (status.shareSlug) {
-            const connId = await postInviteAcceptFromLoading(inviteFromUrl);
-            if (inviteFromUrl) {
-              const ok = await awaitSynastryKickoffAfterInvite(connId);
-              if (!ok) {
-                setErrorText('Synastry generation failed to start. Please retry.');
-                setCanReturnToBirth(false);
-                return;
-              }
-            }
+            // Accept invite synchronously, but don't block on synastry AI —
+            // the synastry view's cosmic loader takes over on /r/[slug]?synastry=1.
+            await postInviteAcceptFromLoading(inviteFromUrl);
             navigated = true;
             window.location.href = ownerReadingUrl(status.shareSlug, Boolean(inviteFromUrl));
             return;
