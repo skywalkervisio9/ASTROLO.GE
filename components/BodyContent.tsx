@@ -593,7 +593,6 @@ export default function BodyContent() {
       <div className="auth-sigil"><AuthSigil kind="forgot" /></div>
       <div className="auth-header"><h1>პაროლის აღდგენა</h1><div className="sub">შეიყვანე ელ-ფოსტა</div></div>
       <div className="auth-panel">
-        <button className="back-link" onClick={() => { proto().showAuthPage?.("page-login"); }}><span>←</span> შესვლაზე დაბრუნება</button>
         <div className="msg error" id="forgot-error"></div>
         <div id="forgot-form"><div className="field"><label>ელ-ფოსტა</label><input type="email" id="forgot-email" placeholder="name@example.com"/></div><button className="auth-btn" onClick={() => { proto().handleForgot?.(); }}><span className="btn-text">ბმულის გაგზავნა</span></button></div>
         <div id="forgot-success" style={{display: 'none'}}><div className="reset-success"><div className="check-icon">✓</div><h3>ბმული გაგზავნილია</h3><p>თუ ანგარიში არსებობს, მალე მიიღებ აღდგენის ბმულს.</p></div><button className="auth-btn" onClick={() => { proto().showAuthPage?.("page-login"); }} style={{marginTop: '12px'}}><span className="btn-text">დაბრუნება</span></button></div>
