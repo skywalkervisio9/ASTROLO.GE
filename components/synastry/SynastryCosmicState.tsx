@@ -176,7 +176,10 @@ export default function SynastryCosmicState({ mode, language, progressLabel, onI
   })();
 
   return (
-    <div className="sycos" role="status" aria-live="polite">
+    <>
+      {/* Clear the 56px fixed header — same spacer SynastryView uses. */}
+      <div style={{ height: '56px' }} />
+      <div className="sycos" role="status" aria-live="polite">
       <div className="sycos-starfield" aria-hidden>
         {stars.map((s) => (
           <span
@@ -249,6 +252,7 @@ export default function SynastryCosmicState({ mode, language, progressLabel, onI
           </>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
