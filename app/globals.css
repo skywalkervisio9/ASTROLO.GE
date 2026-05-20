@@ -810,15 +810,24 @@ body[data-view="auth"] .tb .pb { display: none; }
 
 .auth-wrap{position:relative;z-index:2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px 40px}
 /* Auth view: no scroll-progress bar; top-align so the steps bar is always
-   visible. Compact paddings keep every step within the viewport. */
+   visible. Compact paddings keep every step within the viewport.
+   When a tall form (birth) overflows, only the panel scrolls — the dots
+   and sigil stay anchored above so they never slide behind the header. */
+body[data-view="auth"]{overflow:hidden}
 body[data-view="auth"] .pbar{display:none}
-body[data-view="auth"] .auth-wrap{min-height:100vh;padding:68px 24px 16px;align-items:flex-start}
-body[data-view="auth"] .auth-sigil{margin-bottom:8px;width:74px;height:74px}
+body[data-view="auth"] .auth-wrap{min-height:100vh;height:100vh;padding:68px 24px 16px;align-items:flex-start}
+body[data-view="auth"] .auth-card{display:flex;flex-direction:column;max-height:100%}
+body[data-view="auth"] .auth-page{display:flex;flex-direction:column;min-height:0;flex:1}
+body[data-view="auth"] .auth-page:not(.active){display:none}
+body[data-view="auth"] .auth-sigil{margin-bottom:8px;width:74px;height:74px;flex-shrink:0}
 body[data-view="auth"] .auth-sigil-svg{width:58px;height:58px}
-body[data-view="auth"] .auth-header{margin-bottom:12px}
-body[data-view="auth"] .auth-panel{padding:18px}
+body[data-view="auth"] .auth-header{margin-bottom:12px;flex-shrink:0}
+body[data-view="auth"] .auth-panel{padding:18px;overflow-y:auto;min-height:0}
 body[data-view="auth"] .auth-divider{margin:14px 0}
 body[data-view="auth"] #page-signup .field{margin-bottom:8px}
+/* Hint-box star rotates on hover, eases back out smoothly. */
+.hint-star{display:inline-block;transform:rotate(0);transition:transform 1.4s cubic-bezier(.4,0,.2,1)}
+.auth-hint:hover .hint-star{transform:rotate(360deg)}
 .auth-card{width:100%;max-width:460px;position:relative}
 .auth-card::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:400px;height:400px;background:radial-gradient(circle,rgba(201,168,76,.04) 0%,rgba(201,168,76,.01) 40%,transparent 70%);pointer-events:none}
 .steps-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:32px}
