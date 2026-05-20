@@ -1765,6 +1765,40 @@ let selectedGender = '';
 // page-forgot is a detour off the login step so we keep dot 1 active there.
 const AUTH_PAGE_STEP = { 'page-login': 1, 'page-forgot': 1, 'page-signup': 2, 'page-birth': 3 };
 
+// Forward step-dot clicks must run the current page's form validation —
+// matches what the primary "next / register" button checks. Backwards or
+// same-step navigation always passes.
+function canAdvanceFromAuthPage(pageId) {
+  if (pageId === 'page-login') {
+    const email = document.getElementById('login-email').value.trim();
+    const pw = document.getElementById('login-pw').value;
+    if (!email) { showAuthError('login-error', 'შეიყვანე ელ-ფოსტა'); return false; }
+    if (!pw) { showAuthError('login-error', 'შეიყვანე პაროლი'); return false; }
+    return true;
+  }
+  if (pageId === 'page-signup') {
+    const name = document.getElementById('signup-name').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const pw = document.getElementById('signup-pw').value;
+    if (!name) { showAuthError('signup-error', 'შეიყვანე სახელი'); return false; }
+    if (!email) { showAuthError('signup-error', 'შეიყვანე ელ-ფოსტა'); return false; }
+    if (pw.length < 8) { showAuthError('signup-error', 'პაროლი მინ. 8 სიმბოლო'); return false; }
+    return true;
+  }
+  return true;
+}
+
+// Called from step-dot clicks. Goes through validation when moving forward.
+function navigateAuthStep(targetId) {
+  const currentPage = document.querySelector('.auth-page.active');
+  if (!currentPage) { showAuthPage(targetId); return; }
+  const currentId = currentPage.id;
+  const currentStep = AUTH_PAGE_STEP[currentId] || 1;
+  const targetStep = AUTH_PAGE_STEP[targetId] || 1;
+  if (targetStep > currentStep && !canAdvanceFromAuthPage(currentId)) return;
+  showAuthPage(targetId);
+}
+
 function showAuthPage(id) {
   document.querySelectorAll('.auth-page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');

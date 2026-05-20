@@ -839,15 +839,18 @@ body[data-view="auth"] .auth-sigil{margin-bottom:18px}
 /* Hover spin: ramp up from rest with an ease-in first turn, then steady. */
 .auth-sigil:has(.auth-sigil-signup):hover .as-svg{animation:sigilAsteriskSpin 5s linear infinite}
 @keyframes sigilAsteriskSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-/* Birth-data burst: rays extend and core breathes on hover. */
-.auth-sigil-birth .as-rays{transform-origin:24px 24px;transform-box:fill-box;transition:transform .6s var(--ease)}
-.auth-sigil-birth .as-core{transform-origin:24px 24px;transform-box:fill-box;transition:transform .4s var(--ease)}
+/* Birth-data burst: rays extend and core grows on hover.
+   Rays use transform with center-of-bbox origin so they stay anchored.
+   Core animates the SVG r attribute so the circle truly grows in place
+   (transform-scale on a tiny circle drifts otherwise). */
+.auth-sigil-birth .as-rays{transform-origin:center;transform-box:fill-box;transition:transform .6s var(--ease)}
+.auth-sigil-birth .as-core{transition:r .4s var(--ease)}
 .auth-sigil:has(.auth-sigil-birth):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
 .auth-sigil:has(.auth-sigil-birth):hover .auth-sigil-svg{filter:drop-shadow(0 0 22px rgba(228,199,107,.65))}
 .auth-sigil:has(.auth-sigil-birth):hover .as-rays{animation:sigilBurstRays 2.4s ease-in-out infinite}
 .auth-sigil:has(.auth-sigil-birth):hover .as-core{animation:sigilBurstCore 1.6s ease-in-out infinite}
 @keyframes sigilBurstRays{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
-@keyframes sigilBurstCore{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+@keyframes sigilBurstCore{0%,100%{r:4}50%{r:5.6}}
 .auth-header{text-align:center;margin-bottom:28px}
 .auth-header h1{font-family:var(--fd);font-weight:400;font-size:clamp(1.5rem,3.5vw,2rem);color:var(--gold);letter-spacing:.06em;margin-bottom:6px}
 .auth-header .sub{font-size:.78rem;color:var(--txd);letter-spacing:.12em}
