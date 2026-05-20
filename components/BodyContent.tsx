@@ -575,7 +575,6 @@ export default function BodyContent() {
       <div className="auth-sigil"><AuthSigil kind="signup" /></div>
       <div className="auth-header"><h1>რეგისტრაცია</h1><div className="sub">დაიწყე შენი ციური მოგზაურობა</div></div>
       <div className="auth-panel">
-        <button className="back-link" onClick={() => { proto().showAuthPage?.("page-login"); }}><span>←</span> შესვლაზე დაბრუნება</button>
         <div className="msg error" id="signup-error"></div>
         <div className="invite-badge" id="invite-badge" style={{display: 'none'}}><span className="inv-dot"></span> მოწვევა: სინასტრია</div>
         <button className="google-btn" onClick={() => { proto().handleGoogle?.(); }}>{IconGoogleG} Google-ით რეგისტრაცია</button>

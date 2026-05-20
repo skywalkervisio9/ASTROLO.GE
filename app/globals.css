@@ -836,9 +836,11 @@ body[data-view="auth"] .auth-sigil{margin-bottom:18px}
 .auth-sigil:has(.auth-sigil-login):hover .as-svg{transform:scale(1.12);filter:blur(.35px)}
 .auth-sigil:has(.auth-sigil-signup):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
 .auth-sigil:has(.auth-sigil-signup):hover .auth-sigil-svg{filter:drop-shadow(0 0 22px rgba(228,199,107,.65))}
-/* Hover spin: ramp up from rest with an ease-in first turn, then steady. */
-.auth-sigil:has(.auth-sigil-signup):hover .as-svg{animation:sigilAsteriskSpin 5s linear infinite}
-@keyframes sigilAsteriskSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+/* Hover spin: transition between rotate(0) and rotate(720deg) so the asterisk
+   eases into two full turns on hover and eases back to rest on hover-out
+   instead of snapping. */
+.auth-sigil-signup .as-svg{transform:rotate(0);transition:transform 6s cubic-bezier(.4,0,.2,1)}
+.auth-sigil:has(.auth-sigil-signup):hover .as-svg{transform:rotate(720deg)}
 /* Birth-data burst: rays extend and core grows on hover.
    Rays use transform with center-of-bbox origin so they stay anchored.
    Core animates the SVG r attribute so the circle truly grows in place

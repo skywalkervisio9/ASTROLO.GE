@@ -1765,18 +1765,21 @@ let selectedGender = '';
 // page-forgot is a detour off the login step so we keep dot 1 active there.
 const AUTH_PAGE_STEP = { 'page-login': 1, 'page-forgot': 1, 'page-signup': 2, 'page-birth': 3 };
 
-// Forward step-dot clicks must run the current page's form validation —
-// matches what the primary "next / register" button checks. Backwards or
-// same-step navigation always passes.
-function canAdvanceFromAuthPage(pageId) {
-  if (pageId === 'page-login') {
+// Forward step-dot clicks must run the current page's form validation when
+// the destination is a step that actually depends on it. Signup is an
+// alternate entry path (parallel to login), so navigating *to* signup never
+// requires login credentials. Only "→ birth" (which assumes the user is
+// authenticated) gates on the current page's fields.
+function canAdvanceFromAuthPage(fromId, toId) {
+  if (toId === 'page-signup') return true;
+  if (fromId === 'page-login' && toId === 'page-birth') {
     const email = document.getElementById('login-email').value.trim();
     const pw = document.getElementById('login-pw').value;
     if (!email) { showAuthError('login-error', 'შეიყვანე ელ-ფოსტა'); return false; }
     if (!pw) { showAuthError('login-error', 'შეიყვანე პაროლი'); return false; }
     return true;
   }
-  if (pageId === 'page-signup') {
+  if (fromId === 'page-signup' && toId === 'page-birth') {
     const name = document.getElementById('signup-name').value.trim();
     const email = document.getElementById('signup-email').value.trim();
     const pw = document.getElementById('signup-pw').value;
@@ -1795,7 +1798,7 @@ function navigateAuthStep(targetId) {
   const currentId = currentPage.id;
   const currentStep = AUTH_PAGE_STEP[currentId] || 1;
   const targetStep = AUTH_PAGE_STEP[targetId] || 1;
-  if (targetStep > currentStep && !canAdvanceFromAuthPage(currentId)) return;
+  if (targetStep > currentStep && !canAdvanceFromAuthPage(currentId, targetId)) return;
   showAuthPage(targetId);
 }
 
