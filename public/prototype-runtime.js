@@ -3128,8 +3128,11 @@ function hydrateReading(reading, user) {
     viewNatal.appendChild(fragment);
   }
 
-  // 5. Switch to natal view if not already there
-  if (document.body.getAttribute('data-view') !== 'natal') {
+  // 5. Switch to natal view if not already on a real reading view.
+  // Treat 'synastry' as a peer view — language switch on synastry must not
+  // kick the user back to natal.
+  var _hydCurrentView = document.body.getAttribute('data-view');
+  if (_hydCurrentView !== 'natal' && _hydCurrentView !== 'synastry') {
     switchView('natal', document.getElementById('devNatal'));
   }
 
