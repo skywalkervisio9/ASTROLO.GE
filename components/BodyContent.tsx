@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import SynastryViewWrapper from './synastry/SynastryViewWrapper';
 import SynastryConnectionSync from './SynastryConnectionSync';
+import AuthSigil from './AuthSigil';
 import { createClient } from '@/lib/supabase/client';
 import { createSynastryInviteLink } from '@/lib/invite/create-invite-link';
 
@@ -553,7 +554,7 @@ export default function BodyContent() {
     </div>
 
     <div className="auth-page active" id="page-login">
-      <div className="auth-sigil"><div className="auth-sigil-icon">☽</div></div>
+      <div className="auth-sigil"><AuthSigil kind="login" /></div>
       <div className="auth-header"><h1>შესვლა</h1><div className="sub">შენი ციური ნახაზი გელოდება</div></div>
       <div className="auth-panel">
         <div className="msg error" id="login-error"></div>
@@ -570,7 +571,7 @@ export default function BodyContent() {
 
     
     <div className="auth-page" id="page-signup">
-      <div className="auth-sigil"><div className="auth-sigil-icon">✦</div></div>
+      <div className="auth-sigil"><AuthSigil kind="signup" /></div>
       <div className="auth-header"><h1>რეგისტრაცია</h1><div className="sub">დაიწყე შენი ციური მოგზაურობა</div></div>
       <div className="auth-panel">
         <div className="msg error" id="signup-error"></div>
@@ -588,7 +589,7 @@ export default function BodyContent() {
 
     
     <div className="auth-page" id="page-forgot">
-      <div className="auth-sigil"><div className="auth-sigil-icon">✧</div></div>
+      <div className="auth-sigil"><AuthSigil kind="forgot" /></div>
       <div className="auth-header"><h1>პაროლის აღდგენა</h1><div className="sub">შეიყვანე ელ-ფოსტა</div></div>
       <div className="auth-panel">
         <button className="back-link" onClick={() => { proto().showAuthPage?.("page-login"); }}><span>←</span> შესვლაზე დაბრუნება</button>
@@ -600,7 +601,7 @@ export default function BodyContent() {
 
     
     <div className="auth-page" id="page-birth">
-      <div className="auth-sigil"><div className="auth-sigil-icon">⊛</div></div>
+      <div className="auth-sigil"><AuthSigil kind="birth" /></div>
       <div className="auth-header"><h1>დაბადების მონაცემები</h1><div className="sub">ნატალური რუკის აგებისთვის</div></div>
       <div className="auth-panel">
         <div className="msg error" id="birth-error"></div>
@@ -861,7 +862,7 @@ function GlyphSymbols() {
 <symbol id="gl-saturn" viewBox="0 0 24 24"><path d="M8 2l-3 3M5 5l2 2M9 9c-3 3-3 7 0 10s7 3 10 0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="9" y1="9" x2="9" y2="20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="6" y1="14" x2="12" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
 <symbol id="gl-pluto" viewBox="0 0 24 24"><circle cx="12" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M12 7m-2 0a2 2 0 104 0 2 2 0 10-4 0" fill="none" stroke="currentColor" strokeWidth="1.2"/><line x1="12" y1="12" x2="12" y2="20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="17" x2="16" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
     <symbol id="gl-asc" viewBox="0 0 24 24"><path d="M12 3L6 21h2.5l1.5-5h8l1.5 5H22L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
-    <symbol id="gl-conjunction" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="12" y1="5" x2="12" y2="2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+    <symbol id="gl-conjunction" viewBox="0 0 24 24"><circle cx="9" cy="12" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="15" cy="12" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/></symbol>
     <symbol id="gl-trine" viewBox="0 0 24 24"><path d="M12 3L22 20H2L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
     <symbol id="gl-square" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
     <symbol id="gl-sextile" viewBox="0 0 24 24"><path d="M12 2l2.6 4.5H22l-3.7 6L22 17.5h-7.4L12 22l-2.6-4.5H2l3.7-5.5L2 7.5h7.4z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></symbol>
