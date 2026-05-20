@@ -810,11 +810,15 @@ body[data-view="auth"] .tb .pb { display: none; }
 
 .auth-wrap{position:relative;z-index:2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px 40px}
 /* Auth view: no scroll-progress bar; top-align so the steps bar is always
-   visible. Body scroll stays on as a fallback if a form ever overflows the
-   viewport (e.g. tall signup on a short screen). */
+   visible. Compact paddings keep every step within the viewport. */
 body[data-view="auth"] .pbar{display:none}
-body[data-view="auth"] .auth-wrap{min-height:100vh;padding:84px 24px 32px;align-items:flex-start}
-body[data-view="auth"] .auth-sigil{margin-bottom:18px}
+body[data-view="auth"] .auth-wrap{min-height:100vh;padding:68px 24px 16px;align-items:flex-start}
+body[data-view="auth"] .auth-sigil{margin-bottom:8px;width:74px;height:74px}
+body[data-view="auth"] .auth-sigil-svg{width:58px;height:58px}
+body[data-view="auth"] .auth-header{margin-bottom:12px}
+body[data-view="auth"] .auth-panel{padding:18px}
+body[data-view="auth"] .auth-divider{margin:14px 0}
+body[data-view="auth"] #page-signup .field{margin-bottom:8px}
 .auth-card{width:100%;max-width:460px;position:relative}
 .auth-card::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:400px;height:400px;background:radial-gradient(circle,rgba(201,168,76,.04) 0%,rgba(201,168,76,.01) 40%,transparent 70%);pointer-events:none}
 .steps-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:32px}
@@ -841,18 +845,16 @@ body[data-view="auth"] .auth-sigil{margin-bottom:18px}
    instead of snapping. */
 .auth-sigil-signup .as-svg{transform:rotate(0);transition:transform 6s cubic-bezier(.4,0,.2,1)}
 .auth-sigil:has(.auth-sigil-signup):hover .as-svg{transform:rotate(720deg)}
-/* Birth-data burst: rays extend and core grows on hover.
-   Rays use transform with center-of-bbox origin so they stay anchored.
-   Core animates the SVG r attribute so the circle truly grows in place
-   (transform-scale on a tiny circle drifts otherwise). */
-.auth-sigil-birth .as-rays{transform-origin:center;transform-box:fill-box;transition:transform .6s var(--ease)}
-.auth-sigil-birth .as-core{transition:r .4s var(--ease)}
+/* Birth-data burst: rays extend and core grows on hover. Both use
+   transitions (not keyframe animations) so the icon eases smoothly
+   back to rest when the hover ends instead of snapping. The core
+   animates its r attribute to grow in place without positional drift. */
+.auth-sigil-birth .as-rays{transform:scale(1);transform-origin:center;transform-box:fill-box;transition:transform 1.6s cubic-bezier(.4,0,.2,1)}
+.auth-sigil-birth .as-core{transition:r 1.2s cubic-bezier(.4,0,.2,1)}
 .auth-sigil:has(.auth-sigil-birth):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
 .auth-sigil:has(.auth-sigil-birth):hover .auth-sigil-svg{filter:drop-shadow(0 0 22px rgba(228,199,107,.65))}
-.auth-sigil:has(.auth-sigil-birth):hover .as-rays{animation:sigilBurstRays 2.4s ease-in-out infinite}
-.auth-sigil:has(.auth-sigil-birth):hover .as-core{animation:sigilBurstCore 1.6s ease-in-out infinite}
-@keyframes sigilBurstRays{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
-@keyframes sigilBurstCore{0%,100%{r:4}50%{r:5.6}}
+.auth-sigil:has(.auth-sigil-birth):hover .as-rays{transform:scale(1.18)}
+.auth-sigil:has(.auth-sigil-birth):hover .as-core{r:6}
 .auth-header{text-align:center;margin-bottom:28px}
 .auth-header h1{font-family:var(--fd);font-weight:400;font-size:clamp(1.5rem,3.5vw,2rem);color:var(--gold);letter-spacing:.06em;margin-bottom:6px}
 .auth-header .sub{font-size:.78rem;color:var(--txd);letter-spacing:.12em}
