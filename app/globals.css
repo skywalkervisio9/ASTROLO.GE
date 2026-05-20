@@ -809,10 +809,16 @@ body[data-view="auth"] .nb { display: none; }
 body[data-view="auth"] .tb .pb { display: none; }
 
 .auth-wrap{position:relative;z-index:2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px 40px}
+/* Auth view: no scroll, no scroll-progress bar — the form sits in the viewport. */
+body[data-view="auth"]{overflow:hidden}
+body[data-view="auth"] .pbar{display:none}
+body[data-view="auth"] .auth-wrap{min-height:calc(100vh - 56px);padding:24px 24px 24px}
 .auth-card{width:100%;max-width:460px;position:relative}
 .auth-card::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:400px;height:400px;background:radial-gradient(circle,rgba(201,168,76,.04) 0%,rgba(201,168,76,.01) 40%,transparent 70%);pointer-events:none}
 .steps-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:32px}
-.step-dot{width:8px;height:8px;border-radius:50%;background:var(--sf2);border:1px solid rgba(201,168,76,.1);transition:all .5s var(--ease)}
+.step-dot{width:10px;height:10px;border-radius:50%;background:var(--sf2);border:1px solid rgba(201,168,76,.1);transition:all .35s var(--ease);cursor:pointer;padding:0}
+.step-dot:hover{border-color:var(--gold);box-shadow:0 0 10px rgba(228,199,107,.32);transform:scale(1.18)}
+.step-dot:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
 .step-dot.active{background:var(--gold);border-color:var(--gold);box-shadow:0 0 8px rgba(201,168,76,.3)}
 .step-dot.done{background:var(--gd);border-color:var(--gd)}
 .step-line{width:32px;height:1px;background:rgba(201,168,76,.08);transition:background .5s}
@@ -821,13 +827,15 @@ body[data-view="auth"] .tb .pb { display: none; }
 .auth-sigil::before{content:'';position:absolute;inset:-8px;border:1px solid rgba(201,168,76,.1);border-radius:50%}
 .auth-sigil::after{content:'';position:absolute;inset:-16px;border:1px solid rgba(201,168,76,.05);border-radius:50%}
 .auth-sigil-icon{font-size:30px;animation:sp 60s linear infinite reverse}
-.auth-sigil-svg{width:46px;height:46px;display:flex;align-items:center;justify-content:center;color:var(--gold);animation:sp 60s linear infinite reverse;filter:drop-shadow(0 0 10px rgba(228,199,107,.2));transition:filter .55s var(--ease),transform .55s var(--ease)}
+.auth-sigil-svg{width:70px;height:70px;display:flex;align-items:center;justify-content:center;color:var(--gold);animation:sp 60s linear infinite reverse;filter:drop-shadow(0 0 12px rgba(228,199,107,.22));transition:filter .55s var(--ease),transform .55s var(--ease)}
 .auth-sigil-svg .as-svg{width:100%;height:100%;display:block;transition:transform .55s var(--ease),filter .55s var(--ease)}
-.auth-sigil-login .as-halo{transform-origin:24px 24px;transform-box:view-box;transition:transform .8s var(--ease),opacity .8s var(--ease)}
 .auth-sigil:has(.auth-sigil-login):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
-.auth-sigil:has(.auth-sigil-login):hover .auth-sigil-svg{filter:drop-shadow(0 0 22px rgba(228,199,107,.6))}
-.auth-sigil:has(.auth-sigil-login):hover .as-svg{transform:scale(1.14);filter:blur(.35px)}
-.auth-sigil:has(.auth-sigil-login):hover .as-halo{transform:scale(1.18);opacity:.7}
+.auth-sigil:has(.auth-sigil-login):hover .auth-sigil-svg{filter:drop-shadow(0 0 24px rgba(228,199,107,.65))}
+.auth-sigil:has(.auth-sigil-login):hover .as-svg{transform:scale(1.12);filter:blur(.35px)}
+.auth-sigil:has(.auth-sigil-signup):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
+.auth-sigil:has(.auth-sigil-signup):hover .auth-sigil-svg{animation:sp 4s linear infinite reverse;filter:drop-shadow(0 0 22px rgba(228,199,107,.65))}
+.auth-sigil:has(.auth-sigil-signup):hover .as-svg{animation:sigilAsteriskPulse 1.4s ease-in-out infinite}
+@keyframes sigilAsteriskPulse{0%,100%{transform:scale(1)}50%{transform:scale(.88)}}
 .auth-header{text-align:center;margin-bottom:28px}
 .auth-header h1{font-family:var(--fd);font-weight:400;font-size:clamp(1.5rem,3.5vw,2rem);color:var(--gold);letter-spacing:.06em;margin-bottom:6px}
 .auth-header .sub{font-size:.78rem;color:var(--txd);letter-spacing:.12em}

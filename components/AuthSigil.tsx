@@ -13,11 +13,10 @@ const VB = '0 0 48 48';
 function LoginSparkle() {
   return (
     <svg viewBox={VB} className="as-svg as-login">
-      <circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" strokeWidth={0.9} opacity={0.4} className="as-halo" />
       <path
-        d="M24 8l3 13 13 3-13 3-3 13-3-13-13-3 13-3z"
+        d="M24 2l3.5 17.5L44 24l-16.5 4.5L24 46l-3.5-17.5L4 24l16.5-4.5z"
         fill="currentColor"
-        opacity={0.85}
+        opacity={0.9}
         className="as-spark"
       />
     </svg>
@@ -27,11 +26,10 @@ function LoginSparkle() {
 function SignupAsterisk() {
   return (
     <svg viewBox={VB} className="as-svg">
-      <circle cx="24" cy="24" r="17" fill="none" stroke="currentColor" strokeWidth={1.4} />
-      <g stroke="currentColor" strokeWidth={1.6} strokeLinecap="round">
-        <line x1="24" y1="13" x2="24" y2="35" />
-        <line x1="14" y1="18.5" x2="34" y2="29.5" />
-        <line x1="34" y1="18.5" x2="14" y2="29.5" />
+      <g stroke="currentColor" strokeWidth={2.4} strokeLinecap="round">
+        <line x1="24" y1="3" x2="24" y2="45" />
+        <line x1="6" y1="13" x2="42" y2="35" />
+        <line x1="42" y1="13" x2="6" y2="35" />
       </g>
     </svg>
   );

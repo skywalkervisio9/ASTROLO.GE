@@ -1761,29 +1761,36 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
 let authStep = 1;
 let selectedGender = '';
 
+// Visual step mapping: each auth page lights up its dot in the progress bar.
+// page-forgot is a detour off the login step so we keep dot 1 active there.
+const AUTH_PAGE_STEP = { 'page-login': 1, 'page-forgot': 1, 'page-signup': 2, 'page-birth': 3 };
+
 function showAuthPage(id) {
   document.querySelectorAll('.auth-page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.msg').forEach(m => { m.classList.remove('show'); m.textContent = ''; });
   if (id === 'page-forgot') { document.getElementById('forgot-form').style.display = 'block'; document.getElementById('forgot-success').style.display = 'none'; }
+  const visualStep = AUTH_PAGE_STEP[id];
+  if (visualStep) renderAuthSteps(visualStep);
 }
 
 function goAuthStep(n) {
   authStep = n;
-  updateAuthStepUI();
   if (n === 1) showAuthPage('page-login');
   else if (n === 2) showAuthPage('page-birth');
   else if (n === 3) startLoading();
 }
 
-function updateAuthStepUI() {
+function renderAuthSteps(step) {
   for (let i = 1; i <= 3; i++) {
     const dot = document.getElementById('sd' + i);
-    const line = document.getElementById('sl' + (i - 1));
-    if (dot) { dot.className = 'step-dot' + (i < authStep ? ' done' : '') + (i === authStep ? ' active' : ''); }
-    if (line) { line.className = 'step-line' + (i <= authStep ? ' done' : ''); }
+    const line = document.getElementById('sl' + i);
+    if (dot) { dot.className = 'step-dot' + (i < step ? ' done' : '') + (i === step ? ' active' : ''); }
+    if (line) { line.className = 'step-line' + (step > i ? ' done' : ''); }
   }
 }
+
+function updateAuthStepUI() { renderAuthSteps(authStep); }
 
 function togglePw(btn) {
   const input = btn.previousElementSibling;

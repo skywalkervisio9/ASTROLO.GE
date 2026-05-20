@@ -532,9 +532,9 @@ export default function BodyContent() {
 <div className="auth-wrap" id="authWrap">
   <div className="auth-card">
     <div className="steps-bar" id="stepsBar">
-      <div className="step-dot active" id="sd1"></div><div className="step-line" id="sl1"></div>
-      <div className="step-dot" id="sd2"></div><div className="step-line" id="sl2"></div>
-      <div className="step-dot" id="sd3"></div>
+      <button type="button" className="step-dot active" id="sd1" aria-label="შესვლა" onClick={() => { proto().showAuthPage?.("page-login"); }}></button><div className="step-line" id="sl1"></div>
+      <button type="button" className="step-dot" id="sd2" aria-label="რეგისტრაცია" onClick={() => { proto().showAuthPage?.("page-signup"); }}></button><div className="step-line" id="sl2"></div>
+      <button type="button" className="step-dot" id="sd3" aria-label="დაბადების მონაცემები" onClick={() => { proto().showAuthPage?.("page-birth"); }}></button>
     </div>
 
     <div className="auth-invite-hero" id="authInviteHero" aria-hidden="true">
@@ -574,6 +574,7 @@ export default function BodyContent() {
       <div className="auth-sigil"><AuthSigil kind="signup" /></div>
       <div className="auth-header"><h1>რეგისტრაცია</h1><div className="sub">დაიწყე შენი ციური მოგზაურობა</div></div>
       <div className="auth-panel">
+        <button className="back-link" onClick={() => { proto().showAuthPage?.("page-login"); }}><span>←</span> შესვლაზე დაბრუნება</button>
         <div className="msg error" id="signup-error"></div>
         <div className="invite-badge" id="invite-badge" style={{display: 'none'}}><span className="inv-dot"></span> მოწვევა: სინასტრია</div>
         <button className="google-btn" onClick={() => { proto().handleGoogle?.(); }}>{IconGoogleG} Google-ით რეგისტრაცია</button>
@@ -583,7 +584,7 @@ export default function BodyContent() {
         <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="signup-pw" placeholder="მინ. 8 სიმბოლო" autoComplete="new-password"/><button className="pw-toggle" onClick={(e) => { proto().togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
         <button className="auth-btn" onClick={() => { proto().handleSignup?.(); }} style={{marginTop: '4px'}}><span className="btn-text">რეგისტრაცია</span></button>
         <div className="terms">რეგისტრაციით ეთანხმები <a href="#">პირობებს</a> და <a href="#">კონფიდენციალობას</a></div>
-        <div className="auth-footer">უკვე გაქვს ანგარიში? <a href="#" onClick={(e) => { e.preventDefault(); proto().showAuthPage?.("page-login"); }}>შესვლა</a></div>
+        <div className="auth-footer">უკვე გაქვს ანგარიში? <a href="#" onClick={(e) => { e.preventDefault(); proto().showAuthPage?.("page-login"); }} style={{borderBottom: '1px solid rgba(201,168,76,.35)', paddingBottom: '1px'}}>შესვლა</a></div>
       </div>
     </div>
 
