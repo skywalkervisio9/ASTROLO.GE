@@ -70,6 +70,23 @@ export default function AuthPageClient() {
       return true;
     };
 
+    // Mirror showAuthPage('page-birth') + renderAuthSteps(3) with the DOM alone.
+    // prototype-runtime.js loads afterInteractive, so on a fresh /auth?step=birth
+    // load (post-signup) it isn't ready on the first pass. Without this, the
+    // fallback below reveals the auth view while page-login is still the default
+    // .active page — a ~1s flash of the login form before the runtime swaps in
+    // the birth step. Pre-selecting birth here makes the first auth paint correct.
+    const showBirthStepDom = () => {
+      document.querySelectorAll('.auth-page').forEach((p) => p.classList.remove('active'));
+      document.getElementById('page-birth')?.classList.add('active');
+      for (let i = 1; i <= 3; i++) {
+        const dot = document.getElementById('sd' + i);
+        const line = document.getElementById('sl' + i);
+        if (dot) dot.className = 'step-dot' + (i < 3 ? ' done' : '') + (i === 3 ? ' active' : '');
+        if (line) line.className = 'step-line' + (3 > i ? ' done' : '');
+      }
+    };
+
     const applyAuthState = () => {
       if (!langRestored) langRestored = restoreLang();
 
@@ -81,8 +98,10 @@ export default function AuthPageClient() {
       if (switchView) {
         switchView('auth', document.getElementById('devAuth') as HTMLElement);
       } else {
-        // Fallback while runtime initializes
+        // Fallback while the runtime initializes. For the birth step, also
+        // pre-select it in the DOM so we don't flash the default login page.
         document.body.setAttribute('data-view', 'auth');
+        if (step === 'birth') showBirthStepDom();
       }
 
       if (step === 'birth' && goAuthStep && showAuthPage) {
