@@ -4,7 +4,7 @@
 // notice the entry icon is "alive". Keeping the SVGs inline lets
 // us animate them per-variant without a shared symbol sheet.
 // ============================================================
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 type Kind = 'login' | 'signup' | 'forgot' | 'birth';
 
@@ -75,10 +75,66 @@ function BirthBurst() {
 }
 
 export default function AuthSigil({ kind }: { kind: Kind }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Birth burst pulse. A CSS keyframe animation snaps back to rest when the
+  // hover ends (the animation's effect is removed in one frame and a transition
+  // can't observe that), so we drive it with the Web Animations API instead:
+  // pulse while hovered, then ease from the *current* scale back to rest for a
+  // smooth exit. The hover region is the whole .auth-sigil circle, matching the
+  // CSS glow/border hover.
+  useEffect(() => {
+    if (kind !== 'birth') return;
+    const root = ref.current;
+    const circle = root?.closest('.auth-sigil') as HTMLElement | null;
+    const rays = root?.querySelector<SVGGElement>('.as-rays');
+    const core = root?.querySelector<SVGCircleElement>('.as-core');
+    if (!circle || !rays || !core) return;
+
+    const EASE = 'cubic-bezier(.37,0,.2,1)';
+    let raysAnim: Animation | null = null;
+    let coreAnim: Animation | null = null;
+
+    const pulse = (el: Element, peak: number) =>
+      el.animate(
+        [{ transform: 'scale(1)' }, { transform: `scale(${peak})` }, { transform: 'scale(1)' }],
+        { duration: 1800, iterations: Infinity, easing: 'ease-in-out' },
+      );
+
+    const settle = (el: Element, prev: Animation | null) => {
+      const current = getComputedStyle(el).transform;
+      prev?.cancel();
+      return el.animate(
+        [{ transform: current === 'none' ? 'scale(1)' : current }, { transform: 'scale(1)' }],
+        { duration: 620, easing: EASE },
+      );
+    };
+
+    const onEnter = () => {
+      raysAnim?.cancel();
+      coreAnim?.cancel();
+      raysAnim = pulse(rays, 1.16);
+      coreAnim = pulse(core, 1.4);
+    };
+    const onLeave = () => {
+      raysAnim = settle(rays, raysAnim);
+      coreAnim = settle(core, coreAnim);
+    };
+
+    circle.addEventListener('mouseenter', onEnter);
+    circle.addEventListener('mouseleave', onLeave);
+    return () => {
+      circle.removeEventListener('mouseenter', onEnter);
+      circle.removeEventListener('mouseleave', onLeave);
+      raysAnim?.cancel();
+      coreAnim?.cancel();
+    };
+  }, [kind]);
+
   const inner =
     kind === 'login' ? <LoginSparkle /> :
     kind === 'signup' ? <SignupAsterisk /> :
     kind === 'forgot' ? <ForgotKey /> :
     <BirthBurst />;
-  return <div className={`auth-sigil-svg auth-sigil-${kind}`}>{inner}</div>;
+  return <div ref={ref} className={`auth-sigil-svg auth-sigil-${kind}`}>{inner}</div>;
 }

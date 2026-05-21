@@ -628,6 +628,15 @@ export default function AuthBridge() {
           return;
         }
         await onAuthSuccess();
+      } else if (window.location.pathname === '/') {
+        // No client session, yet the server rendered the prototype shell (it
+        // only does so for users it considered authenticated — see app/page.tsx).
+        // This server/client mismatch (cleared/expired local session) otherwise
+        // strands the visitor on the default data-view="natal" shell with an
+        // empty reading. Send them to the login page. /auth is guarded by the
+        // pathname check so we never bounce away from the auth view itself.
+        console.log("[AB] No session on / — redirecting to /auth");
+        window.location.replace('/auth' + (window.location.search || ''));
       }
     }
 
