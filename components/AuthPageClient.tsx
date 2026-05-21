@@ -52,7 +52,27 @@ export default function AuthPageClient() {
     let attempts = 0;
     const maxAttempts = 30; // ~6s at 200ms interval
 
+    // Restore the language the visitor last picked. Step transitions like
+    // signup → /auth?step=birth do a full page reload, which would otherwise
+    // reset to the KA default; setLang persists the choice to localStorage.
+    let langRestored = false;
+    const restoreLang = () => {
+      const setLang = (window as unknown as Record<string, unknown>).setLang as
+        | ((l: string, b: HTMLElement | null) => void)
+        | undefined;
+      if (!setLang) return false; // runtime not loaded yet — retry on next poll
+      let saved: string | null = null;
+      try { saved = localStorage.getItem('astrolo:lang'); } catch { /* private mode */ }
+      if (saved === 'en') {
+        const enBtn = document.querySelectorAll<HTMLElement>('.lg .lo')[1] ?? null;
+        setLang('en', enBtn);
+      }
+      return true;
+    };
+
     const applyAuthState = () => {
+      if (!langRestored) langRestored = restoreLang();
+
       const w = window as unknown as Record<string, unknown>;
       const switchView = w.switchView as ((view: string, btn?: HTMLElement) => void) | undefined;
       const goAuthStep = w.goAuthStep as ((n: number) => void) | undefined;
@@ -71,8 +91,9 @@ export default function AuthPageClient() {
         return true;
       }
 
-      // When no explicit step required, one pass is enough.
-      if (step !== 'birth') return true;
+      // When no explicit step required, one pass is enough — but keep polling
+      // until the runtime has loaded so the language restore above can run.
+      if (step !== 'birth') return langRestored;
 
       return false;
     };

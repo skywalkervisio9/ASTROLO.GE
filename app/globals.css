@@ -854,16 +854,20 @@ body[data-view="auth"] #page-signup .field{margin-bottom:8px}
    instead of snapping. */
 .auth-sigil-signup .as-svg{transform:rotate(0);transition:transform 6s cubic-bezier(.4,0,.2,1)}
 .auth-sigil:has(.auth-sigil-signup):hover .as-svg{transform:rotate(720deg)}
-/* Birth-data burst: rays extend and core grows on hover. Both use
-   transitions (not keyframe animations) so the icon eases smoothly
-   back to rest when the hover ends instead of snapping. The core
-   animates its r attribute to grow in place without positional drift. */
-.auth-sigil-birth .as-rays{transform:scale(1);transform-origin:center;transform-box:fill-box;transition:transform 1.6s cubic-bezier(.4,0,.2,1)}
-.auth-sigil-birth .as-core{transition:r 1.2s cubic-bezier(.4,0,.2,1)}
+/* Birth-data burst: the sun pulsates while hovered (rays + core breathe
+   together via looping keyframes). The base rule keeps a transform
+   transition so that when the hover ends and the animation is removed,
+   the icon eases smoothly back to its resting scale instead of snapping
+   mid-pulse. Both use transform-box:fill-box so they scale about their
+   own centre with no positional drift. */
+.auth-sigil-birth .as-rays{transform:scale(1);transform-origin:center;transform-box:fill-box;transition:transform .9s cubic-bezier(.4,0,.2,1)}
+.auth-sigil-birth .as-core{transform:scale(1);transform-origin:center;transform-box:fill-box;transition:transform .9s cubic-bezier(.4,0,.2,1)}
 .auth-sigil:has(.auth-sigil-birth):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
 .auth-sigil:has(.auth-sigil-birth):hover .auth-sigil-svg{filter:drop-shadow(0 0 22px rgba(228,199,107,.65))}
-.auth-sigil:has(.auth-sigil-birth):hover .as-rays{transform:scale(1.18)}
-.auth-sigil:has(.auth-sigil-birth):hover .as-core{r:6}
+.auth-sigil:has(.auth-sigil-birth):hover .as-rays{animation:authBurstPulse 1.5s ease-in-out infinite}
+.auth-sigil:has(.auth-sigil-birth):hover .as-core{animation:authCorePulse 1.5s ease-in-out infinite}
+@keyframes authBurstPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+@keyframes authCorePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.45)}}
 .auth-header{text-align:center;margin-bottom:28px}
 .auth-header h1{font-family:var(--fd);font-weight:400;font-size:clamp(1.5rem,3.5vw,2rem);color:var(--gold);letter-spacing:.06em;margin-bottom:6px}
 .auth-header .sub{font-size:.78rem;color:var(--txd);letter-spacing:.12em}
@@ -920,9 +924,14 @@ body[data-view="auth"] #page-signup .field{margin-bottom:8px}
 .msg.success{background:rgba(107,154,107,.06);border:1px solid rgba(107,154,107,.15);color:var(--earth)}
 .terms{font-size:.64rem;color:var(--txd);text-align:center;margin-top:14px;line-height:1.7}
 .terms a{color:var(--gd);text-decoration:none;transition:color .3s}.terms a:hover{color:var(--gold)}
-.auth-hint{background:linear-gradient(135deg,rgba(201,168,76,.05),rgba(201,168,76,.02));border:1px solid rgba(201,168,76,.1);border-radius:12px;padding:18px 22px;margin-bottom:16px}
-.auth-hint .hint-t{font-family:var(--fd);font-size:.78rem;font-weight:600;color:var(--gold);margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.auth-hint p{font-size:.82rem;color:var(--silver);line-height:1.85}
+/* Collapsed hint: only the "why do we need this?" question sits in the layout,
+   so the DOB fields take the freed space and the card needs no scrollbar. The
+   explanation reveals on hover as an absolutely-positioned overlay — it adds no
+   height to the panel — and eases smoothly back out when the hover ends. */
+.auth-hint{position:relative;background:linear-gradient(135deg,rgba(201,168,76,.05),rgba(201,168,76,.02));border:1px solid rgba(201,168,76,.1);border-radius:12px;padding:12px 18px;margin-bottom:14px;cursor:help;z-index:6}
+.auth-hint .hint-t{font-family:var(--fd);font-size:.78rem;font-weight:600;color:var(--gold);margin-bottom:0;display:flex;align-items:center;gap:6px}
+.auth-hint p{position:absolute;left:0;right:0;top:calc(100% + 6px);margin:0;background:var(--sf3);border:1px solid rgba(201,168,76,.18);border-radius:12px;padding:14px 18px;font-size:.82rem;color:var(--silver);line-height:1.7;opacity:0;transform:translateY(-8px);transform-origin:top center;pointer-events:none;box-shadow:0 16px 38px rgba(0,0,0,.5);transition:opacity .4s var(--ease),transform .4s var(--ease);z-index:30}
+.auth-hint:hover p{opacity:1;transform:translateY(0);pointer-events:auto}
 .auth-invite-hero{display:none;flex-direction:column;align-items:center;text-align:center;gap:18px;padding:26px 24px 24px;margin:0 0 28px;background:linear-gradient(180deg,rgba(201,168,76,.07) 0%,rgba(201,168,76,.02) 55%,rgba(201,168,76,.05) 100%);border:1px solid rgba(201,168,76,.18);border-radius:16px;position:relative;overflow:hidden;animation:inviteHeroIn .8s var(--ease)}
 body[data-invite-arrival="true"] .auth-invite-hero{display:flex}
 body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}

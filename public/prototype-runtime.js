@@ -653,6 +653,10 @@ function setLang(l, b) {
   if (b) b.classList.add('active');
   document.body.classList.toggle('lang-en', l === 'en');
   applyTranslations(l);
+  // Persist the choice so full-page auth-step transitions (e.g. signup →
+  // /auth?step=birth) and plain reloads keep the same language instead of
+  // snapping back to the KA default. AuthPageClient restores this on load.
+  try { localStorage.setItem('astrolo:lang', l); } catch (e) { /* private mode / quota */ }
   if (l === 'ka' || l === 'en') {
     // Let HydrationBridge handle it on authenticated pages (it sets this flag)
     if (window.__hydrationBridgeActive) {
