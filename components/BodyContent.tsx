@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import SynastryViewWrapper from './synastry/SynastryViewWrapper';
 import SynastryConnectionSync from './SynastryConnectionSync';
+import AuthSigil from './AuthSigil';
 import { createClient } from '@/lib/supabase/client';
 import { createSynastryInviteLink } from '@/lib/invite/create-invite-link';
 
@@ -73,6 +74,7 @@ type ProtoGlobals = {
   go?: (id: string) => void;
   toggleExp?: (btn: HTMLElement) => void;
   showAuthPage?: (id: string) => void;
+  navigateAuthStep?: (id: string) => void;
   goAuthStep?: (n: number) => void;
   togglePw?: (btn: HTMLElement) => void;
   selectGender?: (el: HTMLElement, v: string) => void;
@@ -531,9 +533,9 @@ export default function BodyContent() {
 <div className="auth-wrap" id="authWrap">
   <div className="auth-card">
     <div className="steps-bar" id="stepsBar">
-      <div className="step-dot active" id="sd1"></div><div className="step-line" id="sl1"></div>
-      <div className="step-dot" id="sd2"></div><div className="step-line" id="sl2"></div>
-      <div className="step-dot" id="sd3"></div>
+      <button type="button" className="step-dot active" id="sd1" aria-label="შესვლა" onClick={() => { proto().navigateAuthStep?.("page-login"); }}></button><div className="step-line" id="sl1"></div>
+      <button type="button" className="step-dot" id="sd2" aria-label="რეგისტრაცია" onClick={() => { proto().navigateAuthStep?.("page-signup"); }}></button><div className="step-line" id="sl2"></div>
+      <button type="button" className="step-dot" id="sd3" aria-label="დაბადების მონაცემები" onClick={() => { proto().navigateAuthStep?.("page-birth"); }}></button>
     </div>
 
     <div className="auth-invite-hero" id="authInviteHero" aria-hidden="true">
@@ -553,7 +555,7 @@ export default function BodyContent() {
     </div>
 
     <div className="auth-page active" id="page-login">
-      <div className="auth-sigil"><div className="auth-sigil-icon">☽</div></div>
+      <div className="auth-sigil"><AuthSigil kind="login" /></div>
       <div className="auth-header"><h1>შესვლა</h1><div className="sub">შენი ციური ნახაზი გელოდება</div></div>
       <div className="auth-panel">
         <div className="msg error" id="login-error"></div>
@@ -570,7 +572,7 @@ export default function BodyContent() {
 
     
     <div className="auth-page" id="page-signup">
-      <div className="auth-sigil"><div className="auth-sigil-icon">✦</div></div>
+      <div className="auth-sigil"><AuthSigil kind="signup" /></div>
       <div className="auth-header"><h1>რეგისტრაცია</h1><div className="sub">დაიწყე შენი ციური მოგზაურობა</div></div>
       <div className="auth-panel">
         <div className="msg error" id="signup-error"></div>
@@ -582,16 +584,15 @@ export default function BodyContent() {
         <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="signup-pw" placeholder="მინ. 8 სიმბოლო" autoComplete="new-password"/><button className="pw-toggle" onClick={(e) => { proto().togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
         <button className="auth-btn" onClick={() => { proto().handleSignup?.(); }} style={{marginTop: '4px'}}><span className="btn-text">რეგისტრაცია</span></button>
         <div className="terms">რეგისტრაციით ეთანხმები <a href="#">პირობებს</a> და <a href="#">კონფიდენციალობას</a></div>
-        <div className="auth-footer">უკვე გაქვს ანგარიში? <a href="#" onClick={(e) => { e.preventDefault(); proto().showAuthPage?.("page-login"); }}>შესვლა</a></div>
+        <div className="auth-footer">უკვე გაქვს ანგარიში? <a href="#" onClick={(e) => { e.preventDefault(); proto().showAuthPage?.("page-login"); }} style={{borderBottom: '1px solid rgba(201,168,76,.35)', paddingBottom: '1px'}}>შესვლა</a></div>
       </div>
     </div>
 
     
     <div className="auth-page" id="page-forgot">
-      <div className="auth-sigil"><div className="auth-sigil-icon">✧</div></div>
+      <div className="auth-sigil"><AuthSigil kind="forgot" /></div>
       <div className="auth-header"><h1>პაროლის აღდგენა</h1><div className="sub">შეიყვანე ელ-ფოსტა</div></div>
       <div className="auth-panel">
-        <button className="back-link" onClick={() => { proto().showAuthPage?.("page-login"); }}><span>←</span> შესვლაზე დაბრუნება</button>
         <div className="msg error" id="forgot-error"></div>
         <div id="forgot-form"><div className="field"><label>ელ-ფოსტა</label><input type="email" id="forgot-email" placeholder="name@example.com"/></div><button className="auth-btn" onClick={() => { proto().handleForgot?.(); }}><span className="btn-text">ბმულის გაგზავნა</span></button></div>
         <div id="forgot-success" style={{display: 'none'}}><div className="reset-success"><div className="check-icon">✓</div><h3>ბმული გაგზავნილია</h3><p>თუ ანგარიში არსებობს, მალე მიიღებ აღდგენის ბმულს.</p></div><button className="auth-btn" onClick={() => { proto().showAuthPage?.("page-login"); }} style={{marginTop: '12px'}}><span className="btn-text">დაბრუნება</span></button></div>
@@ -600,11 +601,11 @@ export default function BodyContent() {
 
     
     <div className="auth-page" id="page-birth">
-      <div className="auth-sigil"><div className="auth-sigil-icon">⊛</div></div>
+      <div className="auth-sigil"><AuthSigil kind="birth" /></div>
       <div className="auth-header"><h1>დაბადების მონაცემები</h1><div className="sub">ნატალური რუკის აგებისთვის</div></div>
       <div className="auth-panel">
         <div className="msg error" id="birth-error"></div>
-        <div className="auth-hint"><div className="hint-t">✦ რატომ გვჭირდება?</div><p>ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.</p></div>
+        <div className="auth-hint"><div className="hint-t"><span className="hint-star">✦</span> რატომ გვჭირდება?</div><p>ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.</p></div>
         <div className="field-row-3"><div className="field"><label>დღე</label><select id="birth-day"><option value="">—</option></select></div><div className="field"><label>თვე</label><select id="birth-month"><option value="">—</option></select></div><div className="field"><label>წელი</label><select id="birth-year"><option value="">—</option></select></div></div>
         <div className="field-row"><div className="field"><label>საათი</label><select id="birth-hour"><option value="">—</option></select></div><div className="field"><label>წუთი</label><select id="birth-min"><option value="">—</option></select></div></div>
         <label className="check-row"><input type="checkbox" id="time-unknown" onChange={() => { proto().toggleTimeUnknown?.(); }}/><div className="check-box">✓</div><span className="check-label">დაბადების დრო უცნობია</span></label>
@@ -861,7 +862,7 @@ function GlyphSymbols() {
 <symbol id="gl-saturn" viewBox="0 0 24 24"><path d="M8 2l-3 3M5 5l2 2M9 9c-3 3-3 7 0 10s7 3 10 0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="9" y1="9" x2="9" y2="20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="6" y1="14" x2="12" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
 <symbol id="gl-pluto" viewBox="0 0 24 24"><circle cx="12" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/><path d="M12 7m-2 0a2 2 0 104 0 2 2 0 10-4 0" fill="none" stroke="currentColor" strokeWidth="1.2"/><line x1="12" y1="12" x2="12" y2="20" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="8" y1="17" x2="16" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
     <symbol id="gl-asc" viewBox="0 0 24 24"><path d="M12 3L6 21h2.5l1.5-5h8l1.5 5H22L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><line x1="9" y1="15" x2="15" y2="15" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></symbol>
-    <symbol id="gl-conjunction" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.4"/><line x1="12" y1="5" x2="12" y2="2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></symbol>
+    <symbol id="gl-conjunction" viewBox="0 0 24 24"><circle cx="9" cy="12" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/><circle cx="15" cy="12" r="5" fill="none" stroke="currentColor" strokeWidth="1.4"/></symbol>
     <symbol id="gl-trine" viewBox="0 0 24 24"><path d="M12 3L22 20H2L12 3z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
     <symbol id="gl-square" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></symbol>
     <symbol id="gl-sextile" viewBox="0 0 24 24"><path d="M12 2l2.6 4.5H22l-3.7 6L22 17.5h-7.4L12 22l-2.6-4.5H2l3.7-5.5L2 7.5h7.4z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></symbol>

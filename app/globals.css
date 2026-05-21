@@ -71,13 +71,17 @@ body[data-public-view] .pn{color:#a6d9e4;max-width:180px;white-space:nowrap;over
 .sb-nav-item:hover{border-color:rgba(201,168,76,.15);box-shadow:0 4px 12px rgba(201,168,76,.06)}
 .sb-nav-item.active{border-color:rgba(201,168,76,.2);background:rgba(201,168,76,.04)}
 .sb-nav-item.active .sb-nav-label{color:var(--gold)}
-.sb-nav-icon{flex-shrink:0;font-size:.9rem;color:var(--gd);display:flex;align-items:center}
-.sb-nav-icon svg{width:13px;height:13px;color:var(--gd)}
+.sb-nav-icon{flex-shrink:0;font-size:1.05rem;color:var(--gold);display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.16);transition:background .35s var(--ease),border-color .35s var(--ease),box-shadow .35s var(--ease),color .35s var(--ease)}
+.sb-nav-icon svg{width:14px;height:14px;color:var(--gold);filter:drop-shadow(0 0 4px rgba(228,199,107,.25));transition:filter .35s var(--ease)}
+.sb-nav-item:hover .sb-nav-icon{background:rgba(201,168,76,.14);border-color:rgba(201,168,76,.32);box-shadow:0 0 12px rgba(228,199,107,.18)}
+.sb-nav-item:hover .sb-nav-icon svg{filter:drop-shadow(0 0 8px rgba(228,199,107,.55))}
+.sb-nav-item.active .sb-nav-icon{background:rgba(201,168,76,.18);border-color:rgba(201,168,76,.4);color:var(--gold-bright)}
+.sb-nav-item.active .sb-nav-icon svg{color:var(--gold-bright);filter:drop-shadow(0 0 8px rgba(228,199,107,.5))}
 .sb-nav-text{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:1px}
 .sb-nav-label{font-size:.74rem;color:var(--silver);transition:color .3s;white-space:nowrap}
 .sb-nav-partner{font-size:.62rem;color:var(--txd);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-nav-item.invite-btn{border-style:dashed;background:none;justify-content:center}
-.sb-nav-item.invite-btn .sb-nav-icon{color:var(--gold);font-size:1.1rem;font-weight:300;font-family:'Cormorant Garamond',serif}
+.sb-nav-item.invite-btn .sb-nav-icon{color:var(--gold);font-size:1.05rem;font-weight:300;font-family:'Cormorant Garamond',serif;line-height:1}
 .sb-nav-item.invite-btn:hover{background:rgba(201,168,76,.04);border-color:rgba(201,168,76,.2)}
 .mode-badge{display:inline-flex;align-items:center;gap:5px;font-size:.58rem;letter-spacing:.1em;padding:4px 12px;border-radius:100px;margin-left:auto;flex-shrink:0}
 .mode-badge.couple{color:var(--rose);background:rgba(196,122,138,.12);border:1px solid rgba(196,122,138,.2)}
@@ -805,10 +809,31 @@ body[data-view="auth"] .nb { display: none; }
 body[data-view="auth"] .tb .pb { display: none; }
 
 .auth-wrap{position:relative;z-index:2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px 40px}
+/* Auth view: no scroll-progress bar; top-align so the steps bar is always
+   visible. Compact paddings keep every step within the viewport.
+   When a tall form (birth) overflows, only the panel scrolls — the dots
+   and sigil stay anchored above so they never slide behind the header. */
+body[data-view="auth"]{overflow:hidden}
+body[data-view="auth"] .pbar{display:none}
+body[data-view="auth"] .auth-wrap{min-height:100vh;height:100vh;padding:68px 24px 16px;align-items:flex-start}
+body[data-view="auth"] .auth-card{display:flex;flex-direction:column;max-height:100%}
+body[data-view="auth"] .auth-page{display:flex;flex-direction:column;min-height:0;flex:1}
+body[data-view="auth"] .auth-page:not(.active){display:none}
+body[data-view="auth"] .auth-sigil{margin-bottom:8px;width:74px;height:74px;flex-shrink:0}
+body[data-view="auth"] .auth-sigil-svg{width:58px;height:58px}
+body[data-view="auth"] .auth-header{margin-bottom:12px;flex-shrink:0}
+body[data-view="auth"] .auth-panel{padding:18px;overflow-y:auto;min-height:0}
+body[data-view="auth"] .auth-divider{margin:14px 0}
+body[data-view="auth"] #page-signup .field{margin-bottom:8px}
+/* Hint-box star rotates on hover, eases back out smoothly. */
+.hint-star{display:inline-block;transform:rotate(0);transition:transform 1.4s cubic-bezier(.4,0,.2,1)}
+.auth-hint:hover .hint-star{transform:rotate(360deg)}
 .auth-card{width:100%;max-width:460px;position:relative}
 .auth-card::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:400px;height:400px;background:radial-gradient(circle,rgba(201,168,76,.04) 0%,rgba(201,168,76,.01) 40%,transparent 70%);pointer-events:none}
 .steps-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:32px}
-.step-dot{width:8px;height:8px;border-radius:50%;background:var(--sf2);border:1px solid rgba(201,168,76,.1);transition:all .5s var(--ease)}
+.step-dot{width:10px;height:10px;border-radius:50%;background:var(--sf2);border:1px solid rgba(201,168,76,.1);transition:all .35s var(--ease);cursor:pointer;padding:0}
+.step-dot:hover{border-color:var(--gold);box-shadow:0 0 10px rgba(228,199,107,.32);transform:scale(1.18)}
+.step-dot:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
 .step-dot.active{background:var(--gold);border-color:var(--gold);box-shadow:0 0 8px rgba(201,168,76,.3)}
 .step-dot.done{background:var(--gd);border-color:var(--gd)}
 .step-line{width:32px;height:1px;background:rgba(201,168,76,.08);transition:background .5s}
@@ -817,6 +842,28 @@ body[data-view="auth"] .tb .pb { display: none; }
 .auth-sigil::before{content:'';position:absolute;inset:-8px;border:1px solid rgba(201,168,76,.1);border-radius:50%}
 .auth-sigil::after{content:'';position:absolute;inset:-16px;border:1px solid rgba(201,168,76,.05);border-radius:50%}
 .auth-sigil-icon{font-size:30px;animation:sp 60s linear infinite reverse}
+.auth-sigil-svg{width:70px;height:70px;display:flex;align-items:center;justify-content:center;color:var(--gold);animation:sp 60s linear infinite reverse;filter:drop-shadow(0 0 12px rgba(228,199,107,.22));transition:filter .55s var(--ease),transform .55s var(--ease)}
+.auth-sigil-svg .as-svg{width:100%;height:100%;display:block;transition:transform .55s var(--ease),filter .55s var(--ease)}
+.auth-sigil:has(.auth-sigil-login):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
+.auth-sigil:has(.auth-sigil-login):hover .auth-sigil-svg{filter:drop-shadow(0 0 24px rgba(228,199,107,.65))}
+.auth-sigil:has(.auth-sigil-login):hover .as-svg{transform:scale(1.12);filter:blur(.35px)}
+.auth-sigil:has(.auth-sigil-signup):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
+.auth-sigil:has(.auth-sigil-signup):hover .auth-sigil-svg{filter:drop-shadow(0 0 22px rgba(228,199,107,.65))}
+/* Hover spin: transition between rotate(0) and rotate(720deg) so the asterisk
+   eases into two full turns on hover and eases back to rest on hover-out
+   instead of snapping. */
+.auth-sigil-signup .as-svg{transform:rotate(0);transition:transform 6s cubic-bezier(.4,0,.2,1)}
+.auth-sigil:has(.auth-sigil-signup):hover .as-svg{transform:rotate(720deg)}
+/* Birth-data burst: rays extend and core grows on hover. Both use
+   transitions (not keyframe animations) so the icon eases smoothly
+   back to rest when the hover ends instead of snapping. The core
+   animates its r attribute to grow in place without positional drift. */
+.auth-sigil-birth .as-rays{transform:scale(1);transform-origin:center;transform-box:fill-box;transition:transform 1.6s cubic-bezier(.4,0,.2,1)}
+.auth-sigil-birth .as-core{transition:r 1.2s cubic-bezier(.4,0,.2,1)}
+.auth-sigil:has(.auth-sigil-birth):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
+.auth-sigil:has(.auth-sigil-birth):hover .auth-sigil-svg{filter:drop-shadow(0 0 22px rgba(228,199,107,.65))}
+.auth-sigil:has(.auth-sigil-birth):hover .as-rays{transform:scale(1.18)}
+.auth-sigil:has(.auth-sigil-birth):hover .as-core{r:6}
 .auth-header{text-align:center;margin-bottom:28px}
 .auth-header h1{font-family:var(--fd);font-weight:400;font-size:clamp(1.5rem,3.5vw,2rem);color:var(--gold);letter-spacing:.06em;margin-bottom:6px}
 .auth-header .sub{font-size:.78rem;color:var(--txd);letter-spacing:.12em}

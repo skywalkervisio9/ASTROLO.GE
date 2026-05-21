@@ -1761,29 +1761,73 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
 let authStep = 1;
 let selectedGender = '';
 
+// Visual step mapping: each auth page lights up its dot in the progress bar.
+// page-forgot is a detour off the login step so we keep dot 1 active there.
+const AUTH_PAGE_STEP = { 'page-login': 1, 'page-forgot': 1, 'page-signup': 2, 'page-birth': 3 };
+
+// Forward step-dot clicks must run the current page's form validation when
+// the destination is a step that actually depends on it. Signup is an
+// alternate entry path (parallel to login), so navigating *to* signup never
+// requires login credentials. Only "→ birth" (which assumes the user is
+// authenticated) gates on the current page's fields.
+function canAdvanceFromAuthPage(fromId, toId) {
+  if (toId === 'page-signup') return true;
+  if (fromId === 'page-login' && toId === 'page-birth') {
+    const email = document.getElementById('login-email').value.trim();
+    const pw = document.getElementById('login-pw').value;
+    if (!email) { showAuthError('login-error', 'შეიყვანე ელ-ფოსტა'); return false; }
+    if (!pw) { showAuthError('login-error', 'შეიყვანე პაროლი'); return false; }
+    return true;
+  }
+  if (fromId === 'page-signup' && toId === 'page-birth') {
+    const name = document.getElementById('signup-name').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const pw = document.getElementById('signup-pw').value;
+    if (!name) { showAuthError('signup-error', 'შეიყვანე სახელი'); return false; }
+    if (!email) { showAuthError('signup-error', 'შეიყვანე ელ-ფოსტა'); return false; }
+    if (pw.length < 8) { showAuthError('signup-error', 'პაროლი მინ. 8 სიმბოლო'); return false; }
+    return true;
+  }
+  return true;
+}
+
+// Called from step-dot clicks. Goes through validation when moving forward.
+function navigateAuthStep(targetId) {
+  const currentPage = document.querySelector('.auth-page.active');
+  if (!currentPage) { showAuthPage(targetId); return; }
+  const currentId = currentPage.id;
+  const currentStep = AUTH_PAGE_STEP[currentId] || 1;
+  const targetStep = AUTH_PAGE_STEP[targetId] || 1;
+  if (targetStep > currentStep && !canAdvanceFromAuthPage(currentId, targetId)) return;
+  showAuthPage(targetId);
+}
+
 function showAuthPage(id) {
   document.querySelectorAll('.auth-page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.msg').forEach(m => { m.classList.remove('show'); m.textContent = ''; });
   if (id === 'page-forgot') { document.getElementById('forgot-form').style.display = 'block'; document.getElementById('forgot-success').style.display = 'none'; }
+  const visualStep = AUTH_PAGE_STEP[id];
+  if (visualStep) renderAuthSteps(visualStep);
 }
 
 function goAuthStep(n) {
   authStep = n;
-  updateAuthStepUI();
   if (n === 1) showAuthPage('page-login');
   else if (n === 2) showAuthPage('page-birth');
   else if (n === 3) startLoading();
 }
 
-function updateAuthStepUI() {
+function renderAuthSteps(step) {
   for (let i = 1; i <= 3; i++) {
     const dot = document.getElementById('sd' + i);
-    const line = document.getElementById('sl' + (i - 1));
-    if (dot) { dot.className = 'step-dot' + (i < authStep ? ' done' : '') + (i === authStep ? ' active' : ''); }
-    if (line) { line.className = 'step-line' + (i <= authStep ? ' done' : ''); }
+    const line = document.getElementById('sl' + i);
+    if (dot) { dot.className = 'step-dot' + (i < step ? ' done' : '') + (i === step ? ' active' : ''); }
+    if (line) { line.className = 'step-line' + (step > i ? ' done' : ''); }
   }
 }
+
+function updateAuthStepUI() { renderAuthSteps(authStep); }
 
 function togglePw(btn) {
   const input = btn.previousElementSibling;
