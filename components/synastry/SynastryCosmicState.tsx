@@ -83,8 +83,8 @@ const COPY: Record<Mode, Record<Language, { eyebrow: string; title: string; sub:
     ka: {
       eyebrow: '· იქმნება ·',
       title: 'თქვენი ვარსკვლავური ისტორია იწერება',
-      sub: 'ანალიზი ერთ რამდენიმე წუთს მოითხოვს. შეგიძლია გაჩერდე და დაელოდო — ან მოგვიანებით დაბრუნდე.',
-      note: 'შენ ამ მომენტში ცას ერთად კითხულობთ.',
+      sub: 'ანალიზი რამდენიმე წუთს მოითხოვს. შეგიძლია გაჩერდე და დაელოდო — ან მოგვიანებით დაბრუნდე.',
+      note: 'შენ და შენი პარტნიორი ამ მომენტში ცას ერთად კითხულობთ.',
     },
     en: {
       eyebrow: '· generating ·',
@@ -140,8 +140,91 @@ function useStarfield(count = 38): Star[] {
   return stars;
 }
 
+// Soft aura of glowing star-motes that replaces the old radial "spark" ticks.
+// Deterministic (no Math.random) so SSR and CSR markup match.
+const MOTES = Array.from({ length: 14 }).map((_, i) => ({
+  a: (360 / 14) * i,
+  r: 78 + (i % 3) * 9,
+  size: i % 4 === 0 ? 3.5 : i % 2 === 0 ? 2.5 : 2,
+  rose: i % 3 === 1,
+  delay: (i * 0.34).toFixed(2),
+}));
+
+// Parallax tilt driven by mouse position (desktop) or device gyro (mobile).
+// Writes smoothed CSS vars on the root: --ryd/--rxd (scene rotation, deg) and
+// --px/--py (background drift, px). No-ops under prefers-reduced-motion.
+function useParallax() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0;
+    const clamp = (n: number) => (n < -1 ? -1 : n > 1 ? 1 : n);
+
+    const tick = () => {
+      cx += (tx - cx) * 0.07;
+      cy += (ty - cy) * 0.07;
+      el.style.setProperty('--ryd', (cx * 9).toFixed(2) + 'deg');
+      el.style.setProperty('--rxd', (-cy * 9).toFixed(2) + 'deg');
+      el.style.setProperty('--px', (cx * 14).toFixed(2) + 'px');
+      el.style.setProperty('--py', (cy * 14).toFixed(2) + 'px');
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    const onMouse = (e: MouseEvent) => {
+      tx = (e.clientX / window.innerWidth) * 2 - 1;
+      ty = (e.clientY / window.innerHeight) * 2 - 1;
+    };
+    window.addEventListener('mousemove', onMouse, { passive: true });
+
+    // Calibrate gyro to the holding angle of the first reading.
+    let baseG: number | null = null, baseB: number | null = null;
+    const onOrient = (e: DeviceOrientationEvent) => {
+      if (e.gamma == null || e.beta == null) return;
+      if (baseG == null) { baseG = e.gamma; baseB = e.beta; }
+      tx = clamp((e.gamma - baseG) / 28);
+      ty = clamp((e.beta - (baseB as number)) / 28);
+    };
+
+    // iOS 13+ gates deviceorientation behind a permission prompt that must be
+    // triggered by a user gesture; request it on the first tap/click.
+    const DOE = window.DeviceOrientationEvent as unknown as
+      { requestPermission?: () => Promise<string> } | undefined;
+    let cleanupGesture: (() => void) | null = null;
+    if (DOE && typeof DOE.requestPermission === 'function') {
+      const onFirst = () => {
+        DOE.requestPermission!()
+          .then((s) => { if (s === 'granted') window.addEventListener('deviceorientation', onOrient, true); })
+          .catch(() => {});
+        cleanupGesture?.();
+      };
+      cleanupGesture = () => {
+        window.removeEventListener('touchend', onFirst);
+        window.removeEventListener('click', onFirst);
+        cleanupGesture = null;
+      };
+      window.addEventListener('touchend', onFirst, { once: true });
+      window.addEventListener('click', onFirst, { once: true });
+    } else {
+      window.addEventListener('deviceorientation', onOrient, true);
+    }
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('mousemove', onMouse);
+      window.removeEventListener('deviceorientation', onOrient, true);
+      cleanupGesture?.();
+    };
+  }, []);
+  return ref;
+}
+
 export default function SynastryCosmicState({ mode, language, progressLabel, onInvite, errorText }: Props) {
   const stars = useStarfield(42);
+  const sceneRef = useParallax();
   const copy = COPY[mode][language];
   const msgs = GENERATING_MSGS[language];
   const [msgIdx, setMsgIdx] = useState(0);
@@ -179,7 +262,7 @@ export default function SynastryCosmicState({ mode, language, progressLabel, onI
     <>
       {/* Clear the 56px fixed header — same spacer SynastryView uses. */}
       <div style={{ height: '56px' }} />
-      <div className="sycos" role="status" aria-live="polite">
+      <div className="sycos" role="status" aria-live="polite" ref={sceneRef}>
       <div className="sycos-starfield" aria-hidden>
         {stars.map((s) => (
           <span
@@ -198,21 +281,34 @@ export default function SynastryCosmicState({ mode, language, progressLabel, onI
       <div className="sycos-glow" aria-hidden />
 
       <div className="sycos-scene" aria-hidden>
-        <div className="sycos-ring" />
-        <div className="sycos-orbit">
-          <span className="sycos-orbit-line" />
-          <span className="sycos-orb sycos-orb-a" />
-          <span className="sycos-orb sycos-orb-b" />
-        </div>
-        <div className="sycos-spark">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <span key={i} style={{ transform: `rotate(${i * 45}deg)` }} />
-          ))}
-        </div>
-        <div className="sycos-glyph">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <use href="#gl-conjunction" />
-          </svg>
+        <div className="sycos-tilt">
+          <div className="sycos-ring" />
+          <div className="sycos-orbit">
+            <span className="sycos-orbit-line" />
+            <span className="sycos-orb sycos-orb-a" />
+            <span className="sycos-orb sycos-orb-b" />
+          </div>
+          <div className="sycos-dust">
+            <div className="sycos-dust-rot">
+              {MOTES.map((m, i) => (
+                <span
+                  key={i}
+                  className={`sycos-mote${m.rose ? ' rose' : ''}`}
+                  style={{
+                    width: m.size,
+                    height: m.size,
+                    transform: `translate(-50%,-50%) rotate(${m.a}deg) translateY(-${m.r}px)`,
+                    animationDelay: m.delay + 's',
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="sycos-glyph">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <use href="#gl-conjunction" />
+            </svg>
+          </div>
         </div>
       </div>
 
