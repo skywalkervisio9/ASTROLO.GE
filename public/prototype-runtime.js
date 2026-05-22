@@ -452,6 +452,12 @@ function toggleDiscount(btn) {
 
 // ═══ PAYMENT PAGES ═══
 function showPaymentPage(type) {
+  // Guests (public reading view) aren't logged in, so payment/promo calls
+  // would 401. Send them to /auth to sign in first — mirrors openSidebar.
+  if (window.__ASTROLO_PUBLIC_VIEW) {
+    window.location.href = '/auth';
+    return;
+  }
   // Hide all payment sub-pages
   document.getElementById('payPremium').style.display = 'none';
   document.getElementById('payNatalUnlock').style.display = 'none';
@@ -3216,11 +3222,15 @@ function hydrateReading(reading, user) {
 
 window.hydrateReading = hydrateReading;
 
-// ═══ HINT-BOX STAR SCROLL ROTATION ═══
+// ═══ HINT-BOX STAR SCROLL ROTATION (MOBILE ONLY) ═══
 // Rotate the sparkle SVG in each .h box whenever the box crosses the viewport middle.
 // Reuses the same 90° transform defined on .h:hover — see globals.css `.h.h-active .ht svg`.
+// Mobile-only, like the .c-active card observer below: on desktop, .h-active would
+// share the hover end-state and pin the star at 90°, making :hover look broken until
+// the box scrolled out of the center band. Desktop relies on :hover alone.
 (function() {
   if (typeof IntersectionObserver === 'undefined') return;
+  if (typeof matchMedia === 'undefined' || !matchMedia('(max-width: 720px)').matches) return;
   var _hObs = new IntersectionObserver(function(entries) {
     entries.forEach(function(en) { en.target.classList.toggle('h-active', en.isIntersecting); });
   }, { rootMargin: '-45% 0px -45% 0px' }); // ~10% band around viewport vertical center
