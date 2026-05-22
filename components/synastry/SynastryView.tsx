@@ -366,26 +366,28 @@ export default function SynastryView({
     <>
       <div style={{ height: '56px' }} />
       <div className="ct">
-        {/* Breadcrumb */}
+        {/* Breadcrumb — grid keeps the active "Synastry" tab centered on the page */}
         <div className="bnav">
-          <button className="bb" onClick={() => viewerSlug ? openChart(viewerSlug) : onBackToNatal?.()}>
-            ← {language === 'ka' ? 'ჩემი რუკა' : 'My Chart'}
-          </button>
-          <span className="ndv">·</span>
+          <div className="bnav-side bnav-l">
+            <button className="bb" onClick={() => viewerSlug ? openChart(viewerSlug) : onBackToNatal?.()}>
+              ← {language === 'ka' ? 'ჩემი რუკა' : 'My Chart'}
+            </button>
+          </div>
           <button className="bb active">
             <svg style={{ width: '10px', height: '10px', fill: 'var(--gold)' }}><use href="#gl-conjunction" /></svg>
             <span>{language === 'ka' ? 'სინასტრია' : 'Synastry'}</span>
           </button>
-          <span className="ndv">·</span>
-          <button
-            type="button"
-            className="bb"
-            disabled={!otherSlug}
-            onClick={() => otherSlug && openChart(otherSlug)}
-            style={!otherSlug ? { opacity: 0.45, cursor: 'default' } : undefined}
-          >
-            {chartPossessive(otherPerson.name, language)}
-          </button>
+          <div className="bnav-side bnav-r">
+            <button
+              type="button"
+              className="bb"
+              disabled={!otherSlug}
+              onClick={() => otherSlug && openChart(otherSlug)}
+              style={!otherSlug ? { opacity: 0.45, cursor: 'default' } : undefined}
+            >
+              {chartPossessive(otherPerson.name, language)}
+            </button>
+          </div>
         </div>
 
         {/* Hero */}
@@ -506,15 +508,51 @@ function SigilSVG() {
   return (
     <div className="chero-sigil">
       <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sigil-axis-grad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="rgba(228,180,196,0)" />
+            <stop offset="24%" stopColor="rgba(228,180,196,.5)" />
+            <stop offset="50%" stopColor="rgba(201,168,76,.5)" />
+            <stop offset="76%" stopColor="rgba(228,199,107,.5)" />
+            <stop offset="100%" stopColor="rgba(228,199,107,0)" />
+          </linearGradient>
+          <radialGradient id="sigil-sun-grad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(255,244,214,.95)" />
+            <stop offset="55%" stopColor="rgba(228,199,107,.55)" />
+            <stop offset="100%" stopColor="rgba(201,168,76,0)" />
+          </radialGradient>
+        </defs>
+
+        {/* Concentric rings — slow forward drift, mirrors the loader */}
         <g className="sigil-ring">
-          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(201,168,76,.15)" strokeWidth=".8" />
-          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(201,168,76,.08)" strokeWidth=".5" strokeDasharray="2 4" />
+          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(201,168,76,.16)" strokeWidth=".8" />
+          <circle cx="50" cy="50" r="41" fill="none" stroke="rgba(201,168,76,.09)" strokeWidth=".5" strokeDasharray="1.5 5" />
+          <circle cx="50" cy="50" r="34" fill="none" stroke="rgba(196,122,138,.08)" strokeWidth=".5" />
         </g>
+
+        {/* Moon + Sun on a luminous axis — slow counter-orbit */}
         <g className="sigil-inner">
-          <circle cx="50" cy="50" r="36" fill="none" stroke="rgba(201,168,76,.1)" strokeWidth=".6" />
-          <path d="M38 38a14 14 0 1 0 0 24 10 10 0 0 1 0-24z" fill="none" stroke="rgba(201,168,76,.6)" strokeWidth="1.2" strokeLinecap="round" />
-          <circle cx="58" cy="50" r="7" fill="none" stroke="rgba(201,168,76,.6)" strokeWidth="1.2" />
-          <circle cx="58" cy="50" r="1.5" fill="rgba(201,168,76,.5)" />
+          <line x1="29" y1="50" x2="71" y2="50" className="sigil-axis" stroke="url(#sigil-axis-grad)" strokeWidth="1" />
+
+          {/* Moon — elegant thin crescent (rose) */}
+          <g className="sigil-moon">
+            <path d="M30 41a9 9 0 1 0 0 18 7 7 0 0 1 0-18z" fill="rgba(228,180,196,.12)" stroke="rgba(228,180,196,.72)" strokeWidth="1" strokeLinejoin="round" />
+          </g>
+
+          {/* Sun — radiant disc with delicate rays (gold) */}
+          <g className="sigil-sun">
+            <circle cx="70" cy="50" r="9" fill="url(#sigil-sun-grad)" />
+            <circle cx="70" cy="50" r="5.2" fill="none" stroke="rgba(228,199,107,.78)" strokeWidth="1" />
+            <circle cx="70" cy="50" r="1.6" fill="rgba(255,246,222,.95)" />
+            {Array.from({ length: 8 }).map((_, i) => (
+              <line
+                key={i}
+                x1="70" y1="40" x2="70" y2="36.6"
+                stroke="rgba(228,199,107,.6)" strokeWidth=".8" strokeLinecap="round"
+                transform={`rotate(${i * 45} 70 50)`}
+              />
+            ))}
+          </g>
         </g>
       </svg>
     </div>
