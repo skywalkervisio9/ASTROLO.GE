@@ -46,6 +46,7 @@ export default function AuthBridge() {
         loginInvalidCredentials: "არასწორი ელ-ფოსტა ან პაროლი",
         signupNameRequired: "შეიყვანე სახელი",
         signupPasswordShort: "პაროლი მინ. 8 სიმბოლო",
+        resetPwMismatch: "პაროლები არ ემთხვევა",
         birthDateRequired: "შეავსე დაბადების თარიღი",
         birthPlaceRequired: "მიუთითე დაბადების ადგილი",
         birthGenderRequired: "აირჩიე სქესი",
@@ -60,6 +61,7 @@ export default function AuthBridge() {
         loginInvalidCredentials: "Invalid email or password",
         signupNameRequired: "Enter your name",
         signupPasswordShort: "Password must be at least 8 characters",
+        resetPwMismatch: "Passwords do not match",
         birthDateRequired: "Please fill in your birth date",
         birthPlaceRequired: "Please enter your birth place",
         birthGenderRequired: "Please select your gender",
@@ -227,7 +229,10 @@ export default function AuthBridge() {
         if (btn) btn.classList.add("loading");
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/api/auth/callback?next=/`,
+          // Land on the auth view with a recovery flag so the bridge shows the
+          // "set new password" page instead of routing the temporary recovery
+          // session straight into the app.
+          redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent("/auth?recovery=1")}`,
         });
 
         if (btn) btn.classList.remove("loading");
@@ -241,6 +246,41 @@ export default function AuthBridge() {
         const success = document.getElementById("forgot-success");
         if (form) form.style.display = "none";
         if (success) success.style.display = "block";
+      };
+
+      // ─── Set New Password (recovery flow) ───
+      // Reached after the user clicks the email reset link → callback exchanges
+      // the code for a (recovery) session → lands on /auth?recovery=1, where
+      // checkExistingSession shows page-reset. updateUser writes the new password.
+      w.handleResetPassword = async () => {
+        const pw = (document.getElementById("reset-pw") as HTMLInputElement)?.value;
+        const pw2 = (document.getElementById("reset-pw2") as HTMLInputElement)?.value;
+
+        if (!pw || pw.length < 8) return showError("reset-error", t("signupPasswordShort"));
+        if (pw !== pw2) return showError("reset-error", t("resetPwMismatch"));
+
+        const btn = document.querySelector("#page-reset .auth-btn") as HTMLElement;
+        if (btn) btn.classList.add("loading");
+
+        const { error } = await supabase.auth.updateUser({ password: pw });
+
+        if (btn) btn.classList.remove("loading");
+
+        if (error) {
+          showError("reset-error", error.message);
+          return;
+        }
+
+        const form = document.getElementById("reset-form");
+        const success = document.getElementById("reset-success");
+        if (form) form.style.display = "none";
+        if (success) success.style.display = "block";
+      };
+
+      // Continue button on the reset-success state — route the (now re-secured)
+      // session into the app via the normal post-auth branching.
+      w.handleResetContinue = () => {
+        onAuthSuccess();
       };
 
       // ─── Synastry Invite Link Generation (real backend) ───
@@ -600,12 +640,46 @@ export default function AuthBridge() {
       }, 200);
     }
 
+    // Switch the prototype shell to the auth view and reveal the reset page.
+    // The runtime loads afterInteractive, so poll until switchView/showAuthPage
+    // exist (mirrors applyView's readiness polling).
+    function showResetView() {
+      const apply = () => {
+        const w = window as unknown as Record<string, unknown>;
+        const switchView = w.switchView as ((view: string, btn?: HTMLElement) => void) | undefined;
+        const showAuthPage = w.showAuthPage as ((id: string) => void) | undefined;
+        if (!switchView || !showAuthPage) return false;
+        switchView("auth", document.getElementById("devAuth") as HTMLElement);
+        showAuthPage("page-reset");
+        return true;
+      };
+      if (apply()) return;
+      let n = 0;
+      const t = window.setInterval(() => {
+        n += 1;
+        if (apply() || n >= 60) window.clearInterval(t);
+      }, 200);
+    }
+
     // Check if already authenticated on page load
     async function checkExistingSession() {
       console.log("[AB] checkExistingSession()");
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user ?? null;
       console.log("[AB] Session user:", user ? `${user.email} (${user.id})` : "none");
+
+      // Password-recovery landing: the email link routed through the callback
+      // which established a temporary session and redirected to /auth?recovery=1.
+      // Show the "set new password" page instead of routing into the app.
+      if (urlParams.get("recovery") === "1") {
+        if (user) {
+          console.log("[AB] recovery=1 with session — showing reset-password view");
+          showResetView();
+          return;
+        }
+        console.warn("[AB] recovery=1 but no session — falling through to normal auth");
+      }
+
       if (user) {
         // Invite-link arrival on /auth must always force re-auth — /inv signs
         // the user out, but the session can briefly leak through if cookies

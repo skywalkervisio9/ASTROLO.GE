@@ -871,6 +871,13 @@ body[data-view="auth"] #page-signup .field{margin-bottom:8px}
 .auth-sigil-birth .as-core{transform:scale(1);transform-origin:center;transform-box:fill-box}
 .auth-sigil:has(.auth-sigil-birth):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
 .auth-sigil:has(.auth-sigil-birth):hover .auth-sigil-svg{filter:drop-shadow(0 0 22px rgba(228,199,107,.65))}
+/* Reset page: the steps bar is hidden here, so nudge the sigil down off the
+   card's top border. Add a login-style hover (glow + gentle key scale); the
+   smooth hover-out return rides the existing .55s transitions above. */
+#page-reset .auth-sigil{margin-top:32px}
+#page-reset .auth-sigil:hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
+#page-reset .auth-sigil:hover .auth-sigil-svg{filter:drop-shadow(0 0 24px rgba(228,199,107,.65))}
+#page-reset .auth-sigil:hover .as-svg{transform:scale(1.12)}
 .auth-header{text-align:center;margin-bottom:28px}
 .auth-header h1{font-family:var(--fd);font-weight:400;font-size:clamp(1.5rem,3.5vw,2rem);color:var(--gold);letter-spacing:.06em;margin-bottom:6px}
 .auth-header .sub{font-size:.78rem;color:var(--txd);letter-spacing:.12em}
