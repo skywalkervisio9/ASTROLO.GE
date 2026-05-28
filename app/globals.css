@@ -577,8 +577,8 @@ body[data-view="payment"] .main-natal,body[data-view="payment"] .synastry-wrap,b
 
 /* FREE vs PREMIUM comparison table */
 .pay-compare{margin-bottom:28px}
-.pay-compare-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:0 4px}
-.pay-compare-label{font-size:.7rem;color:var(--txd);letter-spacing:.12em;text-transform:uppercase}
+.pay-compare-header{position:relative;display:flex;justify-content:flex-end;align-items:center;margin-bottom:12px;padding:0 20px}
+.pay-compare-label{position:absolute;left:20px;right:20px;text-align:center;font-size:.7rem;color:var(--txd);letter-spacing:.12em;text-transform:uppercase}
 .pay-compare-badge{font-size:.62rem;padding:4px 12px;border:1px solid var(--gold);border-radius:100px;color:var(--gold);letter-spacing:.08em}
 .pay-compare-table{background:var(--sf);border:1px solid rgba(201,168,76,.08);border-radius:14px;overflow:hidden}
 .pay-compare-row{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid rgba(201,168,76,.04)}

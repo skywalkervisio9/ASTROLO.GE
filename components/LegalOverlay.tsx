@@ -356,9 +356,10 @@ function PaymentDoc() {
         <h2>1. ფასები</h2>
         <ul>
           <li>
-            <b>PREMIUM-ის განბლოკვა — ₾10:</b> ერთჯერადი გადახდა, რომელიც ხსნის
+            <b>PREMIUM-ის განბლოკვა — ₾15:</b> ერთჯერადი გადახდა, რომელიც ხსნის
             სრულ ვარსკვლავურ წაკითხვას (ყველა სექცია), სინასტრიის წვდომასა და
-            მოწვევის საშუალებას.
+            მოწვევის საშუალებას. მოქმედი ფასდაკლების კოდით ფასი შესაძლოა
+            ნაკლები იყოს.
           </li>
           <li>
             <b>დამატებითი სინასტრიის სლოტი — ₾5:</b> ერთჯერადი გადახდა ახალი
@@ -441,9 +442,9 @@ function PaymentDoc() {
         <h2>1. Prices</h2>
         <ul>
           <li>
-            <b>Unlock PREMIUM — ₾10:</b> a one-time payment that unlocks the full
+            <b>Unlock PREMIUM — ₾15:</b> a one-time payment that unlocks the full
             reading (all sections), synastry access, and the ability to invite
-            others.
+            others. A valid promo code may lower the price.
           </li>
           <li>
             <b>Extra synastry slot — ₾5:</b> a one-time payment to unlock an
