@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import SynastryViewWrapper from './synastry/SynastryViewWrapper';
 import SynastryConnectionSync from './SynastryConnectionSync';
 import AuthSigil from './AuthSigil';
+import LegalOverlay, { type LegalDoc } from './LegalOverlay';
 import { createClient } from '@/lib/supabase/client';
 import { createSynastryInviteLink } from '@/lib/invite/create-invite-link';
 
@@ -170,6 +171,9 @@ export default function BodyContent() {
   const [inviteKind, setInviteKind] = useState<'couple' | 'friend' | null>(null);
   const [inviteGenPhase, setInviteGenPhase] = useState<'idle' | 'loading' | 'success'>('idle');
 
+  /** Legal pages shown as an in-app overlay ('terms' = combined Terms & Privacy, 'payment' = Payment Terms). */
+  const [legalDoc, setLegalDoc] = useState<LegalDoc>(null);
+
   const openUnlockDialog = useCallback(() => {
     setUnlockError(null);
     setUnlockOpen(true);
@@ -327,7 +331,6 @@ export default function BodyContent() {
     if (typeof window === 'undefined') return;
     const isEn = document.body.classList.contains('lang-en');
     const cfg = PROMO_DISPLAY[promoVariant];
-    const ctaPrefix = isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
     const setShow = (id: string, show: boolean) => {
       const el = document.getElementById(id);
       if (el) el.style.display = show ? '' : 'none';
@@ -339,7 +342,18 @@ export default function BodyContent() {
     setShow('payOldPrice', cfg.oldPriceVisible);
     setShow('payDiscountBadge', cfg.badgeVisible);
     setText('payAmount', cfg.amount);
-    setText('payCtaText', ctaPrefix + cfg.amount);
+    // The CTA label depends on which payment sub-page is visible, so a
+    // language toggle on the natal-unlock / synastry-slot pages doesn't
+    // overwrite the button with the premium label (only the premium page
+    // uses the promo-aware amount).
+    const natalShown = document.getElementById('payNatalUnlock')?.style.display !== 'none';
+    const synShown = document.getElementById('paySynastrySlot')?.style.display !== 'none';
+    const cta = natalShown
+      ? (isEn ? '✦ Unlock natal chart — ₾5' : '✦ ნატალური რუკის განბლოკვა — ₾5')
+      : synShown
+        ? (isEn ? '✦ Unlock slot — ₾5' : '✦ სლოტის განბლოკვა — ₾5')
+        : (isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ') + cfg.amount;
+    setText('payCtaText', cta);
   }, [promoVariant, promoLangTick]);
 
   const onPayCtaClick = useCallback(async () => {
@@ -515,7 +529,7 @@ export default function BodyContent() {
 <a href="#" className="social-link" title="Facebook">{IconFacebook}</a>
 <a href="#" className="social-link" title="TikTok">{IconTikTok}</a>
 </div>
-<div className="footer-links"><a href="#">ჩვენს შესახებ</a><a href="#">კონფიდენციალობა</a><a href="#">პირობები</a><a href="#">კონტაქტი</a></div>
+<div className="footer-links"><a href="#">ჩვენს შესახებ</a><a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>კონფიდენციალობა</a><a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>პირობები</a><a href="mailto:contact@astrolo.ge">კონტაქტი</a></div>
 <div className="footer-copy">© 2026 ASTROLO.GE</div>
 </div></footer>
 </div>
@@ -585,7 +599,10 @@ export default function BodyContent() {
         <div className="field"><label>ელ-ფოსტა</label><input type="email" id="signup-email" placeholder="name@example.com" autoComplete="email"/></div>
         <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="signup-pw" placeholder="მინ. 8 სიმბოლო" autoComplete="new-password"/><button className="pw-toggle" onClick={(e) => { proto().togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
         <button className="auth-btn" onClick={() => { proto().handleSignup?.(); }} style={{marginTop: '4px'}}><span className="btn-text">რეგისტრაცია</span></button>
-        <div className="terms">რეგისტრაციით ეთანხმები <a href="#">პირობებს</a> და <a href="#">კონფიდენციალობას</a></div>
+        <div className="terms">
+          <span className="lg-ka">რეგისტრაციით ეთანხმები <a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>პირობებს</a> და <a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>კონფიდენციალობას</a></span>
+          <span className="lg-en">By registering you agree to the <a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>Terms</a> and <a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>Privacy</a></span>
+        </div>
         <div className="auth-footer">უკვე გაქვს ანგარიში? <a href="#" onClick={(e) => { e.preventDefault(); proto().showAuthPage?.("page-login"); }} style={{borderBottom: '1px solid rgba(201,168,76,.35)', paddingBottom: '1px'}}>შესვლა</a></div>
       </div>
     </div>
@@ -645,69 +662,69 @@ export default function BodyContent() {
   {/* ── Premium Upgrade Page ── */}
   <div id="payPremium">
     <div className="pay-sigil"><svg><use href="#gl-sparkle"/></svg></div>
-    <div className="pay-badge">PREMIUM — ერთჯერადი გადახდა</div>
-    <div className="pay-title">სრული ვარსკვლავური<br/>კითხვა გახსენი</div>
-    <div className="pay-subtitle">ყველა 8 სექცია, სინასტრიის წვდომა და მოწვევის საშუალება — ერთხელ, სამუდამოდ.</div>
+    <div className="pay-badge"><span className="lg-ka">PREMIUM — ერთჯერადი გადახდა</span><span className="lg-en">PREMIUM — one-time payment</span></div>
+    <div className="pay-title"><span className="lg-ka">სრული ვარსკვლავური<br/>კითხვა გახსენი</span><span className="lg-en">Unlock your full<br/>star reading</span></div>
+    <div className="pay-subtitle"><span className="lg-ka">ყველა 8 სექცია, სინასტრიის წვდომა და მოწვევის საშუალება — ერთხელ, სამუდამოდ.</span><span className="lg-en">All 8 sections, synastry access, and an invite — once, forever.</span></div>
     <div className="pay-price">
       <span className="pay-price-old" id="payOldPrice" style={{display:'none'}}>₾15</span>
       <span className="pay-price-amount" id="payAmount">₾15</span>
       <span className="pay-discount-badge" id="payDiscountBadge" style={{display:'none'}}>-33%</span>
     </div>
-    <div className="pay-note">ყოველთვიური გადასახადი არ არის</div>
+    <div className="pay-note"><span className="lg-ka">ყოველთვიური გადასახადი არ არის</span><span className="lg-en">No monthly fee</span></div>
 
     <div className="pay-compare">
       <div className="pay-compare-header">
-        <span className="pay-compare-label">FREE vs PREMIUM</span>
+        <span className="pay-compare-label">FREE</span>
         <span className="pay-compare-badge">● PREMIUM</span>
       </div>
       <div className="pay-compare-table">
-        <div className="pay-compare-row"><span className="row-label">სექციები</span><span className="row-free">3 სექცია</span><span className="row-premium">8 სექცია ✦</span></div>
-        <div className="pay-compare-row"><span className="row-label">სინასტრია</span><span className="row-free">—</span><span className="row-premium">✦ ჩართულია</span></div>
-        <div className="pay-compare-row"><span className="row-label">მოწვევა</span><span className="row-free">—</span><span className="row-premium">✦ 1 უფასოდ</span></div>
-        <div className="pay-compare-row"><span className="row-label">ვარსკვლავური ბარათები</span><span className="row-free">ნაწილობრივ</span><span className="row-premium">✦ სრულად</span></div>
+        <div className="pay-compare-row"><span className="row-label"><span className="lg-ka">სექციები</span><span className="lg-en">Sections</span></span><span className="row-free"><span className="lg-ka">1 სექცია</span><span className="lg-en">1 section</span></span><span className="row-premium"><span className="lg-ka">8 სექცია ✦</span><span className="lg-en">8 sections ✦</span></span></div>
+        <div className="pay-compare-row"><span className="row-label"><span className="lg-ka">სინასტრია</span><span className="lg-en">Synastry</span></span><span className="row-free">—</span><span className="row-premium"><span className="lg-ka">✦ ჩართულია</span><span className="lg-en">✦ Included</span></span></div>
+        <div className="pay-compare-row"><span className="row-label"><span className="lg-ka">მოწვევა</span><span className="lg-en">Invite</span></span><span className="row-free">—</span><span className="row-premium"><span className="lg-ka">✦ 1 უფასოდ</span><span className="lg-en">✦ 1 free</span></span></div>
+        <div className="pay-compare-row"><span className="row-label"><span className="lg-ka">ვარსკვლავური ბარათები</span><span className="lg-en">Star cards</span></span><span className="row-free"><span className="lg-ka">ნაწილობრივ</span><span className="lg-en">Partial</span></span><span className="row-premium"><span className="lg-ka">✦ სრულად</span><span className="lg-en">✦ Full</span></span></div>
       </div>
     </div>
 
     <div className="pay-benefits">
-      <div className="pay-benefit"><div className="pay-benefit-icon">✦</div><div className="pay-benefit-text"><h4>ყველა 8 სექცია სრულად</h4><p>მახასიათებლები, ურთიერთობები, საქმე, ჩრდილი, სულიერი, პოტენციალი</p></div></div>
-      <div className="pay-benefit"><div className="pay-benefit-icon">☌</div><div className="pay-benefit-text"><h4>სინასტრიის წვდომა</h4><p>მეგობარი ან წყვილი — 6-სექციანი თავსებადობის ანალიზი</p></div></div>
-      <div className="pay-benefit"><div className="pay-benefit-icon">✉</div><div className="pay-benefit-text"><h4>1 მოწვევის ბმული — უფასოდ</h4><p>მოწვეულ მომხმარებელს ეძლევა სრული რუკა + სინასტრია</p></div></div>
-      <div className="pay-benefit"><div className="pay-benefit-icon">∞</div><div className="pay-benefit-text"><h4>სამუდამო წვდომა</h4><p>ერთხელ გადახდა — ყოველთვის გადახდა</p></div></div>
+      <div className="pay-benefit"><div className="pay-benefit-icon">✦</div><div className="pay-benefit-text"><h4><span className="lg-ka">ყველა 8 სექცია სრულად</span><span className="lg-en">All 8 sections in full</span></h4><p><span className="lg-ka">მახასიათებლები, ურთიერთობები, საქმე, ჩრდილი, სულიერი, პოტენციალი</span><span className="lg-en">Characteristics, relationships, work, shadow, spiritual, potential</span></p></div></div>
+      <div className="pay-benefit"><div className="pay-benefit-icon">☌</div><div className="pay-benefit-text"><h4><span className="lg-ka">სინასტრიის წვდომა</span><span className="lg-en">Synastry access</span></h4><p><span className="lg-ka">მეგობარი ან წყვილი — 6-სექციანი თავსებადობის ანალიზი</span><span className="lg-en">Friend or partner — a 6-section compatibility analysis</span></p></div></div>
+      <div className="pay-benefit"><div className="pay-benefit-icon">✉</div><div className="pay-benefit-text"><h4><span className="lg-ka">1 მოწვევის ბმული — უფასოდ</span><span className="lg-en">1 invite link — free</span></h4><p><span className="lg-ka">მოწვეულ მომხმარებელს ეძლევა სრული რუკა + სინასტრია</span><span className="lg-en">The invited user gets a full chart + synastry</span></p></div></div>
+      <div className="pay-benefit"><div className="pay-benefit-icon">∞</div><div className="pay-benefit-text"><h4><span className="lg-ka">სამუდამო წვდომა</span><span className="lg-en">Lifetime access</span></h4><p><span className="lg-ka">ერთხელ გადახდა — ყოველთვის გადახდა</span><span className="lg-en">Pay once — keep it forever</span></p></div></div>
     </div>
   </div>
 
   {/* ── Natal Unlock Page (Invited users) ── */}
   <div id="payNatalUnlock" style={{display:'none'}}>
     <div className="pay-sigil"><svg><use href="#gl-sparkle"/></svg></div>
-    <div className="pay-badge">ნატალური რუკის განბლოკვა</div>
-    <div className="pay-title">სრული ნატალური<br/>რუკის წაკითხვა</div>
-    <div className="pay-subtitle">ყველა 8 სექცია — მახასიათებლები, ურთიერთობები, საქმე, ჩრდილი, სულიერი, პოტენციალი.</div>
+    <div className="pay-badge"><span className="lg-ka">ნატალური რუკის განბლოკვა</span><span className="lg-en">Natal chart unlock</span></div>
+    <div className="pay-title"><span className="lg-ka">სრული ნატალური<br/>რუკის წაკითხვა</span><span className="lg-en">Your full natal<br/>chart reading</span></div>
+    <div className="pay-subtitle"><span className="lg-ka">ყველა 8 სექცია — მახასიათებლები, ურთიერთობები, საქმე, ჩრდილი, სულიერი, პოტენციალი.</span><span className="lg-en">All 8 sections — characteristics, relationships, work, shadow, spiritual, potential.</span></div>
     <div className="pay-price"><span className="pay-price-amount">₾5</span></div>
-    <div className="pay-note">ერთჯერადი გადახდა</div>
+    <div className="pay-note"><span className="lg-ka">ერთჯერადი გადახდა</span><span className="lg-en">One-time payment</span></div>
 
     <div className="pay-benefits">
-      <div className="pay-benefit"><div className="pay-benefit-icon">✦</div><div className="pay-benefit-text"><h4>ყველა 8 სექცია სრულად</h4><p>მიმოხილვა და მისიის გარდა — დანარჩენი 6 სექციაც გაიხსნება</p></div></div>
-      <div className="pay-benefit"><div className="pay-benefit-icon">☌</div><div className="pay-benefit-text"><h4>სინასტრია უკვე ჩართულია</h4><p>შენი სინასტრიის წაკითხვა უკვე ხელმისაწვდომია მოწვევის გზით</p></div></div>
+      <div className="pay-benefit"><div className="pay-benefit-icon">✦</div><div className="pay-benefit-text"><h4><span className="lg-ka">ყველა 8 სექცია სრულად</span><span className="lg-en">All 8 sections in full</span></h4><p><span className="lg-ka">მიმოხილვა და მისიის გარდა — დანარჩენი 6 სექციაც გაიხსნება</span><span className="lg-en">Beyond overview and mission — the other 6 sections unlock too</span></p></div></div>
+      <div className="pay-benefit"><div className="pay-benefit-icon">☌</div><div className="pay-benefit-text"><h4><span className="lg-ka">სინასტრია უკვე ჩართულია</span><span className="lg-en">Synastry already included</span></h4><p><span className="lg-ka">შენი სინასტრიის წაკითხვა უკვე ხელმისაწვდომია მოწვევის გზით</span><span className="lg-en">Your synastry reading is already available via the invite</span></p></div></div>
     </div>
   </div>
 
   {/* ── Synastry Slot Purchase Page ── */}
   <div id="paySynastrySlot" style={{display:'none'}}>
     <div className="pay-sigil"><svg><use href="#gl-conjunction"/></svg></div>
-    <div className="pay-badge">დამატებითი სინასტრია</div>
-    <div className="pay-title">ახალი სინასტრიის<br/>სლოტის განბლოკვა</div>
-    <div className="pay-subtitle">მოიწვიე კიდევ ერთი ადამიანი — მეწყვილე ან მეგობარი — სინასტრიის ანალიზისთვის.</div>
+    <div className="pay-badge"><span className="lg-ka">დამატებითი სინასტრია</span><span className="lg-en">Additional synastry</span></div>
+    <div className="pay-title"><span className="lg-ka">ახალი სინასტრიის<br/>სლოტის განბლოკვა</span><span className="lg-en">Unlock a new<br/>synastry slot</span></div>
+    <div className="pay-subtitle"><span className="lg-ka">მოიწვიე კიდევ ერთი ადამიანი — მეწყვილე ან მეგობარი — სინასტრიის ანალიზისთვის.</span><span className="lg-en">Invite one more person — a partner or friend — for a synastry analysis.</span></div>
     <div className="pay-price"><span className="pay-price-amount">₾5</span></div>
-    <div className="pay-note">ერთჯერადი გადახდა / სლოტზე</div>
+    <div className="pay-note"><span className="lg-ka">ერთჯერადი გადახდა / სლოტზე</span><span className="lg-en">One-time payment / per slot</span></div>
 
     <div className="pay-benefits">
-      <div className="pay-benefit"><div className="pay-benefit-icon">✦</div><div className="pay-benefit-text"><h4>ახალი სინასტრიის სლოტი</h4><p>მეწყვილე ან მეგობარი — სრული თავსებადობის ანალიზი</p></div></div>
-      <div className="pay-benefit"><div className="pay-benefit-icon">✉</div><div className="pay-benefit-text"><h4>მოწვევის ბმულის გენერაცია</h4><p>გადახდის შემდეგ ავტომატურად მიიღებ ბმულს გასაზიარებლად</p></div></div>
+      <div className="pay-benefit"><div className="pay-benefit-icon">✦</div><div className="pay-benefit-text"><h4><span className="lg-ka">ახალი სინასტრიის სლოტი</span><span className="lg-en">A new synastry slot</span></h4><p><span className="lg-ka">მეწყვილე ან მეგობარი — სრული თავსებადობის ანალიზი</span><span className="lg-en">Partner or friend — a full compatibility analysis</span></p></div></div>
+      <div className="pay-benefit"><div className="pay-benefit-icon">✉</div><div className="pay-benefit-text"><h4><span className="lg-ka">მოწვევის ბმულის გენერაცია</span><span className="lg-en">Invite link generation</span></h4><p><span className="lg-ka">გადახდის შემდეგ ავტომატურად მიიღებ ბმულს გასაზიარებლად</span><span className="lg-en">After payment you'll automatically get a link to share</span></p></div></div>
     </div>
   </div>
 
   {/* ── Shared: Payment Method Selector ── */}
-  <div className="pay-method-label">გადახდის მეთოდი</div>
+  <div className="pay-method-label"><span className="lg-ka">გადახდის მეთოდი</span><span className="lg-en">Payment method</span></div>
   <div className="pay-methods">
     <div className="pay-method selected" id="payBog" onClick={(e) => { proto().selectPayMethod?.('bog', e.currentTarget); }}>
       <div className="pay-method-check">✓</div>
@@ -751,6 +768,12 @@ export default function BodyContent() {
   >
     <span id="payCtaText">✦ PREMIUM-ის განბლოკვა — ₾10</span>
   </button>
+  <div className="pay-legal-link">
+    <a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('payment'); }}>
+      <span className="lg-ka">გადახდის პირობები</span>
+      <span className="lg-en">Payment terms</span>
+    </a>
+  </div>
 </div>
 </div>
 
@@ -784,6 +807,7 @@ export default function BodyContent() {
     </div>
   </div>
 )}
+<LegalOverlay doc={legalDoc} onClose={() => setLegalDoc(null)} />
 <div className="dev-panel" id="devPanel">
   <button className="dev-toggle" onClick={onDevToggleClick}>⚙ DEV</button>
   {devMode && (
