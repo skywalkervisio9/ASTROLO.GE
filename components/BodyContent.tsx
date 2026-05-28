@@ -331,7 +331,6 @@ export default function BodyContent() {
     if (typeof window === 'undefined') return;
     const isEn = document.body.classList.contains('lang-en');
     const cfg = PROMO_DISPLAY[promoVariant];
-    const ctaPrefix = isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
     const setShow = (id: string, show: boolean) => {
       const el = document.getElementById(id);
       if (el) el.style.display = show ? '' : 'none';
@@ -343,7 +342,18 @@ export default function BodyContent() {
     setShow('payOldPrice', cfg.oldPriceVisible);
     setShow('payDiscountBadge', cfg.badgeVisible);
     setText('payAmount', cfg.amount);
-    setText('payCtaText', ctaPrefix + cfg.amount);
+    // The CTA label depends on which payment sub-page is visible, so a
+    // language toggle on the natal-unlock / synastry-slot pages doesn't
+    // overwrite the button with the premium label (only the premium page
+    // uses the promo-aware amount).
+    const natalShown = document.getElementById('payNatalUnlock')?.style.display !== 'none';
+    const synShown = document.getElementById('paySynastrySlot')?.style.display !== 'none';
+    const cta = natalShown
+      ? (isEn ? '✦ Unlock natal chart — ₾5' : '✦ ნატალური რუკის განბლოკვა — ₾5')
+      : synShown
+        ? (isEn ? '✦ Unlock slot — ₾5' : '✦ სლოტის განბლოკვა — ₾5')
+        : (isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ') + cfg.amount;
+    setText('payCtaText', cta);
   }, [promoVariant, promoLangTick]);
 
   const onPayCtaClick = useCallback(async () => {

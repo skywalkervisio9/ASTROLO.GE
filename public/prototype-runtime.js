@@ -437,16 +437,17 @@ function toggleDiscount(btn) {
   const amount = document.getElementById('payAmount');
   const discBadge = document.getElementById('payDiscountBadge');
   const ctaText = document.getElementById('payCtaText');
+  var pfx = document.body.classList.contains('lang-en') ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
   if (discountOn) {
     if (oldPrice) oldPrice.style.display = '';
     if (amount) amount.textContent = '₾10';
     if (discBadge) discBadge.style.display = '';
-    if (ctaText) ctaText.textContent = '✦ PREMIUM-ის განბლოკვა — ₾10';
+    if (ctaText) ctaText.textContent = pfx + '₾10';
   } else {
     if (oldPrice) oldPrice.style.display = 'none';
     if (amount) amount.textContent = '₾15';
     if (discBadge) discBadge.style.display = 'none';
-    if (ctaText) ctaText.textContent = '✦ PREMIUM-ის განბლოკვა — ₾15';
+    if (ctaText) ctaText.textContent = pfx + '₾15';
   }
 }
 
@@ -464,16 +465,17 @@ function showPaymentPage(type) {
   document.getElementById('paySynastrySlot').style.display = 'none';
   const ctaText = document.getElementById('payCtaText');
 
+  var isEn = document.body.classList.contains('lang-en');
   if (type === 'premium') {
     document.getElementById('payPremium').style.display = '';
     const price = discountOn ? '₾10' : '₾15';
-    ctaText.textContent = '✦ PREMIUM-ის განბლოკვა — ' + price;
+    ctaText.textContent = (isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ') + price;
   } else if (type === 'natal-unlock') {
     document.getElementById('payNatalUnlock').style.display = '';
-    ctaText.textContent = '✦ ნატალური რუკის განბლოკვა — ₾5';
+    ctaText.textContent = isEn ? '✦ Unlock natal chart — ₾5' : '✦ ნატალური რუკის განბლოკვა — ₾5';
   } else if (type === 'synastry-slot') {
     document.getElementById('paySynastrySlot').style.display = '';
-    ctaText.textContent = '✦ სლოტის განბლოკვა — ₾5';
+    ctaText.textContent = isEn ? '✦ Unlock slot — ₾5' : '✦ სლოტის განბლოკვა — ₾5';
   }
 
   switchView('payment');
@@ -3200,10 +3202,10 @@ function hydrateReading(reading, user) {
   }
 
   // 5. Switch to natal view if not already on a real reading view.
-  // Treat 'synastry' as a peer view — language switch on synastry must not
-  // kick the user back to natal.
+  // Treat 'synastry' and 'payment' as peer views — a language switch while
+  // viewing synastry or a payment page must not kick the user back to natal.
   var _hydCurrentView = document.body.getAttribute('data-view');
-  if (_hydCurrentView !== 'natal' && _hydCurrentView !== 'synastry') {
+  if (_hydCurrentView !== 'natal' && _hydCurrentView !== 'synastry' && _hydCurrentView !== 'payment') {
     switchView('natal', document.getElementById('devNatal'));
   }
 
