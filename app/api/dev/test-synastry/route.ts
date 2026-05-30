@@ -11,7 +11,7 @@ import { generateInviteCode } from '@/lib/utils/invite';
 import { generateShareSlug } from '@/lib/chart/reading-helpers';
 import { extractSynastryScores } from '@/lib/synastry/share-helpers';
 
-export const maxDuration = 300; // 5 min timeout for AI generation
+export const maxDuration = 600; // 10 min ceiling for AI generation (Pro + Fluid Compute)
 
 const DEV_PASSWORD = 'astrolo';
 const isDevAllowed = (req: NextRequest) =>

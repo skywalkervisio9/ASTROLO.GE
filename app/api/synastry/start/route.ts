@@ -12,7 +12,7 @@ import { createAdminSupabase } from '@/lib/supabase/admin';
 import { runSynastryGeneration } from '@/lib/synastry/run-generation';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+export const maxDuration = 600;
 
 export async function POST(req: NextRequest) {
   try {

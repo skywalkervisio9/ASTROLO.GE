@@ -26,7 +26,9 @@ import {
 } from '@/lib/chart/reading-helpers';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+// 600s ceiling (Pro + Fluid Compute, max 800s). KA Call 2 measured ~168s; this
+// leaves headroom for a top-up pass or a single retry without a timeout kill.
+export const maxDuration = 600;
 
 export async function POST() {
   // Hoisted so the catch can record a durable 'failed' state (Tier 2).

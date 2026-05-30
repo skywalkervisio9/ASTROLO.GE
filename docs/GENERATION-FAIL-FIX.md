@@ -100,13 +100,20 @@ Gemini-only is a **deliberate cost decision** — not an accidental missing `ANT
 ### Tier 6 — Reduce Call 2 input pressure (larger refactor, optional)
 The 21–23k-char Call 1 analysis inflates Call 2 input → longer/slower KA output, closer to the timeout. Options: trim/summarize the analysis before Call 2, or generate Call 2 **per section** with per-section retry so no single request risks the whole reading.
 
+### Tier 7 — Raise the function duration ceiling ✅ IMPLEMENTED
+**Correction to earlier analysis:** Vercel's *current* limits (docs updated 2026-05-14, Fluid Compute on by default) are **Hobby 300s max / Pro & Enterprise 800s max** — not the 60s figure cited mid-investigation (that came from a stale summary). So the operative cap was most likely **300s** all along, and the hard fails were 300s overruns — a ~168s KA generation (measured via `scripts/time-call2.ts`) plus a retry/repair pass stacking over 300s.
+- Account upgraded to **Pro** → `maxDuration` can now go to 800s. Bumped all AI routes **300 → 600s** (`generate-full`, `generate-call1`, `chart/generate`, `synastry/start`, `synastry/generate`, dev routes). `maxDuration` is a ceiling, not runtime — normal runs cost the same; this only lets the slow tail finish.
+- At 600s, even 168s + a full retry (~336s) fits comfortably, so timeout overruns should be near-zero. This largely supersedes Tier 5's sweep for the overrun case (Tier 5 still useful for genuine hard kills / stuck-row self-heal).
+
 ---
 
 ## 5. Sequencing / status
 1. **Tier 1 + Tier 2** — ✅ **DONE on this branch.** Together they convert silent + thrown hard fails into a visible, retryable state and stop hollow readings from saving.
 2. **Tier 0** — recover besotest & bogpremium (next). Note: `generate-full` is idempotent on `reading_ka`, so bogpremium's existing skeletal body must be cleared (or a `?force=1` added) before a re-run; besotest just needs a re-trigger. The re-run is now gated by the Tier-1 floor.
-3. **Tier 4** — ❌ rejected; Gemini is intentional.
-4. **Tier 3** (truncation detection) / **Tier 5** (recovery sweep + force-regenerate) / **Tier 6** (input trimming) — follow-ups. Tier 5 is the most valuable remaining item (closes the hard-kill gap Tier 2 can't reach).
+3. **Tier 7** — ✅ **DONE** (maxDuration 300 → 600 on Pro). Removes most timeout overruns outright.
+4. **Tier 4** — ❌ rejected; Gemini is intentional.
+5. **Tier 0** — recover the existing stuck readings (besotest re-trigger; bogpremium force-regenerate).
+6. **Tier 3 / 5 / 6** — follow-ups, deferred. The recovery sweep (Tier 5) is now optional: with the 600s ceiling, measure the real overrun rate first (via the diag scripts, once Tier 2 is live) and only build it if hard kills still occur.
 
 ## Appendix — read-only diagnostics (in `scripts/`)
 - `analyze-generations.mjs` — fleet outcome breakdown + token distribution.
