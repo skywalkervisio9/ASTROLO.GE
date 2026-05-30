@@ -70,27 +70,28 @@ The system's "definition of done" is simply *"`reading_ka` is non-null"* (see `o
 - **bogpremium**: blocked by the idempotency check — must **null `reading_ka`/`reading_en`/`model_call2`** first (or add a `?force=1`), then re-run Call 2.
 - Needs a deliberate decision: real Gemini API spend + a prod write. See `scripts/diag-*.mjs` for read-only inspection.
 
-### Tier 1 — Enforce a quality floor (kills the silent fail) ★ highest value / lowest risk
-In `validateNatalReading`, promote gross shortfalls from *warning* → *error*:
-- total cards `< N` (e.g. 18), **or** `> K` sections below their min (e.g. ≥4), **or** word estimate `< 3500` → `valid = false`.
-- Keep minor shortfalls (the 38 "marginal" readings) as warnings so we don't over-trigger.
+### Tier 1 — Enforce a quality floor (kills the silent fail) ★ ✅ IMPLEMENTED
+Agreed behaviour (balanced threshold, fill-gaps, 1 attempt, parity on):
+- New `assessNatalReadingQuality()` in `validator.ts` measures content volume (separate from `validateNatalReading`, which only checks structure). A reading is **too thin** when total cards `< 18` **or** word estimate `< 3500`. Lightly-short "marginal" readings still pass.
+- `generateSingleReading` runs **one** top-up pass (`topUpThinNatalSections`) that asks the model to expand only the under-filled sections — cheaper than a full regen. It does **not** throw on persistent thinness (avoids a second full-generation attempt against the 300s budget).
+- `runNatalCall2` makes the final ship/no-ship call: if either language is still below the floor, **or** one language's card count is `< 60%` of the other's (KA/EN parity — the bogpremium signature), it throws `ReadingTooThinError`.
+- That error is caught by Tier 2 → row marked `failed`, nothing hollow saved.
+- Unit tests: `tests/generation/quality.test.ts` (`npm run test:generation`).
 
-This makes the existing retry path fire. To avoid blowing the budget on full regens, add a **"thicken thin sections"** completion analogous to `completeMissingNatalSections` — ask the model to add cards only to under-filled sections, then re-validate. Cheaper than a full re-run.
+### Tier 2 — Durable failure state + fail-fast (kills the 15-min hang) ✅ IMPLEMENTED
+Re-activated the dormant `generation_*` columns:
+- `generate-full`: sets `generation_status='generating'` + `generation_started_at` before Call 2; `='complete'` + `generation_finished_at` on the success upsert; the catch records `='failed'` + `generation_finished_at` and stores the reason in `validation_warnings` as `GENERATION_FAILED: …` (no dedicated error column exists — see limitation below).
+- `onboarding/status`: reads `generation_status`; returns `status:'failed'` (+ extracted error) for premium when failed. The client **already** handles `status==='failed'` ([LoadingRouteClient.tsx:90,332](../components/LoadingRouteClient.tsx)) — so this converts the 15-min silent wait into an immediate, explainable failure with a Retry button.
+- Fixed the stale "columns were removed" comment at [onboarding/status/route.ts](../app/api/onboarding/status/route.ts) — they exist in prod (migration 010).
 
-Add a **KA/EN parity guard**: if one language's total card count is `< 60%` of the other's, treat the smaller as invalid → retry/thicken.
-
-### Tier 2 — Durable failure state + fail-fast (kills the 15-min hang)
-Re-activate the dormant `generation_*` columns:
-- `generate-full`: set `generation_status='generating'` + `generation_started_at` at start; on success `='complete'` + `generation_finished_at`; in the catch, **`='failed'`** + persist the error message + `generation_finished_at` **before** rethrowing.
-- `onboarding/status`: read `generation_status`; return `status:'failed'` (+ error) when failed. **The client already handles `status==='failed'`** ([LoadingRouteClient.tsx:90,332](../components/LoadingRouteClient.tsx)) — this alone converts a 15-min silent wait into an immediate, explainable failure with a Retry button.
-- Note the stale comment at [onboarding/status/route.ts:50](../app/api/onboarding/status/route.ts) ("columns were removed") — they exist in prod; just unused.
+**Limitation:** Tier 2 only catches **thrown** failures (validation, parse, provider, `ReadingTooThinError`). A hard 300s Vercel kill runs no code, so the row stays `generating` and the client still falls back to its poll-cap timeout — Tier 5's sweep (detect stale `generating`) is what fully closes that gap. The `generation_started_at` timestamp is written precisely so a future sweep can find stale rows.
 
 ### Tier 3 — Detect Gemini truncation explicitly
 `client.ts` ignores Gemini's `finishReason`. If `finishReason === 'MAX_TOKENS'`, the output was truncated → throw a typed error so the pipeline retries instead of feeding a guaranteed-broken string into the repair cascade. (Catches besotest-style truncation; does **not** catch bogpremium's early STOP — Tier 1 covers that.)
 
-### Tier 4 — Provider / config robustness
-- **Set `ANTHROPIC_API_KEY` on Vercel.** The code already prefers Claude; Sonnet is materially more reliable for long structured Georgian JSON. Weigh cost/latency, but this likely removes most of both failure modes. Consider Claude-for-KA / Gemini-for-EN as a hybrid.
-- Make `MAX_RETRIES` and token caps env-tunable so we can react without a deploy.
+### Tier 4 — Provider / config robustness ❌ REJECTED (Gemini is intentional)
+Gemini-only is a **deliberate cost decision** — not an accidental missing `ANTHROPIC_API_KEY`. Claude is intentionally not used. **Consequence:** since we stay on Gemini (the component that produces these failures), Tiers 1–3 are the permanent safety net, not a stopgap. They are fully model-agnostic, so none of this depends on Claude.
+- Still worth doing later: make `MAX_RETRIES` and the KA/EN token caps env-tunable so we can react to Gemini behaviour without a deploy.
 
 ### Tier 5 — Recovery sweep + regenerate affordance (durability)
 - A small admin/cron route that finds rows where `analysis_en` present but `reading_ka` null/skeletal (or `generation_status='generating'` older than ~10 min) and re-runs Call 2. Turns "stuck forever" into "self-heals."
@@ -101,11 +102,11 @@ The 21–23k-char Call 1 analysis inflates Call 2 input → longer/slower KA out
 
 ---
 
-## 5. Recommended sequencing
-1. **Tier 2** (fail-fast) + **Tier 1** (quality floor) — together they convert both silent and hard fails into a visible, retryable state and stop hollow readings from saving. Low risk, high value.
-2. **Tier 0** — recover besotest & bogpremium once Tier 1/2 are in (so the re-run is gated by the new floor).
-3. **Tier 4** (Anthropic key) — biggest reliability lever; config-only.
-4. **Tier 3 / 5 / 6** as follow-ups.
+## 5. Sequencing / status
+1. **Tier 1 + Tier 2** — ✅ **DONE on this branch.** Together they convert silent + thrown hard fails into a visible, retryable state and stop hollow readings from saving.
+2. **Tier 0** — recover besotest & bogpremium (next). Note: `generate-full` is idempotent on `reading_ka`, so bogpremium's existing skeletal body must be cleared (or a `?force=1` added) before a re-run; besotest just needs a re-trigger. The re-run is now gated by the Tier-1 floor.
+3. **Tier 4** — ❌ rejected; Gemini is intentional.
+4. **Tier 3** (truncation detection) / **Tier 5** (recovery sweep + force-regenerate) / **Tier 6** (input trimming) — follow-ups. Tier 5 is the most valuable remaining item (closes the hard-kill gap Tier 2 can't reach).
 
 ## Appendix — read-only diagnostics (in `scripts/`)
 - `analyze-generations.mjs` — fleet outcome breakdown + token distribution.
