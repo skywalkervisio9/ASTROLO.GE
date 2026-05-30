@@ -4,6 +4,26 @@
 
 import { SECTION_KEYS } from '@/types/reading';
 
+// Minimum card count per section. Used both by validateNatalReading (as a
+// soft warning) and by assessNatalReadingQuality (Tier-1 quality floor) to
+// decide which sections need topping up.
+export const SECTION_MIN_CARDS: Record<string, number> = {
+  overview: 3, mission: 4, characteristics: 4, relationships: 4,
+  work: 4, shadow: 4, spiritual: 4, potential: 2,
+};
+
+// ── Tier-1 quality floor (balanced) ──
+// A reading can be structurally valid (all 8 section keys present) yet hollow
+// — e.g. bogpremium's Georgian Call 2 came back at ~15 cards / ~2,276 words
+// while a healthy reading is ~28 cards / ~5,000 words. These thresholds reject
+// only the grossly-short outputs; lightly-short "marginal" readings pass.
+export const MIN_TOTAL_CARDS = 18;
+export const MIN_WORD_ESTIMATE = 3500;
+// One language must be at least this fraction of the other's card count.
+// Catches the lopsided case (full EN, skeletal KA) even when the smaller side
+// scrapes just past the absolute floor.
+export const PARITY_MIN_RATIO = 0.6;
+
 /**
  * Strip markdown code fences and parse JSON from AI response
  */
@@ -307,18 +327,14 @@ export function validateNatalReading(json: Record<string, unknown>): {
     if (!normalized[key]) errors.push(`Missing section: ${key}`);
   }
 
-  // Check minimum card counts
-  const minCards: Record<string, number> = {
-    overview: 3, mission: 4, characteristics: 4, relationships: 4,
-    work: 4, shadow: 4, spiritual: 4, potential: 2,
-  };
-
+  // Check minimum card counts (soft — warnings only; the hard quality gate
+  // lives in assessNatalReadingQuality)
   for (const key of SECTION_KEYS) {
     const section = normalized[key] as Record<string, unknown> | undefined;
     if (!section) continue;
     const cards = (section.cards ?? section.coreCards) as unknown[] | undefined;
     const count = cards?.length ?? 0;
-    const min = minCards[key] ?? 0;
+    const min = SECTION_MIN_CARDS[key] ?? 0;
     if (count < min) {
       warnings.push(`${key}: ${count} cards (min ${min})`);
     }
@@ -332,6 +348,44 @@ export function validateNatalReading(json: Record<string, unknown>): {
   }
 
   return { valid: errors.length === 0, errors, warnings };
+}
+
+export interface ReadingQuality {
+  totalCards: number;       // cards summed across all 8 sections
+  wordEstimate: number;     // whitespace-split count of the JSON (same metric as the validator warning)
+  thinSections: string[];   // sections below their per-section min — targets for top-up
+  tooThin: boolean;         // fails the balanced absolute floor
+}
+
+function sectionCardCount(section: unknown): number {
+  if (!section || typeof section !== 'object') return 0;
+  const s = section as Record<string, unknown>;
+  const cards = (s.coreCards ?? s.cards) as unknown[] | undefined;
+  return Array.isArray(cards) ? cards.length : 0;
+}
+
+/**
+ * Tier-1 quality floor. Distinct from validateNatalReading (which checks
+ * STRUCTURE — are all section keys present). This measures CONTENT VOLUME so a
+ * structurally-valid-but-hollow reading doesn't ship silently.
+ *
+ * Expects an already-normalized reading (top-level section keys present).
+ */
+export function assessNatalReadingQuality(json: Record<string, unknown>): ReadingQuality {
+  const normalized = normalizeNatalReadingShape(json);
+
+  let totalCards = 0;
+  const thinSections: string[] = [];
+  for (const key of SECTION_KEYS) {
+    const count = sectionCardCount(normalized[key]);
+    totalCards += count;
+    if (count < (SECTION_MIN_CARDS[key] ?? 0)) thinSections.push(key);
+  }
+
+  const wordEstimate = JSON.stringify(normalized).split(/\s+/).length;
+  const tooThin = totalCards < MIN_TOTAL_CARDS || wordEstimate < MIN_WORD_ESTIMATE;
+
+  return { totalCards, wordEstimate, thinSections, tooThin };
 }
 
 /**

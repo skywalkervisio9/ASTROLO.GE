@@ -10,6 +10,10 @@ import {
   parseClaudeJSON,
   validateNatalReading,
   validateSynastryReading,
+  assessNatalReadingQuality,
+  SECTION_MIN_CARDS,
+  PARITY_MIN_RATIO,
+  type ReadingQuality,
 } from './validator';
 import {
   getNatalCall1Prompt,
@@ -27,6 +31,19 @@ import { SECTION_KEYS } from '@/types/reading';
 // triggering a Vercel kill that leaves the row stuck in 'generating'.
 const MAX_RETRIES = 1;
 const JSON_REPAIR_MAX_CHARS = 120000;
+
+/**
+ * Tier-1 quality-floor failure. Thrown by runNatalCall2 when a reading is too
+ * hollow to ship even after one top-up pass (absolute floor or KA/EN parity).
+ * generate-full catches this and records generation_status='failed' so the
+ * loading screen can surface Retry instead of saving a skeletal reading.
+ */
+export class ReadingTooThinError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ReadingTooThinError';
+  }
+}
 
 // ── Natal reading pipeline ──
 
@@ -100,6 +117,26 @@ export async function runNatalCall2(
     generateSingleReading(userMsg, 'en'),
   ]);
 
+  // ── Tier-1 quality gate ──
+  // Each language already attempted ONE top-up pass inside generateSingleReading.
+  // Here we make the final ship/no-ship call: reject if either language is still
+  // below the absolute floor, or if the two are badly lopsided (full EN +
+  // skeletal KA, the bogpremium signature). Rejecting throws ReadingTooThinError
+  // so generate-full marks the row failed rather than saving a hollow reading.
+  const kaCards = readingKa.quality.totalCards;
+  const enCards = readingEn.quality.totalCards;
+  const maxCards = Math.max(kaCards, enCards, 1);
+  const parityThin = Math.min(kaCards, enCards) < PARITY_MIN_RATIO * maxCards;
+
+  if (readingKa.quality.tooThin || readingEn.quality.tooThin || parityThin) {
+    const reasons = [
+      readingKa.quality.tooThin && `ka below floor (cards=${kaCards}, words≈${readingKa.quality.wordEstimate})`,
+      readingEn.quality.tooThin && `en below floor (cards=${enCards}, words≈${readingEn.quality.wordEstimate})`,
+      parityThin && `ka/en parity off (ka=${kaCards}, en=${enCards}, need ≥${Math.round(PARITY_MIN_RATIO * 100)}% of larger)`,
+    ].filter(Boolean).join('; ');
+    throw new ReadingTooThinError(`Reading too thin after top-up: ${reasons}`);
+  }
+
   const interpKa = readingKa.aspectInterpretations.length > 0
     ? readingKa.aspectInterpretations
     : readingEn.aspectInterpretations;
@@ -166,6 +203,7 @@ async function generateSingleReading(
   language: Language
 ): Promise<{
   parsed: Record<string, unknown>;
+  quality: ReadingQuality;
   aspectInterpretations: AspectInterpretation[];
   warnings: string[];
   model: string;
@@ -204,8 +242,26 @@ async function generateSingleReading(
         throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
       }
 
+      // ── Tier-1 quality floor (one top-up attempt) ──
+      // Structure is valid (all 8 keys present) but the content may be hollow
+      // (bogpremium). Top up under-filled sections ONCE, then re-measure. We do
+      // NOT throw on persistent thinness here — the cross-language parity gate
+      // in runNatalCall2 makes the final ship/no-ship decision so we never spend
+      // a second full-generation attempt (which would risk the 300s budget).
+      let quality = assessNatalReadingQuality(parsed);
+      if (quality.tooThin && quality.thinSections.length > 0 && quality.thinSections.length < SECTION_KEYS.length) {
+        try {
+          const topUp = await topUpThinNatalSections(parsed, userMessage, language, quality.thinSections);
+          parsed = normalizeNatalReadingShape({ ...parsed, ...topUp });
+          quality = assessNatalReadingQuality(parsed);
+        } catch (topUpErr) {
+          console.warn(`[${language}] thin-section top-up failed (keeping first draft):`, topUpErr);
+        }
+      }
+
       return {
         parsed,
+        quality,
         aspectInterpretations,
         warnings: validation.warnings.map((w) => `[${language}] ${w}`),
         model: response.model,
@@ -396,6 +452,53 @@ async function completeMissingNatalSections(
   const parsed = await parseOrRepairJSON(completion.text);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Section completion returned invalid JSON object');
+  }
+  return parsed as Record<string, unknown>;
+}
+
+/**
+ * Tier-1 top-up: ask the model to expand under-filled sections so they meet
+ * their card minimums. Sibling of completeMissingNatalSections, but for sections
+ * that exist yet are too thin (rather than missing entirely). Returns a JSON
+ * object keyed only by the thin sections — each as a FULL replacement section so
+ * the caller can spread it over the partial reading.
+ */
+async function topUpThinNatalSections(
+  partial: Record<string, unknown>,
+  userMessage: string,
+  language: Language,
+  thinSections: string[]
+): Promise<Record<string, unknown>> {
+  const topUpSystemPrompt = [
+    'You expand under-filled sections of a natal reading to meet card minimums.',
+    'Output exactly one valid JSON object and nothing else.',
+    'Include ONLY the section keys requested.',
+    'For each, return the COMPLETE section (sectionTitle, sectionTagline, cards[], pullQuote)',
+    'with at least the minimum number of cards — keep the existing good cards and add more.',
+    'Each card must follow the expected card shape. Do not include markdown, comments, or prose.',
+    `Target language for all section text: ${language}.`,
+  ].join(' ');
+
+  const minLines = thinSections
+    .map((k) => `${k}: at least ${SECTION_MIN_CARDS[k] ?? 4} cards`)
+    .join('\n');
+
+  const topUpUserMessage = [
+    'Expand these under-filled natal reading sections to meet their card minimums:',
+    minLines,
+    'Return a JSON object with only these keys, each a full section.',
+    '',
+    'Current partial reading JSON (preserve its good cards, add more to reach the minimums):',
+    JSON.stringify(partial).slice(0, JSON_REPAIR_MAX_CHARS),
+    '',
+    'Context for writing additional cards:',
+    userMessage.slice(0, JSON_REPAIR_MAX_CHARS),
+  ].join('\n');
+
+  const completion = await callClaude(topUpSystemPrompt, topUpUserMessage, 16000);
+  const parsed = await parseOrRepairJSON(completion.text);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Section top-up returned invalid JSON object');
   }
   return parsed as Record<string, unknown>;
 }

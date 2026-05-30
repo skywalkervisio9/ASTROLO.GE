@@ -36,7 +36,7 @@ import {
 } from '@/lib/chart/reading-helpers';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+export const maxDuration = 600;
 
 const DEV_PASSWORD = 'astrolo';
 const isDevAllowed = (req: NextRequest) =>

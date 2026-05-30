@@ -239,7 +239,7 @@ interface StoredAspect {
   planet1: string; planet2: string; aspect: string; orb: number;
 }
 
-export const maxDuration = 300; // Claude + external APIs can take 1-2 minutes
+export const maxDuration = 600; // Claude + external APIs can take 1-2 minutes
 
 export async function POST(req: NextRequest) {
   try {
