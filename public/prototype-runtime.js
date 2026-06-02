@@ -412,10 +412,11 @@ function buildSlot2NavItem(afterEl, unlocked, occupied) {
   if (!unlocked) return; // not paid → nothing
 
   if (!occupied) {
-    // Paid but no partner → pulsating 2nd synastry CTA
+    // Paid but no partner → pulsating 2nd synastry CTA. Slot already paid,
+    // so the modal must NOT show the ₾5 price tag — pass prepaid=true.
     const el = document.createElement('div');
     el.className = 'sb-nav-item syn-cta-pulsate syn-extra';
-    el.onclick = function() { openInviteModal(); };
+    el.onclick = function() { openInviteModal(true); };
     el.innerHTML = '<span class="sb-nav-icon"><svg><use href="#gl-conjunction"/></svg></span><div class="sb-nav-text"><span class="sb-nav-label">სინასტრია</span></div>';
     afterEl.insertAdjacentElement('afterend', el);
   } else {
@@ -581,7 +582,10 @@ window.addEventListener('synastry-ready', function(e) {
 
 // ═══ INVITE MODAL ═══
 let selectedInviteType = null;
-function openInviteModal() {
+// `prepaid` = true when the caller is the slot 2+ "სინასტრია" CTA, where the
+// slot was already paid for. We show a "დამატებითი სინასტრია" label without
+// the ₾5 price (the user already paid for the extra slot).
+function openInviteModal(prepaid) {
   closeSidebar();
   selectedInviteType = null;
   const modal = document.getElementById('inviteModal');
@@ -609,10 +613,12 @@ function openInviteModal() {
     actions.style.display = 'flex';
     document.getElementById('inviteGenBtn').disabled = true;
     document.getElementById('inviteGenBtn').textContent = 'აირჩიე ტიპი';
-    // Show ₾5 price tag when all free slots are occupied (buying additional)
-    const s1Occ = getSlot1Occupied();
-    const needsPurchase = s1Occ; // if slot 1 is occupied, next invite costs ₾5
-    if (needsPurchase) {
+    if (prepaid) {
+      // Slot already purchased — label only, no price tag.
+      priceTag.textContent = 'დამატებითი სინასტრია';
+      priceTag.classList.add('show');
+    } else if (getSlot1Occupied()) {
+      // Slot 1 used and no prepaid slot → ₾5 price tag for the next one.
       priceTag.textContent = '₾5 — დამატებითი სინასტრია';
       priceTag.classList.add('show');
     }

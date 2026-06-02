@@ -333,10 +333,18 @@ export default function SynastryViewWrapper() {
     }
   };
 
-  // Open the prototype-runtime invite modal — the only path to fill an empty
-  // synastry slot. Synastry never auto-populates with fake data anymore.
+  // Empty-state CTA → slot payment page (NOT the invite-link modal).
+  // If the user is sitting on the synastry tab without an active reading, the
+  // natural next step is to expand capacity (buy a slot) rather than juggle a
+  // modal. After payment they return here with an unlocked slot to populate.
+  // Matches the sidebar "მოწვევა" handler in BodyContent.tsx.
   const openInvite = () => {
-    (window as unknown as { openInviteModal?: () => void }).openInviteModal?.();
+    const w = window as unknown as {
+      showPaymentPage?: (type: string) => void;
+      closeSidebar?: () => void;
+    };
+    w.closeSidebar?.();
+    w.showPaymentPage?.('synastry-slot');
   };
 
   // ── Render states ──

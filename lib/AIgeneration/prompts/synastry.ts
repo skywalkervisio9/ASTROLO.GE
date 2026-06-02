@@ -40,8 +40,8 @@ export function getSynastryPrompt(
   language: Language
 ): string {
   const filename = type === 'couple'
-    ? 'SYSTEM-PROMPT-Couple_s5.md'
-    : 'SYSTEM-PROMPT-Friend_s5.md';
+    ? 'SYSTEM-PROMPT-Couple_s6.md'
+    : 'SYSTEM-PROMPT-Friend_s6.md';
 
   const spec = loadPromptFile(filename);
 
@@ -85,9 +85,24 @@ export function getSynastryPrompt(
 }
 
 /**
- * Build the user message for synastry generation.
- * Combines both users' natal analyses + chart contexts.
+ * Reduce a full_name (which may be a display handle like "SKYWALKER VISUALS",
+ * an all-caps brand, or a multi-word name) to a single first name in
+ * natural case. Prevents the v5 bug where the model would repeat
+ * "SKYWALKER VISUALS-ის" throughout a Georgian reading.
  */
+export function normalizeFirstName(name: string, fallback: string): string {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) return fallback;
+  const first = trimmed.split(/\s+/)[0];
+  // Always Title Case Latin first names (ALL CAPS, all-lower, MiXeD all map to
+  // first-letter-upper). Non-Latin scripts (Georgian, Cyrillic, etc.) are
+  // returned unchanged — their casing isn't meaningful the same way.
+  if (/^[A-Za-z]+$/.test(first)) {
+    return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+  }
+  return first;
+}
+
 export function buildSynastryUserMessage(
   personAName: string,
   personAAnalysis: string,
@@ -98,15 +113,17 @@ export function buildSynastryUserMessage(
   type: 'couple' | 'friend'
 ): string {
   const typeLabel = type === 'couple' ? 'couple' : 'friendship';
+  const nameA = normalizeFirstName(personAName, 'Friend1');
+  const nameB = normalizeFirstName(personBName, 'Friend2');
   return [
-    `PERSON A — ${personAName}:`,
+    `## ${nameA}`,
     'Natal Analysis:',
     personAAnalysis,
     '',
     'Chart Data:',
     personAChartContext,
     '',
-    `PERSON B — ${personBName}:`,
+    `## ${nameB}`,
     'Natal Analysis:',
     personBAnalysis,
     '',
