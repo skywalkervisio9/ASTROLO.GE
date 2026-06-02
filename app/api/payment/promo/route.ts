@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, action: 'discount', amount: 10 });
     }
 
+    if (code === 'synastry2') {
+      // Half-price on an extra synastry slot. Client pre-applies this code
+      // by default on the slot payment page; this endpoint just confirms
+      // recognition so future bank-redirect wiring can quote ₾2.5.
+      return NextResponse.json({ ok: true, action: 'discount', amount: 2.5, scope: 'synastry-slot' });
+    }
+
     if (code === 'lotus') {
       const admin = createAdminSupabase();
       const { error } = await admin
