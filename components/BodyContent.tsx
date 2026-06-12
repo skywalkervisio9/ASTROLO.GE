@@ -405,11 +405,13 @@ export default function BodyContent() {
     setText('payCtaText', cta);
   }, [promoVariant, promoLangTick]);
 
-  const onPayCtaClick = useCallback(async () => {
+    const onPayCtaClick = useCallback(async () => {
     if (promoBusy) return;
+
     if (promoVariant === 'unlock') {
       try {
         setPromoBusy(true);
+
         const { withCsrfHeaders } = await import('@/lib/auth/client');
         const init = await withCsrfHeaders({
           method: 'POST',
@@ -417,21 +419,75 @@ export default function BodyContent() {
           credentials: 'include',
           body: JSON.stringify({ code: promoNormalised }),
         });
+
         const res = await fetch('/api/payment/promo', init);
+
         if (!res.ok) {
           const message = await res.text().catch(() => '');
           alert(`Promo redemption failed (${res.status}): ${message || 'unknown error'}`);
           return;
         }
+
         window.location.href = '/loading?mode=generate-full';
       } finally {
         setPromoBusy(false);
       }
+
       return;
     }
-    // astrolo10 / no-code / invalid — fall through to the existing bank
-    // redirect placeholder. Real bank integration replaces this alert later.
-    alert('→ გადამისამართება ბანკის გვერდზე…');
+
+    try {
+      setPromoBusy(true);
+
+      const isEn = document.body.classList.contains('lang-en');
+      const natalShown = document.getElementById('payNatalUnlock')?.style.display !== 'none';
+      const slotShown = document.getElementById('paySynastrySlot')?.style.display !== 'none';
+
+      const payment_type =
+        natalShown ? 'natal_unlock'
+        : slotShown ? 'invite_slot'
+        : 'premium_upgrade';
+
+      const provider =
+        document.getElementById('payTbc')?.classList.contains('selected')
+          ? 'tbc'
+          : 'bog';
+
+      const promo_code =
+        payment_type === 'premium_upgrade' && promoVariant === 'discount'
+          ? 'astrolo10'
+          : payment_type === 'invite_slot' && promoVariant === 'synastry-half'
+            ? 'synastry2'
+            : undefined;
+
+      const { withCsrfHeaders } = await import('@/lib/auth/client');
+      const init = await withCsrfHeaders({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          payment_type,
+          provider,
+          promo_code,
+          language: isEn ? 'en' : 'ka',
+        }),
+      });
+
+      const res = await fetch('/api/payment/create', init);
+      const data = await res.json().catch(() => ({})) as {
+        error?: string;
+        redirect_url?: string;
+      };
+
+      if (!res.ok || !data.redirect_url) {
+        alert(data.error || `Payment creation failed (${res.status})`);
+        return;
+      }
+
+      window.location.href = data.redirect_url;
+    } finally {
+      setPromoBusy(false);
+    }
   }, [promoBusy, promoVariant, promoNormalised]);
 
   // For convenience inside JSX — recalculated each render via promoLangTick.
