@@ -72,6 +72,7 @@ export interface Payment {
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  provider_order_id: string | null;
 }
 
 // ── Pricing (GEL ₾) ──

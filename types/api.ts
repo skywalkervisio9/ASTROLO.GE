@@ -65,6 +65,7 @@ export interface CreatePaymentRequest {
   payment_type: 'premium_upgrade' | 'natal_unlock' | 'invite_slot';
   provider: 'tbc' | 'bog';
   relationship_type?: 'couple' | 'friend';   // for invite_slot
+  promo_code?: string;
 }
 
 export interface CreatePaymentResponse {
