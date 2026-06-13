@@ -29,6 +29,7 @@ import type { NatalReading, Card, SectionKey, OverviewSection, ContentSection } 
 import type { User } from '@/types/user';
 import { setRenderLang } from '@/lib/utils/renderText';
 import CardComponent from './CardComponent';
+import { setZodiacDisplayMode, type ZodiacDisplayMode } from '@/lib/utils/renderText';
 
 interface ReadingState {
   reading: NatalReading;
@@ -75,6 +76,7 @@ function getCardAt(reading: NatalReading, key: SectionKey, idx: number): Card | 
 export default function ReadingRenderer() {
   const [state, setState] = useState<ReadingState | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
+  const [zodiacMode, setZodiacModeState] = useState<ZodiacDisplayMode>('icon');
 
   useEffect(() => {
     let rafId = 0;
@@ -119,8 +121,17 @@ export default function ReadingRenderer() {
     // If prototype already hydrated before this listener mounted, pick up state now.
     sync();
 
+    const syncZodiacMode = () => {
+      const w = window as unknown as { __zodiacDisplayMode?: ZodiacDisplayMode };
+      setZodiacModeState(w.__zodiacDisplayMode === 'name' || document.body.classList.contains('zodiac-names') ? 'name' : 'icon');
+    };
+
+    window.addEventListener('astrolo:zodiac-display-change', syncZodiacMode);
+    syncZodiacMode();
+
     return () => {
       window.removeEventListener('reading:hydrated', sync);
+      window.removeEventListener('astrolo:zodiac-display-change', syncZodiacMode);
       cancelAnimationFrame(rafId);
       observer?.disconnect();
     };

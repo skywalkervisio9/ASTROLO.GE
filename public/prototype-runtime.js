@@ -688,6 +688,34 @@ function setLang(l, b) {
 }
 window.setLang = setLang;
 
+var _zodiacDisplayMode = 'icon';
+
+function setZodiacMode(mode, b) {
+  _zodiacDisplayMode = mode === 'name' ? 'name' : 'icon';
+  window.__zodiacDisplayMode = _zodiacDisplayMode;
+
+  document.body.classList.toggle('zodiac-names', _zodiacDisplayMode === 'name');
+  document.querySelectorAll('.zo').forEach(function(x) {
+    x.classList.toggle('active', x.getAttribute('data-zodiac-mode') === _zodiacDisplayMode);
+  });
+  if (b) b.classList.add('active');
+
+  try { localStorage.setItem('astrolo:zodiac-display', _zodiacDisplayMode); } catch (e) {}
+  window.dispatchEvent(new CustomEvent('astrolo:zodiac-display-change', { detail: { mode: _zodiacDisplayMode } }));
+
+  if (_currentReading && _currentUser) hydrateReading(_currentReading, _currentUser);
+}
+
+window.setZodiacMode = setZodiacMode;
+
+function _initZodiacMode() {
+  var saved = 'icon';
+  try { saved = localStorage.getItem('astrolo:zodiac-display') === 'name' ? 'name' : 'icon'; } catch (e) {}
+  setZodiacMode(saved, document.querySelector('.zo[data-zodiac-mode="' + saved + '"]'));
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _initZodiacMode);
+else _initZodiacMode();
+
 // Translation map for all fixed UI text
 const TR = {
   // Section nav buttons (natal)

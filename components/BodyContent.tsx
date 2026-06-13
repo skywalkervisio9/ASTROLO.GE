@@ -68,6 +68,7 @@ type ProtoGlobals = {
   showPaymentPage?: (type: string) => void;
   selectPayMethod?: (method: string, el: HTMLElement) => void;
   setLang?: (l: string, b: HTMLElement) => void;
+  setZodiacMode?: (mode: 'icon' | 'name', b: HTMLElement) => void;
   shareReading?: () => void;
   shareToSocial?: (platform: string) => void;
   go?: (id: string) => void;
@@ -530,7 +531,15 @@ export default function BodyContent() {
 
 <nav className="tb">
 <a className="tbl" href="#" aria-label="ASTROLO.GE" onClick={(e) => { e.preventDefault(); (window as unknown as Record<string, unknown> & { switchView?: (v: string, b?: HTMLElement | null) => void }).switchView?.('natal', document.getElementById('devNatal')); }}><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-ge"><span className="lt-dot">.</span>GE</span></span></a>
-<div className="tbr"><div className="lg"><button className="lo active" onClick={(e) => { proto().setLang?.("ka", e.currentTarget); }}>ქარ</button><button className="lo" onClick={(e) => { proto().setLang?.("en", e.currentTarget); }}>EN</button></div>
+<div className="tbr">
+  <div className="lg">
+    <button className="lo active" onClick={(e) => { proto().setLang?.("ka", e.currentTarget); }}>ქარ</button>
+    <button className="lo" onClick={(e) => { proto().setLang?.("en", e.currentTarget); }}>EN</button>
+  </div>
+  <div className="zt" aria-label="Zodiac display">
+    <button className="zo active" data-zodiac-mode="icon" title="Zodiac icons" onClick={(e) => { proto().setZodiacMode?.("icon", e.currentTarget); }}>♈</button>
+    <button className="zo" data-zodiac-mode="name" title="Zodiac names" onClick={(e) => { proto().setZodiacMode?.("name", e.currentTarget); }}>Aa</button>
+  </div>
 <button type="button" className="pb" onClick={() => { proto().openSidebar?.(); }}><div className="pa"></div><span className="pn"></span></button></div></nav>
 
 
