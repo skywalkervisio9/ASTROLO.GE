@@ -3,6 +3,10 @@
 // ═══════════════════════════════════════════════════════════
 
 let currentAccountType = 'premium';
+// Paid extra-slot count from users.invite_slots_purchased. Slot 2+ unlock
+// follows this number — tier alone isn't enough, since invited+ users may
+// have reached that tier via natal_unlock without buying any extra slots.
+let currentInviteSlotsPurchased = 0;
 let discountOn = true;
 // Slot overrides: null = follow tier defaults, true/false = dev override
 let slot1UnlockedOverride = null;
@@ -287,8 +291,10 @@ function getSlot1Occupied() {
 }
 function getSlot2Unlocked() {
   if (slot2UnlockedOverride !== null) return slot2UnlockedOverride;
-  // Tier defaults: premium+=unlocked, invited+=unlocked
-  return currentAccountType === 'premium-plus' || currentAccountType === 'invited-plus';
+  // Slot 2+ unlock follows the paid count, not the tier string. An invited+
+  // user who reached the tier via natal_unlock alone (no extra slot paid)
+  // would otherwise incorrectly see slot 2 unlocked.
+  return currentInviteSlotsPurchased >= 1;
 }
 function getSlot2Occupied() {
   if (slot2OccupiedOverride !== null) return slot2OccupiedOverride;
@@ -406,10 +412,11 @@ function buildSlot2NavItem(afterEl, unlocked, occupied) {
   if (!unlocked) return; // not paid → nothing
 
   if (!occupied) {
-    // Paid but no partner → pulsating 2nd synastry CTA
+    // Paid but no partner → pulsating 2nd synastry CTA. Slot already paid,
+    // so the modal must NOT show the ₾5 price tag — pass prepaid=true.
     const el = document.createElement('div');
     el.className = 'sb-nav-item syn-cta-pulsate syn-extra';
-    el.onclick = function() { openInviteModal(); };
+    el.onclick = function() { openInviteModal(true); };
     el.innerHTML = '<span class="sb-nav-icon"><svg><use href="#gl-conjunction"/></svg></span><div class="sb-nav-text"><span class="sb-nav-label">სინასტრია</span></div>';
     afterEl.insertAdjacentElement('afterend', el);
   } else {
@@ -431,37 +438,45 @@ function toggleDiscount(btn) {
   const amount = document.getElementById('payAmount');
   const discBadge = document.getElementById('payDiscountBadge');
   const ctaText = document.getElementById('payCtaText');
+  var pfx = document.body.classList.contains('lang-en') ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
   if (discountOn) {
     if (oldPrice) oldPrice.style.display = '';
     if (amount) amount.textContent = '₾10';
     if (discBadge) discBadge.style.display = '';
-    if (ctaText) ctaText.textContent = '✦ PREMIUM-ის განბლოკვა — ₾10';
+    if (ctaText) ctaText.textContent = pfx + '₾10';
   } else {
     if (oldPrice) oldPrice.style.display = 'none';
     if (amount) amount.textContent = '₾15';
     if (discBadge) discBadge.style.display = 'none';
-    if (ctaText) ctaText.textContent = '✦ PREMIUM-ის განბლოკვა — ₾15';
+    if (ctaText) ctaText.textContent = pfx + '₾15';
   }
 }
 
 // ═══ PAYMENT PAGES ═══
 function showPaymentPage(type) {
+  // Guests (public reading view) aren't logged in, so payment/promo calls
+  // would 401. Send them to /auth to sign in first — mirrors openSidebar.
+  if (window.__ASTROLO_PUBLIC_VIEW) {
+    window.location.href = '/auth';
+    return;
+  }
   // Hide all payment sub-pages
   document.getElementById('payPremium').style.display = 'none';
   document.getElementById('payNatalUnlock').style.display = 'none';
   document.getElementById('paySynastrySlot').style.display = 'none';
   const ctaText = document.getElementById('payCtaText');
 
+  var isEn = document.body.classList.contains('lang-en');
   if (type === 'premium') {
     document.getElementById('payPremium').style.display = '';
     const price = discountOn ? '₾10' : '₾15';
-    ctaText.textContent = '✦ PREMIUM-ის განბლოკვა — ' + price;
+    ctaText.textContent = (isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ') + price;
   } else if (type === 'natal-unlock') {
     document.getElementById('payNatalUnlock').style.display = '';
-    ctaText.textContent = '✦ ნატალური რუკის განბლოკვა — ₾5';
+    ctaText.textContent = isEn ? '✦ Unlock natal chart — ₾5' : '✦ ნატალური რუკის განბლოკვა — ₾5';
   } else if (type === 'synastry-slot') {
     document.getElementById('paySynastrySlot').style.display = '';
-    ctaText.textContent = '✦ სლოტის განბლოკვა — ₾5';
+    ctaText.textContent = isEn ? '✦ Unlock slot — ₾5' : '✦ სლოტის განბლოკვა — ₾5';
   }
 
   switchView('payment');
@@ -567,7 +582,10 @@ window.addEventListener('synastry-ready', function(e) {
 
 // ═══ INVITE MODAL ═══
 let selectedInviteType = null;
-function openInviteModal() {
+// `prepaid` = true when the caller is the slot 2+ "სინასტრია" CTA, where the
+// slot was already paid for. We show a "დამატებითი სინასტრია" label without
+// the ₾5 price (the user already paid for the extra slot).
+function openInviteModal(prepaid) {
   closeSidebar();
   selectedInviteType = null;
   const modal = document.getElementById('inviteModal');
@@ -595,10 +613,12 @@ function openInviteModal() {
     actions.style.display = 'flex';
     document.getElementById('inviteGenBtn').disabled = true;
     document.getElementById('inviteGenBtn').textContent = 'აირჩიე ტიპი';
-    // Show ₾5 price tag when all free slots are occupied (buying additional)
-    const s1Occ = getSlot1Occupied();
-    const needsPurchase = s1Occ; // if slot 1 is occupied, next invite costs ₾5
-    if (needsPurchase) {
+    if (prepaid) {
+      // Slot already purchased — label only, no price tag.
+      priceTag.textContent = 'დამატებითი სინასტრია';
+      priceTag.classList.add('show');
+    } else if (getSlot1Occupied()) {
+      // Slot 1 used and no prepaid slot → ₾5 price tag for the next one.
       priceTag.textContent = '₾5 — დამატებითი სინასტრია';
       priceTag.classList.add('show');
     }
@@ -647,6 +667,10 @@ function setLang(l, b) {
   if (b) b.classList.add('active');
   document.body.classList.toggle('lang-en', l === 'en');
   applyTranslations(l);
+  // Persist the choice so full-page auth-step transitions (e.g. signup →
+  // /auth?step=birth) and plain reloads keep the same language instead of
+  // snapping back to the KA default. AuthPageClient restores this on load.
+  try { localStorage.setItem('astrolo:lang', l); } catch (e) { /* private mode / quota */ }
   if (l === 'ka' || l === 'en') {
     // Let HydrationBridge handle it on authenticated pages (it sets this flag)
     if (window.__hydrationBridgeActive) {
@@ -698,8 +722,8 @@ const TR = {
   'compat': { ka: 'თავსებადობა', en: 'Compatibility' },
   // Auth
   'auth': {
-    ka: { login: 'შესვლა', loginSub: 'შენი ციური ნახაზი გელოდება', signup: 'რეგისტრაცია', signupSub: 'დაიწყე შენი ციური მოგზაურობა', forgot: 'პაროლის აღდგენა', forgotSub: 'შეიყვანე ელ-ფოსტა', google: 'Google-ით შესვლა', googleSignup: 'Google-ით რეგისტრაცია', orEmail: 'ან ელ-ფოსტით', email: 'ელ-ფოსტა', password: 'პაროლი', passwordMinPlaceholder: 'მინ. 8 სიმბოლო', name: 'სახელი', forgotLink: 'დაგავიწყდა?', createAccount: 'რეგისტრაცია', haveAccount: 'უკვე გაქვს ანგარიში?', sendReset: 'ბმულის გაგზავნა', resetSent: 'ბმული გაგზავნილია', resetInfo: 'თუ ანგარიში არსებობს, მალე მიიღებ აღდგენის ბმულს.', backToLogin: 'შესვლაზე დაბრუნება', backBtn: 'დაბრუნება', inviteBadge: 'მოწვევა: სინასტრია', termsPrefix: 'რეგისტრაციით ეთანხმები', termsLabel: 'პირობებს', privacyLabel: 'კონფიდენციალობას', birthData: 'დაბადების მონაცემები', birthSub: 'ნატალური რუკის აგებისთვის', birthHint: 'რატომ გვჭირდება?', birthHintText: 'ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.', day: 'დღე', month: 'თვე', year: 'წელი', hour: 'საათი', minute: 'წუთი', timeUnknown: 'დაბადების დრო უცნობია', place: 'დაბადების ადგილი', placePlaceholder: 'ქალაქი, ქვეყანა', gender: 'სქესი', female: 'ქალი', male: 'კაცი', generateChart: 'რუკის აგება ✦', back: '← უკან', showPw: 'ჩვენება', hidePw: 'დამალვა' },
-    en: { login: 'Sign In', loginSub: 'Your celestial blueprint awaits', signup: 'Create Account', signupSub: 'Begin your celestial journey', forgot: 'Reset Password', forgotSub: 'Enter your email', google: 'Continue with Google', googleSignup: 'Continue with Google', orEmail: 'or with email', email: 'EMAIL', password: 'PASSWORD', passwordMinPlaceholder: 'Min. 8 characters', name: 'NAME', forgotLink: 'Forgot password?', createAccount: 'Create Account', haveAccount: 'Already have an account?', sendReset: 'Send Reset Link', resetSent: 'Check your email', resetInfo: 'If an account exists, you will receive a reset link shortly.', backToLogin: 'Back to Sign In', backBtn: 'Back', inviteBadge: 'Invite: Synastry', termsPrefix: 'By signing up, you agree to the', termsLabel: 'Terms', privacyLabel: 'Privacy Policy', birthData: 'Birth Data', birthSub: 'Required for your natal chart', birthHint: 'Why do we need this?', birthHintText: 'Your natal chart maps exact planetary positions at birth. More precision means a deeper reading.', day: 'DAY', month: 'MONTH', year: 'YEAR', hour: 'HOUR', minute: 'MINUTE', timeUnknown: 'Birth time unknown', place: 'Place of Birth', placePlaceholder: 'City, Country', gender: 'GENDER', female: 'Female', male: 'Male', generateChart: 'Generate Chart ✦', back: '← Back', showPw: 'Show', hidePw: 'Hide' }
+    ka: { login: 'შესვლა', loginSub: 'შენი ციური ნახაზი გელოდება', signup: 'რეგისტრაცია', signupSub: 'დაიწყე შენი ციური მოგზაურობა', forgot: 'პაროლის აღდგენა', forgotSub: 'შეიყვანე ელ-ფოსტა', google: 'Google-ით შესვლა', googleSignup: 'Google-ით რეგისტრაცია', orEmail: 'ან ელ-ფოსტით', email: 'ელ-ფოსტა', password: 'პაროლი', passwordMinPlaceholder: 'მინ. 8 სიმბოლო', name: 'სახელი', forgotLink: 'დაგავიწყდა?', createAccount: 'რეგისტრაცია', haveAccount: 'უკვე გაქვს ანგარიში?', sendReset: 'ბმულის გაგზავნა', resetSent: 'ბმული გაგზავნილია', resetInfo: 'თუ ანგარიში არსებობს, მალე მიიღებ აღდგენის ბმულს.', backToLogin: 'შესვლაზე დაბრუნება', backBtn: 'დაბრუნება', newPassword: 'ახალი პაროლი', newPasswordSub: 'შეიყვანე ახალი პაროლი', newPasswordLabel: 'ახალი პაროლი', confirmPasswordLabel: 'გაიმეორე პაროლი', updatePassword: 'პაროლის შენახვა', passwordUpdated: 'პაროლი განახლდა', passwordUpdatedInfo: 'შეგიძლია გააგრძელო ახალი პაროლით.', continueBtn: 'გაგრძელება', inviteBadge: 'მოწვევა: სინასტრია', termsPrefix: 'რეგისტრაციით ეთანხმები', termsLabel: 'პირობებს', privacyLabel: 'კონფიდენციალობას', birthData: 'დაბადების მონაცემები', birthSub: 'ნატალური რუკის აგებისთვის', birthHint: 'რატომ გვჭირდება?', birthHintText: 'ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.', day: 'დღე', month: 'თვე', year: 'წელი', hour: 'საათი', minute: 'წუთი', timeUnknown: 'დაბადების დრო უცნობია', place: 'დაბადების ადგილი', placePlaceholder: 'ქალაქი, ქვეყანა', gender: 'სქესი', female: 'ქალი', male: 'კაცი', generateChart: 'რუკის აგება ✦', back: '← უკან', showPw: 'ჩვენება', hidePw: 'დამალვა' },
+    en: { login: 'Sign In', loginSub: 'Your celestial blueprint awaits', signup: 'Create Account', signupSub: 'Begin your celestial journey', forgot: 'Reset Password', forgotSub: 'Enter your email', google: 'Continue with Google', googleSignup: 'Continue with Google', orEmail: 'or with email', email: 'EMAIL', password: 'PASSWORD', passwordMinPlaceholder: 'Min. 8 characters', name: 'NAME', forgotLink: 'Forgot password?', createAccount: 'Create Account', haveAccount: 'Already have an account?', sendReset: 'Send Reset Link', resetSent: 'Check your email', resetInfo: 'If an account exists, you will receive a reset link shortly.', backToLogin: 'Back to Sign In', backBtn: 'Back', newPassword: 'New Password', newPasswordSub: 'Choose a new password', newPasswordLabel: 'NEW PASSWORD', confirmPasswordLabel: 'CONFIRM PASSWORD', updatePassword: 'Update Password', passwordUpdated: 'Password updated', passwordUpdatedInfo: 'You can now continue with your new password.', continueBtn: 'Continue', inviteBadge: 'Invite: Synastry', termsPrefix: 'By signing up, you agree to the', termsLabel: 'Terms', privacyLabel: 'Privacy Policy', birthData: 'Birth Data', birthSub: 'Required for your natal chart', birthHint: 'Why do we need this?', birthHintText: 'Your natal chart maps exact planetary positions at birth. More precision means a deeper reading.', day: 'DAY', month: 'MONTH', year: 'YEAR', hour: 'HOUR', minute: 'MINUTE', timeUnknown: 'Birth time unknown', place: 'Place of Birth', placePlaceholder: 'City, Country', gender: 'GENDER', female: 'Female', male: 'Male', generateChart: 'Generate Chart ✦', back: '← Back', showPw: 'Show', hidePw: 'Hide' }
   }
 };
 
@@ -848,6 +872,18 @@ function applyTranslations(l) {
     var rsh = pf.querySelector('.reset-success h3'); if (rsh) rsh.textContent = a.resetSent;
     var rsp = pf.querySelector('.reset-success p'); if (rsp) rsp.textContent = a.resetInfo;
     var rb = pf.querySelector('#forgot-success .auth-btn .btn-text'); if (rb) rb.textContent = a.backBtn;
+  }
+  // Reset (set new password)
+  var pr = document.getElementById('page-reset');
+  if (pr) {
+    var rh = pr.querySelector('.auth-header h1'); if (rh) rh.textContent = a.newPassword;
+    var rsub = pr.querySelector('.auth-header .sub'); if (rsub) rsub.textContent = a.newPasswordSub;
+    var rLabels = pr.querySelectorAll('#reset-form .field label'); if (rLabels[0]) rLabels[0].textContent = a.newPasswordLabel; if (rLabels[1]) rLabels[1].textContent = a.confirmPasswordLabel;
+    var rbt = pr.querySelector('#reset-form .auth-btn .btn-text'); if (rbt) rbt.textContent = a.updatePassword;
+    var rsh = pr.querySelector('#reset-success .reset-success h3'); if (rsh) rsh.textContent = a.passwordUpdated;
+    var rsp = pr.querySelector('#reset-success .reset-success p'); if (rsp) rsp.textContent = a.passwordUpdatedInfo;
+    var rcb = pr.querySelector('#reset-success .auth-btn .btn-text'); if (rcb) rcb.textContent = a.continueBtn;
+    pr.querySelectorAll('.pw-toggle').forEach(function(b) { b.textContent = a.showPw; });
   }
   // Birth
   var pb = document.getElementById('page-birth');
@@ -1755,29 +1791,78 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
 let authStep = 1;
 let selectedGender = '';
 
+// Visual step mapping: each auth page lights up its dot in the progress bar.
+// page-forgot is a detour off the login step so we keep dot 1 active there.
+const AUTH_PAGE_STEP = { 'page-login': 1, 'page-forgot': 1, 'page-signup': 2, 'page-birth': 3 };
+
+// Forward step-dot clicks must run the current page's form validation when
+// the destination is a step that actually depends on it. Signup is an
+// alternate entry path (parallel to login), so navigating *to* signup never
+// requires login credentials. Only "→ birth" (which assumes the user is
+// authenticated) gates on the current page's fields.
+function canAdvanceFromAuthPage(fromId, toId) {
+  if (toId === 'page-signup') return true;
+  if (fromId === 'page-login' && toId === 'page-birth') {
+    const email = document.getElementById('login-email').value.trim();
+    const pw = document.getElementById('login-pw').value;
+    if (!email) { showAuthError('login-error', 'შეიყვანე ელ-ფოსტა'); return false; }
+    if (!pw) { showAuthError('login-error', 'შეიყვანე პაროლი'); return false; }
+    return true;
+  }
+  if (fromId === 'page-signup' && toId === 'page-birth') {
+    const name = document.getElementById('signup-name').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const pw = document.getElementById('signup-pw').value;
+    if (!name) { showAuthError('signup-error', 'შეიყვანე სახელი'); return false; }
+    if (!email) { showAuthError('signup-error', 'შეიყვანე ელ-ფოსტა'); return false; }
+    if (pw.length < 8) { showAuthError('signup-error', 'პაროლი მინ. 8 სიმბოლო'); return false; }
+    return true;
+  }
+  return true;
+}
+
+// Called from step-dot clicks. Goes through validation when moving forward.
+function navigateAuthStep(targetId) {
+  const currentPage = document.querySelector('.auth-page.active');
+  if (!currentPage) { showAuthPage(targetId); return; }
+  const currentId = currentPage.id;
+  const currentStep = AUTH_PAGE_STEP[currentId] || 1;
+  const targetStep = AUTH_PAGE_STEP[targetId] || 1;
+  if (targetStep > currentStep && !canAdvanceFromAuthPage(currentId, targetId)) return;
+  showAuthPage(targetId);
+}
+
 function showAuthPage(id) {
   document.querySelectorAll('.auth-page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.msg').forEach(m => { m.classList.remove('show'); m.textContent = ''; });
   if (id === 'page-forgot') { document.getElementById('forgot-form').style.display = 'block'; document.getElementById('forgot-success').style.display = 'none'; }
+  if (id === 'page-reset') { var rf = document.getElementById('reset-form'); var rs = document.getElementById('reset-success'); if (rf) rf.style.display = 'block'; if (rs) rs.style.display = 'none'; }
+  // The recovery page is reached directly from an email link, not via the
+  // signup wizard, so the 1-2-3 step indicator is meaningless there.
+  var stepsBar = document.getElementById('stepsBar');
+  if (stepsBar) stepsBar.style.display = (id === 'page-reset') ? 'none' : '';
+  const visualStep = AUTH_PAGE_STEP[id];
+  if (visualStep) renderAuthSteps(visualStep);
 }
 
 function goAuthStep(n) {
   authStep = n;
-  updateAuthStepUI();
   if (n === 1) showAuthPage('page-login');
   else if (n === 2) showAuthPage('page-birth');
   else if (n === 3) startLoading();
 }
 
-function updateAuthStepUI() {
+function renderAuthSteps(step) {
   for (let i = 1; i <= 3; i++) {
     const dot = document.getElementById('sd' + i);
-    const line = document.getElementById('sl' + (i - 1));
-    if (dot) { dot.className = 'step-dot' + (i < authStep ? ' done' : '') + (i === authStep ? ' active' : ''); }
-    if (line) { line.className = 'step-line' + (i <= authStep ? ' done' : ''); }
+    const line = document.getElementById('sl' + i);
+    if (dot) { dot.className = 'step-dot' + (i < step ? ' done' : '') + (i === step ? ' active' : ''); }
+    if (line) { line.className = 'step-line' + (step > i ? ' done' : ''); }
   }
 }
+
+function updateAuthStepUI() { renderAuthSteps(authStep); }
 
 function togglePw(btn) {
   const input = btn.previousElementSibling;
@@ -1857,7 +1942,7 @@ function handleBirthData() {
   const h = document.getElementById('birth-hour');
   for (let i = 0; i < 24; i++) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); h.appendChild(o); }
   const mn = document.getElementById('birth-min');
-  for (let i = 0; i < 60; i += 5) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); mn.appendChild(o); }
+  for (let i = 0; i < 60; i++) { const o = document.createElement('option'); o.value = i; o.textContent = String(i).padStart(2, '0'); mn.appendChild(o); }
 })();
 
 // Enter key → click the step's primary submit button
@@ -3012,7 +3097,13 @@ function hydrateReading(reading, user) {
   var paEl = document.querySelector('.pa');
   if (paEl) paEl.textContent = (user.full_name || user.email || '?')[0].toUpperCase();
 
-  // 2. Set tier
+  // 2. Set tier + paid-slot count
+  // invited-plus (the JS-internal tier string) gates UI affordances that
+  // assume the user has full reading access — so we map there only when
+  // natal_chart_unlocked is true. invited+ users without natal unlock keep
+  // the 'invited' UI gate; the paid-slot count below independently controls
+  // slot 2 visibility for them.
+  currentInviteSlotsPurchased = Number(user.invite_slots_purchased) || 0;
   var tierMap = { free: 'free', premium: 'premium', invited: 'invited', 'invited+': 'invited' };
   var mappedTier = tierMap[user.account_type] || 'free';
   if (user.natal_chart_unlocked && (user.account_type === 'invited' || user.account_type === 'invited+')) mappedTier = 'invited-plus';
@@ -3116,8 +3207,11 @@ function hydrateReading(reading, user) {
     viewNatal.appendChild(fragment);
   }
 
-  // 5. Switch to natal view if not already there
-  if (document.body.getAttribute('data-view') !== 'natal') {
+  // 5. Switch to natal view if not already on a real reading view.
+  // Treat 'synastry' and 'payment' as peer views — a language switch while
+  // viewing synastry or a payment page must not kick the user back to natal.
+  var _hydCurrentView = document.body.getAttribute('data-view');
+  if (_hydCurrentView !== 'natal' && _hydCurrentView !== 'synastry' && _hydCurrentView !== 'payment') {
     switchView('natal', document.getElementById('devNatal'));
   }
 
@@ -3136,11 +3230,15 @@ function hydrateReading(reading, user) {
 
 window.hydrateReading = hydrateReading;
 
-// ═══ HINT-BOX STAR SCROLL ROTATION ═══
+// ═══ HINT-BOX STAR SCROLL ROTATION (MOBILE ONLY) ═══
 // Rotate the sparkle SVG in each .h box whenever the box crosses the viewport middle.
 // Reuses the same 90° transform defined on .h:hover — see globals.css `.h.h-active .ht svg`.
+// Mobile-only, like the .c-active card observer below: on desktop, .h-active would
+// share the hover end-state and pin the star at 90°, making :hover look broken until
+// the box scrolled out of the center band. Desktop relies on :hover alone.
 (function() {
   if (typeof IntersectionObserver === 'undefined') return;
+  if (typeof matchMedia === 'undefined' || !matchMedia('(max-width: 720px)').matches) return;
   var _hObs = new IntersectionObserver(function(entries) {
     entries.forEach(function(en) { en.target.classList.toggle('h-active', en.isIntersecting); });
   }, { rootMargin: '-45% 0px -45% 0px' }); // ~10% band around viewport vertical center

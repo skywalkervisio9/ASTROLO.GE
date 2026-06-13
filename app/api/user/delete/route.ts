@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonServerError } from '@/lib/auth/http';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { createServerSupabase } from '@/lib/supabase/server';
 import { requireCsrfOrThrow } from '@/lib/auth/csrf';
 
 export async function DELETE() {
@@ -29,12 +30,26 @@ export async function DELETE() {
     // Synastry connections reference the user — delete those too
     await admin.from('synastry_connections').delete().or(`inviter_id.eq.${uid},invitee_id.eq.${uid}`);
 
+    // invite_codes.used_by has no ON DELETE clause, so leftover references
+    // here block the auth.users cascade with "Database error deleting user".
+    await admin.from('invite_codes').update({ used_by: null }).eq('used_by', uid);
+
     // Delete the public users row
     await admin.from('users').delete().eq('id', uid);
 
     // Delete the auth user (removes session + login ability)
     const { error: authErr } = await admin.auth.admin.deleteUser(uid);
     if (authErr) throw authErr;
+
+    // Clear SSR auth cookies so /auth doesn't loop redirecting through
+    // /post-auth: the deleted user's JWT lingers in cookies until we
+    // explicitly sign out the SSR client.
+    try {
+      const ssr = await createServerSupabase();
+      await ssr.auth.signOut();
+    } catch {
+      /* best-effort — client-side signOut also runs after this returns */
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {

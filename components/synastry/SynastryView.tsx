@@ -152,6 +152,21 @@ const ELEMENT_PALETTE: Record<string, { c: string; bg: string; hover: string; gl
   gold:   { c: 'var(--gold)',   bg: 'rgba(201,168,76,.13)',  hover: 'rgba(201,168,76,.22)',  glow: 'rgba(201,168,76,.06)',  glow2: 'rgba(201,168,76,.04)'  },
 };
 
+// "{Name}'s chart →" / "{Name}-ს რუკა →" — used to label the partner card.
+// Georgian: vowel-ending names take "ს", consonant-ending take "ის",
+// non-Georgian (Latin) names get "-ს" so the suffix reads cleanly.
+function chartPossessive(name: string, language: Language): string {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) return language === 'ka' ? 'რუკა →' : 'Chart →';
+  if (language === 'en') return `${trimmed}'s Chart →`;
+  const last = trimmed.slice(-1);
+  const isGeorgian = /[Ⴀ-ჿ]/.test(last);
+  const isGeorgianVowel = 'აეიოუ'.includes(last);
+  if (isGeorgianVowel) return `${trimmed}ს რუკა →`;
+  if (isGeorgian) return `${trimmed}ის რუკა →`;
+  return `${trimmed}-ს რუკა →`;
+}
+
 // English zodiac sign → Georgian name (AI emits English signs in meta.personA/B regardless of language)
 const SIGN_KA: Record<string, string> = {
   aries: 'ვერძი',
@@ -190,6 +205,11 @@ interface SynastryViewProps {
   synastryIsPublic?: boolean;
   /** Read-only cue on `/s/[slug]` public page (no toggle). */
   publicSynastrySlug?: string | null;
+  /** True when the logged-in viewer is the inviter (personA). Used to put
+   * the viewer's card on the right and align breadcrumb / "you" semantics
+   * with whoever is actually viewing. Defaults true so the public /s/[slug]
+   * page (no real viewer) keeps the inviter-on-left default. */
+  viewerIsInviter?: boolean;
 }
 
 export default function SynastryView({
@@ -200,10 +220,8 @@ export default function SynastryView({
   chartB,
   shareSlugA,
   shareSlugB,
-  synastryShareSlug,
-  synastryConnectionId,
-  synastryIsPublic: synastryPublicInitial,
   publicSynastrySlug,
+  viewerIsInviter = true,
 }: SynastryViewProps) {
   setRenderLang(language);
   const isFriend = reading.meta.type === 'synastry_friend';
@@ -309,6 +327,16 @@ export default function SynastryView({
   }, [sections, scrollToSection]);
 
   const { meta } = reading;
+  // The reading data is keyed personA/personB by inviter/invitee. Map both
+  // sides onto viewer/other so the UI can put the logged-in user on the
+  // right and surface "ჩემი რუკა" / isYou semantics on their card,
+  // regardless of which side the AI labelled them.
+  const viewerPerson = viewerIsInviter ? meta.personA : meta.personB;
+  const otherPerson  = viewerIsInviter ? meta.personB : meta.personA;
+  const viewerChart  = viewerIsInviter ? chartA : chartB;
+  const otherChart   = viewerIsInviter ? chartB : chartA;
+  const viewerSlug   = viewerIsInviter ? shareSlugA : shareSlugB;
+  const otherSlug    = viewerIsInviter ? shareSlugB : shareSlugA;
   const heroTitle = isFriend
     ? (language === 'ka' ? 'ვარსკვლავთა მეგობრობა' : 'Starbound Friendship')
     : (language === 'ka' ? 'ვარსკვლავები ორისთვის' : 'Stars for Two');
@@ -316,67 +344,50 @@ export default function SynastryView({
     ? (language === 'ka' ? 'მეგობრული თავსებადობის ანალიზი' : 'Friendship Compatibility Analysis')
     : (language === 'ka' ? 'სინასტრიის სიღრმისეული ანალიზი' : 'Deep Synastry Analysis');
 
-  const [synastryIsPublicUI, setSynastryIsPublicUI] = useState(synastryPublicInitial !== false);
-  useEffect(() => {
-    setSynastryIsPublicUI(synastryPublicInitial !== false);
-  }, [synastryPublicInitial, synastryShareSlug]);
-
-  const canShareSyn =
-    !!(synastryShareSlug && synastryConnectionId && synastryShareSlug.length > 0);
-
-  const copySynastryLink = async () => {
-    if (!synastryShareSlug) return;
-    const href =
-      typeof window !== 'undefined'
-        ? `${window.location.origin}/s/${synastryShareSlug}`
-        : '';
-    if (!href) return;
+  const [deletedAccountOpen, setDeletedAccountOpen] = useState(false);
+  const openChart = useCallback(async (slug: string) => {
     try {
-      await navigator.clipboard.writeText(href);
+      const res = await fetch(
+        `/api/reading/exists?slug=${encodeURIComponent(slug)}`,
+        { credentials: 'include' },
+      );
+      const data = (await res.json().catch(() => null)) as { exists?: boolean } | null;
+      if (data?.exists) {
+        window.location.href = `/r/${slug}`;
+      } else {
+        setDeletedAccountOpen(true);
+      }
     } catch {
-      prompt(language === 'ka' ? 'ბმული' : 'Link', href);
+      window.location.href = `/r/${slug}`;
     }
-  };
-
-  const toggleSynastryPublic = async () => {
-    if (!synastryConnectionId) return;
-    const next = !synastryIsPublicUI;
-    const res = await fetch('/api/synastry/visibility', {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ connectionId: synastryConnectionId, isPublic: next }),
-    });
-    if (!res.ok) return;
-    setSynastryIsPublicUI(next);
-  };
+  }, []);
 
   return (
     <>
       <div style={{ height: '56px' }} />
       <div className="ct">
-        {/* Breadcrumb */}
+        {/* Breadcrumb — grid keeps the active "Synastry" tab centered on the page */}
         <div className="bnav">
-          <button className="bb" onClick={() => shareSlugA ? window.location.href = `/r/${shareSlugA}` : onBackToNatal?.()}>
-            ← {language === 'ka' ? 'ჩემი რუკა' : 'My Chart'}
-          </button>
-          <span className="ndv">·</span>
+          <div className="bnav-side bnav-l">
+            <button className="bb" onClick={() => viewerSlug ? openChart(viewerSlug) : onBackToNatal?.()}>
+              ← {language === 'ka' ? 'ჩემი რუკა' : 'My Chart'}
+            </button>
+          </div>
           <button className="bb active">
             <svg style={{ width: '10px', height: '10px', fill: 'var(--gold)' }}><use href="#gl-conjunction" /></svg>
             <span>{language === 'ka' ? 'სინასტრია' : 'Synastry'}</span>
           </button>
-          <span className="ndv">·</span>
-          <button
-            type="button"
-            className="bb"
-            disabled={!shareSlugB}
-            onClick={() =>
-              shareSlugB ? (window.location.href = `/r/${shareSlugB}`) : undefined
-            }
-            style={!shareSlugB ? { opacity: 0.45, cursor: 'default' } : undefined}
-          >
-            {meta.personB.name} {language === 'ka' ? 'რუკა' : 'Chart'} →
-          </button>
+          <div className="bnav-side bnav-r">
+            <button
+              type="button"
+              className="bb"
+              disabled={!otherSlug}
+              onClick={() => otherSlug && openChart(otherSlug)}
+              style={!otherSlug ? { opacity: 0.45, cursor: 'default' } : undefined}
+            >
+              {chartPossessive(otherPerson.name, language)}
+            </button>
+          </div>
         </div>
 
         {/* Hero */}
@@ -385,48 +396,6 @@ export default function SynastryView({
           <SigilSVG />
           <h1>{heroTitle}</h1>
           <div className="tg">{heroSub}</div>
-          {canShareSyn && (
-            <div style={{ marginTop: 18, display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={() => copySynastryLink()}
-                style={{
-                  background: 'rgba(201,168,76,.1)',
-                  border: '1px solid var(--gold)',
-                  color: 'var(--gold)',
-                  padding: '8px 16px',
-                  borderRadius: 10,
-                  fontSize: '.82rem',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {language === 'ka' ? 'სინასტრიის ლინკი' : 'Copy synastry link'}
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleSynastryPublic()}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid var(--border)',
-                  color: synastryIsPublicUI ? 'var(--gold)' : 'var(--muted)',
-                  padding: '8px 16px',
-                  borderRadius: 10,
-                  fontSize: '.82rem',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {synastryIsPublicUI
-                  ? language === 'ka'
-                    ? 'საჯარო წილი'
-                    : 'Public link ON'
-                  : language === 'ka'
-                    ? 'პრივატული'
-                    : 'Public link OFF'}
-              </button>
-            </div>
-          )}
           {publicSynastrySlug && (
             <div className="tg" style={{ marginTop: 12, fontSize: '.78rem', opacity: 0.55 }}>
               {language === 'ka' ? `გასაზიარებელი გვერდი: /s/${publicSynastrySlug}` : `Share path: /s/${publicSynastrySlug}`}
@@ -436,7 +405,7 @@ export default function SynastryView({
 
         {/* Partner Cards */}
         <div className="pcards section-reveal vis">
-          <PartnerCard person={meta.personA} isYou language={language} chart={chartA ?? undefined} shareSlug={shareSlugA ?? undefined} />
+          <PartnerCard person={viewerPerson} isYou language={language} chart={viewerChart ?? undefined} shareSlug={viewerSlug ?? undefined} onOpenChart={openChart} />
           <div className="bridge">
             <div className="bridge-line" />
             <div className="bridge-icon">
@@ -447,7 +416,7 @@ export default function SynastryView({
             </div>
             <div className="bridge-line" />
           </div>
-          <PartnerCard person={meta.personB} language={language} chart={chartB ?? undefined} shareSlug={shareSlugB ?? undefined} />
+          <PartnerCard person={otherPerson} language={language} chart={otherChart ?? undefined} shareSlug={otherSlug ?? undefined} onOpenChart={openChart} />
         </div>
 
         {/* Compatibility Wheel */}
@@ -498,7 +467,38 @@ export default function SynastryView({
           <div className="footer-copy">© 2026 ASTROLO.GE</div>
         </footer>
       </div>
+
+      {deletedAccountOpen && (
+        <DeletedAccountModal language={language} onClose={() => setDeletedAccountOpen(false)} />
+      )}
     </>
+  );
+}
+
+function DeletedAccountModal({ language, onClose }: { language: Language; onClose: () => void }) {
+  return (
+    <div className="dam-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="dam-card" onClick={(e) => e.stopPropagation()}>
+        <div className="dam-sigil" aria-hidden>
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(201,168,76,.25)" strokeWidth="1" />
+            <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(201,168,76,.12)" strokeWidth=".6" strokeDasharray="2 4" />
+            <path d="M35 35 L65 65 M65 35 L35 65" stroke="var(--gold)" strokeWidth="1.4" strokeLinecap="round" opacity=".55" />
+          </svg>
+        </div>
+        <h3 className="dam-title">
+          {language === 'ka' ? 'რუკა აღარ არსებობს' : 'Chart no longer exists'}
+        </h3>
+        <p className="dam-body">
+          {language === 'ka'
+            ? 'ამ მომხმარებელმა წაშალა ანგარიში. მისი რუკა აღარ არის ხელმისაწვდომი.'
+            : 'This person has deleted their account. Their chart is no longer available.'}
+        </p>
+        <button type="button" className="dam-cta" onClick={onClose}>
+          {language === 'ka' ? 'გასაგებია' : 'OK'}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -508,15 +508,51 @@ function SigilSVG() {
   return (
     <div className="chero-sigil">
       <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sigil-axis-grad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="rgba(228,180,196,0)" />
+            <stop offset="24%" stopColor="rgba(228,180,196,.5)" />
+            <stop offset="50%" stopColor="rgba(201,168,76,.5)" />
+            <stop offset="76%" stopColor="rgba(228,199,107,.5)" />
+            <stop offset="100%" stopColor="rgba(228,199,107,0)" />
+          </linearGradient>
+          <radialGradient id="sigil-sun-grad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="rgba(255,244,214,.95)" />
+            <stop offset="55%" stopColor="rgba(228,199,107,.55)" />
+            <stop offset="100%" stopColor="rgba(201,168,76,0)" />
+          </radialGradient>
+        </defs>
+
+        {/* Concentric rings — slow forward drift, mirrors the loader */}
         <g className="sigil-ring">
-          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(201,168,76,.15)" strokeWidth=".8" />
-          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(201,168,76,.08)" strokeWidth=".5" strokeDasharray="2 4" />
+          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(201,168,76,.16)" strokeWidth=".8" />
+          <circle cx="50" cy="50" r="41" fill="none" stroke="rgba(201,168,76,.09)" strokeWidth=".5" strokeDasharray="1.5 5" />
+          <circle cx="50" cy="50" r="34" fill="none" stroke="rgba(196,122,138,.08)" strokeWidth=".5" />
         </g>
+
+        {/* Moon + Sun on a luminous axis — slow counter-orbit */}
         <g className="sigil-inner">
-          <circle cx="50" cy="50" r="36" fill="none" stroke="rgba(201,168,76,.1)" strokeWidth=".6" />
-          <path d="M38 38a14 14 0 1 0 0 24 10 10 0 0 1 0-24z" fill="none" stroke="rgba(201,168,76,.6)" strokeWidth="1.2" strokeLinecap="round" />
-          <circle cx="58" cy="50" r="7" fill="none" stroke="rgba(201,168,76,.6)" strokeWidth="1.2" />
-          <circle cx="58" cy="50" r="1.5" fill="rgba(201,168,76,.5)" />
+          <line x1="29" y1="50" x2="71" y2="50" className="sigil-axis" stroke="url(#sigil-axis-grad)" strokeWidth="1" />
+
+          {/* Moon — elegant thin crescent (rose) */}
+          <g className="sigil-moon">
+            <path d="M30 41a9 9 0 1 0 0 18 7 7 0 0 1 0-18z" fill="rgba(228,180,196,.12)" stroke="rgba(228,180,196,.72)" strokeWidth="1" strokeLinejoin="round" />
+          </g>
+
+          {/* Sun — radiant disc with delicate rays (gold) */}
+          <g className="sigil-sun">
+            <circle cx="70" cy="50" r="9" fill="url(#sigil-sun-grad)" />
+            <circle cx="70" cy="50" r="5.2" fill="none" stroke="rgba(228,199,107,.78)" strokeWidth="1" />
+            <circle cx="70" cy="50" r="1.6" fill="rgba(255,246,222,.95)" />
+            {Array.from({ length: 8 }).map((_, i) => (
+              <line
+                key={i}
+                x1="70" y1="40" x2="70" y2="36.6"
+                stroke="rgba(228,199,107,.6)" strokeWidth=".8" strokeLinecap="round"
+                transform={`rotate(${i * 45} 70 50)`}
+              />
+            ))}
+          </g>
         </g>
       </svg>
     </div>
@@ -544,12 +580,14 @@ function PartnerCard({
   language,
   chart,
   shareSlug,
+  onOpenChart,
 }: {
   person: { name: string; sun: string; moon: string; asc: string };
   isYou?: boolean;
   language: Language;
   chart?: ChartPersonData;
   shareSlug?: string;
+  onOpenChart?: (slug: string) => void;
 }) {
   const initial = person.name.charAt(0).toUpperCase();
 
@@ -591,12 +629,13 @@ function PartnerCard({
     planetRows.push({ glyph: 'ASC', label: 'ASC', sign: person.asc, degree: '', retrograde: false });
   }
 
-  const handleCardClick = shareSlug ? () => { window.location.href = `/r/${shareSlug}`; } : undefined;
+  const handleCardClick = shareSlug && onOpenChart ? () => onOpenChart(shareSlug) : undefined;
 
   return (
     <div className="pc" onClick={handleCardClick} style={shareSlug ? { cursor: 'pointer' } : undefined}>
       {isYou && <div className="pc-you-dot" />}
       {isYou && <div className="pc-tooltip">{language === 'ka' ? 'ჩემი რუკა →' : 'My Chart →'}</div>}
+      {!isYou && shareSlug && <div className="pc-other-tag">{chartPossessive(person.name, language)}</div>}
       <div className="pc-avatar"><span className="pc-avatar-letter">{initial}</span></div>
       <div className="pc-name">{person.name}</div>
       <div className="pc-sub">{renderText(`${localizeSign(person.sun, language)} · ${localizeSign(person.moon, language)} · ${localizeSign(person.asc, language)}`)}</div>

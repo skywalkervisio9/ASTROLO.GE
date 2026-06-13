@@ -87,6 +87,10 @@ export async function GET(
       synastryShareSlug: shareSlugSyn,
       synastryIsPublic: isPublicSyn,
       synastryConnectionId: id,
+      // Tell the client whether the viewer maps to personA (inviter) or
+      // personB (invitee), so the UI can put the viewer on the right and
+      // surface "you" / "ჩემი რუკა" semantics on their card.
+      viewerIsInviter: authUser.id === conn.inviter_id,
       chartA: { planets: parsePlanets(chartA?.planets), points: parsePlanets(chartA?.points) },
       chartB: { planets: parsePlanets(chartB?.planets), points: parsePlanets(chartB?.points) },
     });

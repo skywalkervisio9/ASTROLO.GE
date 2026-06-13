@@ -1,8 +1,8 @@
 'use client';
 
-// Client-side handoff so we use the same Supabase session as the browser.
-// Server getUser() on /inv often misses cookies (localhost vs 127.0.0.1, timing),
-// which skipped /post-auth?invite= and left users stuck on /r/ with no accept.
+// Invite links always sign the visitor out before landing on /auth?invite=…
+// so both new visitors and pre-logged-in users see the same intro UI and the
+// inviter can never accept their own link by accident.
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -21,17 +21,30 @@ export default function InviteGate({ rawCode }: { rawCode: string }) {
     let cancelled = false;
     (async () => {
       const supabase = createClient();
-      const { data: { session }, error } = await supabase.auth.getSession();
+
+      // Server-side signout drops SSR cookies; client-side signout drops the
+      // local session. Both are needed — without the server call, the next
+      // page renders sees the supabase-* cookies and treats the inviter as
+      // still authenticated, redirecting them to /loading.
+      try {
+        await fetch('/api/auth/signout', { method: 'POST', credentials: 'include' });
+      } catch { /* fall through — client signOut + AuthBridge defence still catches it */ }
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (e) {
+        if (!cancelled) setNote(e instanceof Error ? e.message : 'Sign-out failed');
+      }
+
+      // Brief verification loop — wait until getSession() reports null so we
+      // never redirect mid-cookie-flush. Caps at ~1.5s.
+      for (let i = 0; i < 15; i++) {
+        if (cancelled) return;
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
       if (cancelled) return;
-      if (error) {
-        setNote(error.message);
-      }
-      const q = `invite=${encodeURIComponent(code)}`;
-      if (session?.user) {
-        window.location.replace(`/post-auth?${q}`);
-      } else {
-        window.location.replace(`/auth?${q}`);
-      }
+      window.location.replace(`/auth?invite=${encodeURIComponent(code)}`);
     })();
 
     return () => { cancelled = true; };

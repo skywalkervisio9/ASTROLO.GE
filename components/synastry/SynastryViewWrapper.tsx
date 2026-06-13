@@ -5,6 +5,7 @@ import SynastryView from './SynastryView';
 import type { SynastryReadingData, ChartPersonData } from './SynastryView';
 import type { Language } from '@/types/user';
 import { withCsrfHeaders } from '@/lib/auth/client';
+import SynastryCosmicState from './SynastryCosmicState';
 
 interface Connection {
   id: string;
@@ -28,13 +29,27 @@ export default function SynastryViewWrapper() {
   const [shareSlugB, setShareSlugB] = useState<string | null>(null);
   const [synastryShareSlug, setSynastryShareSlug] = useState<string | null>(null);
   const [synastryIsPublic, setSynastryIsPublic] = useState(true);
+  const [viewerIsInviter, setViewerIsInviter] = useState<boolean>(true);
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [language] = useState<Language>('ka');
+  // Language is owned by prototype-runtime which toggles `lang-en` on <body>.
+  // Mirror it into React so the cosmic state can render in the right tongue.
+  const [language, setLanguage] = useState<Language>(() => {
+    if (typeof document !== 'undefined' && document.body.classList.contains('lang-en')) return 'en';
+    return 'ka';
+  });
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const sync = () => setLanguage(document.body.classList.contains('lang-en') ? 'en' : 'ka');
+    sync();
+    const obs = new MutationObserver(sync);
+    obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    return () => obs.disconnect();
+  }, []);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoGenStartedRef = useRef(false);
 
@@ -81,6 +96,7 @@ export default function SynastryViewWrapper() {
         setShareSlugB(data.shareSlugB ?? null);
         setSynastryShareSlug(data.synastryShareSlug ?? null);
         setSynastryIsPublic(data.synastryIsPublic !== false);
+        setViewerIsInviter(data.viewerIsInviter !== false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load synastry reading');
@@ -317,10 +333,18 @@ export default function SynastryViewWrapper() {
     }
   };
 
-  // Open the prototype-runtime invite modal — the only path to fill an empty
-  // synastry slot. Synastry never auto-populates with fake data anymore.
+  // Empty-state CTA → slot payment page (NOT the invite-link modal).
+  // If the user is sitting on the synastry tab without an active reading, the
+  // natural next step is to expand capacity (buy a slot) rather than juggle a
+  // modal. After payment they return here with an unlocked slot to populate.
+  // Matches the sidebar "მოწვევა" handler in BodyContent.tsx.
   const openInvite = () => {
-    (window as unknown as { openInviteModal?: () => void }).openInviteModal?.();
+    const w = window as unknown as {
+      showPaymentPage?: (type: string) => void;
+      closeSidebar?: () => void;
+    };
+    w.closeSidebar?.();
+    w.showPaymentPage?.('synastry-slot');
   };
 
   // ── Render states ──
@@ -338,82 +362,25 @@ export default function SynastryViewWrapper() {
       synastryShareSlug={synastryShareSlug}
       synastryConnectionId={activeConnectionId}
       synastryIsPublic={synastryIsPublic}
+      viewerIsInviter={viewerIsInviter}
     />;
   }
 
-  // Generating → show progress
+  // Generating → cosmic loader with rotating messages
   if (generating) {
-    return (
-      <div style={{ padding: '80px 20px', textAlign: 'center' }}>
-        <div className="chero">
-          <h1 style={{ color: 'var(--gold)', fontSize: '1.4rem', marginBottom: '16px' }}>
-            {language === 'ka' ? 'სინასტრია იქმნება...' : 'Generating synastry...'}
-          </h1>
-          <div className="tg" style={{ fontSize: '.9rem', opacity: 0.7 }}>{genProgress}</div>
-          <div style={{ marginTop: '24px' }}>
-            <div className="spinner" style={{
-              width: '32px', height: '32px', border: '2px solid var(--border)',
-              borderTopColor: 'var(--gold)', borderRadius: '50%',
-              animation: 'spin 1s linear infinite', margin: '0 auto',
-            }} />
-          </div>
-        </div>
-      </div>
-    );
+    return <SynastryCosmicState mode="generating" language={language} progressLabel={genProgress} />;
   }
 
-  // Loading → spinner
+  // Loading → cosmic loader (no message yet)
   if (loading) {
-    return (
-      <div style={{ padding: '80px 20px', textAlign: 'center' }}>
-        <div className="spinner" style={{
-          width: '32px', height: '32px', border: '2px solid var(--border)',
-          borderTopColor: 'var(--gold)', borderRadius: '50%',
-          animation: 'spin 1s linear infinite', margin: '0 auto',
-        }} />
-      </div>
-    );
+    return <SynastryCosmicState mode="loading" language={language} />;
   }
 
-  // Error
+  // Error → cosmic frame with the failure message
   if (error) {
-    return (
-      <div style={{ padding: '80px 20px', textAlign: 'center' }}>
-        <p style={{ color: '#ff6b6b', marginBottom: '16px' }}>{error}</p>
-      </div>
-    );
+    return <SynastryCosmicState mode="error" language={language} errorText={error} />;
   }
 
-  // Empty state — invite CTA. The only way to fill a synastry slot is to send
-  // an invite link and have a partner accept it.
-  return (
-    <div style={{ padding: '80px 20px', textAlign: 'center' }}>
-      <div className="chero">
-        <h1 style={{ color: 'var(--gold)', fontSize: '1.4rem', marginBottom: '12px' }}>
-          {language === 'ka' ? 'სინასტრია' : 'Synastry'}
-        </h1>
-        <div className="tg" style={{ fontSize: '.9rem', opacity: 0.6, marginBottom: '24px' }}>
-          {language === 'ka'
-            ? 'მოიწვიეთ პარტნიორი ან მეგობარი თავსებადობის ანალიზისთვის'
-            : 'Invite a partner or friend for compatibility analysis'}
-        </div>
-
-        <button
-          onClick={openInvite}
-          style={{
-            background: 'linear-gradient(135deg, rgba(201,168,76,.2), rgba(201,168,76,.05))',
-            border: '1px solid var(--gold)',
-            color: 'var(--gold)',
-            padding: '12px 28px',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            fontSize: '.95rem',
-            fontFamily: 'inherit',
-          }}
-        >
-          {language === 'ka' ? 'მოიწვიე პარტნიორი' : 'Invite a partner'}
-        </button>
-      </div>
-    </div>
-  );
+  // Empty state — invite CTA, framed in the same cosmic scene.
+  return <SynastryCosmicState mode="empty" language={language} onInvite={openInvite} />;
 }

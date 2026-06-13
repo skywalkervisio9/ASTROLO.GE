@@ -26,15 +26,20 @@ import {
 } from '@/lib/chart/reading-helpers';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+// 600s ceiling (Pro + Fluid Compute, max 800s). KA Call 2 measured ~168s; this
+// leaves headroom for a top-up pass or a single retry without a timeout kill.
+export const maxDuration = 600;
 
 export async function POST() {
+  // Hoisted so the catch can record a durable 'failed' state (Tier 2).
+  let userId: string | null = null;
   try {
     await requireCsrfOrThrow();
     const auth = await requireAuthContext();
     if (auth.response || !auth.authUser) return auth.response ?? NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { supabase, authUser } = auth;
+    const { authUser } = auth;
+    userId = authUser.id;
     const admin = createAdminSupabase();
 
     // Load full profile to check tier
@@ -94,6 +99,18 @@ export async function POST() {
       return NextResponse.json({ error: 'Call 1 analysis not found — call /api/reading/generate-call1 first' }, { status: 400 });
     }
 
+    // Tier-2: mark generation underway. A hard kill (300s timeout) then leaves
+    // a detectable 'generating' row for the recovery sweep, and the status
+    // endpoint can tell in-progress apart from failed.
+    await admin
+      .from('natal_readings')
+      .update({
+        generation_status: 'generating',
+        generation_started_at: new Date().toISOString(),
+        generation_finished_at: null,
+      })
+      .eq('user_id', authUser.id);
+
     try {
       // Call 2: KA + EN in parallel
       const call2 = await runNatalCall2(analysis, context, storedAspects ?? undefined);
@@ -127,6 +144,8 @@ export async function POST() {
           tokens_call2_ka: call2.meta.tokensCall2Ka,
           tokens_call2_en: call2.meta.tokensCall2En,
           validation_warnings: call2.meta.validationWarnings,
+          generation_status: 'complete',
+          generation_finished_at: new Date().toISOString(),
         }, { onConflict: 'user_id' })
         .select('id, share_slug')
         .single();
@@ -144,6 +163,24 @@ export async function POST() {
     }
   } catch (error: unknown) {
     console.error('[generate-full] error:', error);
+    // Tier-2: persist a durable 'failed' state + reason so /api/onboarding/status
+    // can surface Retry immediately instead of the client polling for 15 minutes.
+    // The reason rides in validation_warnings (no dedicated error column exists).
+    if (userId) {
+      const reason = error instanceof Error ? error.message : String(error);
+      try {
+        await createAdminSupabase()
+          .from('natal_readings')
+          .update({
+            generation_status: 'failed',
+            generation_finished_at: new Date().toISOString(),
+            validation_warnings: [`GENERATION_FAILED: ${reason.slice(0, 500)}`],
+          })
+          .eq('user_id', userId);
+      } catch (markErr) {
+        console.error('[generate-full] failed to record failure state:', markErr);
+      }
+    }
     return jsonServerError(error);
   }
 }

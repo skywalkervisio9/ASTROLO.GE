@@ -16,7 +16,7 @@ import { tryTriggerSynastryForUserConnections } from '@/lib/synastry/trigger-gen
 import type { User } from '@/types/user';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+export const maxDuration = 600;
 
 export async function POST() {
   try {

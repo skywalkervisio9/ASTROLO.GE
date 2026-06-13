@@ -8,6 +8,7 @@ import { generateShareSlug } from '@/lib/chart/reading-helpers';
 import { extractSynastryScores } from '@/lib/synastry/share-helpers';
 import { runNatalCall1 } from '@/lib/AIgeneration/pipeline';
 import { PROMPT_VERSION } from '@/lib/AIgeneration/prompts/natal';
+import { normalizeFirstName } from '@/lib/AIgeneration/prompts/synastry';
 
 export type SynastryGenResult =
   | { ok: true; status: 'complete' | 'already_complete' }
@@ -155,8 +156,10 @@ export async function runSynastryGeneration(connectionId: string): Promise<Synas
 
   const nameMap = new Map((users ?? []).map((u) => [u.id, u.full_name ?? 'Unknown']));
 
-  const personAName = nameMap.get(conn.inviter_id) ?? 'Person A';
-  const personBName = nameMap.get(conn.invitee_id) ?? 'Person B';
+  // v6: pass first-name-only to both the prompt and the post-processor so the
+  // model's normalized output isn't undone by enforcePersonNames.
+  const personAName = normalizeFirstName(nameMap.get(conn.inviter_id) ?? '', 'Friend1');
+  const personBName = normalizeFirstName(nameMap.get(conn.invitee_id) ?? '', 'Friend2');
   const result = await generateSynastryReading({
     personAName,
     personAAnalysis: inviterCall1.analysis,

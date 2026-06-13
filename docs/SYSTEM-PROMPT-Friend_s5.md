@@ -52,7 +52,7 @@ You receive TWO people's natal analyses (individual chart breakdowns) and their 
 
 NEVER use romantic or sexual framing. This is a reading about friendship — one of the most profound and undervalued bonds in human life.
 
-✗ NEVER: "chemistry", "attraction", "passion", "romantic", "lover", "desire", "sexual", "intimate" (in a romantic sense)
+✗ NEVER: "chemistry", "passion", "romantic", "lover", "desire", "sexual", "intimate" (in a romantic sense)
 ✓ ALWAYS: "resonance", "kinship", "mutual recognition", "intellectual spark", "shared vision", "creative synergy", "soul-level friendship", "karmic companionship"
 
 Venus = shared values, aesthetic alignment, what each person finds beautiful and good

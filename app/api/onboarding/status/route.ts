@@ -45,13 +45,13 @@ export async function GET() {
       return jsonOk({ status: 'queued', complete: false });
     }
 
-    // Load natal_readings row. The generation_* tracking columns were
-    // removed from the schema, so the SELECT here references only columns
-    // that are guaranteed to exist — otherwise PostgREST fails the whole
-    // query and shareSlug never makes it back to /loading.
+    // Load natal_readings row. The generation_* columns DO exist in prod
+    // (migration 010 — never dropped). Tier-2 writes generation_status so we can
+    // report 'failed' here instead of returning 'generating' until the client's
+    // ~15-min poll cap.
     const { data: reading } = await admin
       .from('natal_readings')
-      .select('id, analysis_en, reading_ka, share_slug')
+      .select('id, analysis_en, reading_ka, share_slug, generation_status, validation_warnings')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -60,6 +60,9 @@ export async function GET() {
       if (reading?.reading_ka) {
         const shareSlug = await ensureShareSlug(admin, reading.id, reading.share_slug);
         return jsonOk({ status: 'complete', complete: true, readingId: reading.id, shareSlug });
+      }
+      if (reading?.generation_status === 'failed') {
+        return jsonOk({ status: 'failed', complete: false, error: extractFailureReason(reading.validation_warnings) });
       }
       return jsonOk({ status: 'generating', complete: false });
     }
@@ -78,6 +81,15 @@ export async function GET() {
   } catch (error) {
     return jsonServerError(error);
   }
+}
+
+/** Pull the human-readable reason out of the validation_warnings sentinel
+ *  written by generate-full's failure path. */
+function extractFailureReason(warnings: unknown): string {
+  const arr = Array.isArray(warnings) ? warnings : [];
+  const failed = arr.find((w) => typeof w === 'string' && w.startsWith('GENERATION_FAILED:'));
+  if (typeof failed === 'string') return failed.replace('GENERATION_FAILED:', '').trim();
+  return 'Generation did not complete';
 }
 
 async function ensureShareSlug(

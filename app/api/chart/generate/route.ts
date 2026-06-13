@@ -1,7 +1,10 @@
 // ============================================================
 // POST /api/chart/generate — Tier-split natal pipeline
 // FREE:    Store birth data → Astrologer API → chart_data only
-// INVITED: Store birth data → Astrologer API → chart_data → Call 1 → natal_readings(analysis_en) → trigger synastry
+// INVITED: Store birth data → Astrologer API → chart_data → invite accept (synchronous) →
+//          Call 1 + synastry triggered in the background (so the post-registration wait is just
+//          the astrologer API ~15-20s). The synastry view's own cosmic loader then awaits Call 1
+//          + synastry generation via /api/synastry/start.
 // PREMIUM: Handled by /api/reading/generate-full (post-payment)
 // ============================================================
 
@@ -236,7 +239,7 @@ interface StoredAspect {
   planet1: string; planet2: string; aspect: string; orb: number;
 }
 
-export const maxDuration = 300; // Claude + external APIs can take 1-2 minutes
+export const maxDuration = 600; // Claude + external APIs can take 1-2 minutes
 
 export async function POST(req: NextRequest) {
   try {
@@ -427,31 +430,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'complete', shareSlug, userId: user.id });
     }
 
-    // ── INVITED PATH: Call 1 only (needed for synastry) ──
-    // Check if Call 1 already done (idempotent retry)
-    const { data: existingReading } = await supabase
-      .from('natal_readings')
-      .select('id, analysis_en')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (!existingReading?.analysis_en) {
-      const call1 = await runNatalCall1(context);
-
-      await supabase.from('natal_readings').upsert({
-        user_id: user.id,
-        analysis_en: call1.analysis,
-        prompt_version: PROMPT_VERSION,
-        model_call1: call1.model,
-        tokens_call1: call1.tokens,
-      }, { onConflict: 'user_id' });
-    }
-
-    // Ensure share_slug (admin) so /loading can redirect to /r/[slug] like free tier.
+    // ── INVITED PATH ──
+    // Only do the synchronous work the invitee strictly needs before landing on
+    // /r/[slug]?synastry=1: a share_slug + accepted connection. Call 1 and the
+    // synastry AI run are deferred — the synastry view's cosmic loader will
+    // await them via /api/synastry/start (which handles Call 1 internally).
     const adminInvite = createAdminSupabase();
     const { data: nrInvite } = await adminInvite
       .from('natal_readings')
-      .select('id, share_slug')
+      .select('id, share_slug, analysis_en')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -466,10 +453,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Handle invite accept + deferred synastry trigger when both have Call 1
+    // Synchronously: accept the invite so the synastry connection exists when
+    // the client redirects. Skipping the inline Call 1 is what cuts the wait
+    // from ~60s to the ~15-20s astrologer-API leg.
     await handleInviteAccept(user.id, body.invite_code!);
 
     await clearOnboardingToken();
+
+    // Fire-and-forget Call 1 only if it's not already done. The synastry
+    // pipeline will also self-heal Call 1 if this races, so dropping the
+    // promise (e.g. cold start kill) is safe.
+    if (!(nrInvite as { analysis_en?: string | null } | null)?.analysis_en) {
+      const userId = user.id;
+      const ctx = context;
+      // Tagged then/catch so the promise is consumed without awaiting.
+      Promise.resolve().then(async () => {
+        try {
+          const call1 = await runNatalCall1(ctx);
+          await createAdminSupabase().from('natal_readings').upsert({
+            user_id: userId,
+            analysis_en: call1.analysis,
+            prompt_version: PROMPT_VERSION,
+            model_call1: call1.model,
+            tokens_call1: call1.tokens,
+          }, { onConflict: 'user_id' });
+        } catch (err) {
+          console.error('[chart/generate] background Call 1 failed (will retry via synastry):', err);
+        }
+      });
+    }
+
     return NextResponse.json({ status: 'complete', userId: user.id, shareSlug: inviteShareSlug });
   } catch (error: unknown) {
     console.error('Chart generation error:', error);
