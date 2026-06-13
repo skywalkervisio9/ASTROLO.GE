@@ -139,6 +139,7 @@ export default function ReadingRenderer() {
 
   if (!state) return null;
   setRenderLang(state.lang);
+  setZodiacDisplayMode(zodiacMode);
 
   return (
     <>
