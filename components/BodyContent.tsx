@@ -106,9 +106,10 @@ const IconTikTok = (
 // ─── Promo display ───────────────────────────────────────────────────────
 // Drives both the React-rendered status line and the imperative DOM mutation
 // that keeps prototype-runtime.js's payment markup (price/badge/CTA) in sync.
-type PromoVariant = 'discount' | 'unlock' | 'invalid' | 'none';
-const PROMO_DISPLAY: Record<PromoVariant, { amount: string; oldPriceVisible: boolean; badgeVisible: boolean }> = {
-  discount: { amount: '₾10', oldPriceVisible: true,  badgeVisible: true  },
+type PromoVariant = 'discount' | 'luka' | 'unlock' | 'invalid' | 'none';
+const PROMO_DISPLAY: Record<PromoVariant, { amount: string; oldPriceVisible: boolean; badgeVisible: boolean; badgeText?: string }> = {
+  discount: { amount: '₾10', oldPriceVisible: true,  badgeVisible: true,  badgeText: '-33%' },
+  luka:     { amount: '₾3',  oldPriceVisible: true,  badgeVisible: true,  badgeText: '-80%' },
   unlock:   { amount: '₾0',  oldPriceVisible: true,  badgeVisible: false },
   invalid:  { amount: '₾15', oldPriceVisible: false, badgeVisible: false },
   none:     { amount: '₾15', oldPriceVisible: false, badgeVisible: false },
@@ -302,6 +303,7 @@ export default function BodyContent() {
   const promoNormalised = promoCode.trim().toLowerCase();
   const promoVariant: PromoVariant =
     promoNormalised === 'astrolo10' ? 'discount'
+    : promoNormalised === 'luka111' ? 'luka'
     : promoNormalised === 'lotus' ? 'unlock'
     : promoNormalised === '' ? 'none'
     : 'invalid';
@@ -334,53 +336,100 @@ export default function BodyContent() {
     };
     setShow('payOldPrice', cfg.oldPriceVisible);
     setShow('payDiscountBadge', cfg.badgeVisible);
+    if (cfg.badgeText) setText('payDiscountBadge', cfg.badgeText);
     setText('payAmount', cfg.amount);
     setText('payCtaText', ctaPrefix + cfg.amount);
   }, [promoVariant, promoLangTick]);
 
   const onPayCtaClick = useCallback(async () => {
-    if (promoBusy) return;
-    if (promoVariant === 'unlock') {
-      try {
-        setPromoBusy(true);
-        const { withCsrfHeaders } = await import('@/lib/auth/client');
-        const init = await withCsrfHeaders({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ code: promoNormalised }),
-        });
-        const res = await fetch('/api/payment/promo', init);
-        if (!res.ok) {
-          const message = await res.text().catch(() => '');
-          alert(`Promo redemption failed (${res.status}): ${message || 'unknown error'}`);
-          return;
-        }
-        window.location.href = '/loading?mode=generate-full';
-      } finally {
-        setPromoBusy(false);
+  if (promoBusy) return;
+
+  const isEn = typeof document !== 'undefined' && document.body.classList.contains('lang-en');
+
+  if (promoVariant === 'invalid') {
+    alert(isEn ? 'Invalid promo code' : 'არასწორი კოდი');
+    return;
+  }
+
+  if (promoVariant === 'unlock') {
+    try {
+      setPromoBusy(true);
+      const { withCsrfHeaders } = await import('@/lib/auth/client');
+      const init = await withCsrfHeaders({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: promoNormalised }),
+      });
+      const res = await fetch('/api/payment/promo', init);
+      if (!res.ok) {
+        const message = await res.text().catch(() => '');
+        alert(`Promo redemption failed (${res.status}): ${message || 'unknown error'}`);
+        return;
       }
+      window.location.href = '/loading?mode=generate-full';
+    } finally {
+      setPromoBusy(false);
+    }
+    return;
+  }
+
+  const selectedProvider =
+    document.getElementById('payTbc')?.classList.contains('selected') ? 'tbc' : 'bog';
+
+  if (selectedProvider !== 'bog') {
+    alert(isEn ? 'TBC is not connected yet. Please choose BOG.' : 'TBC ჯერ არ არის ჩართული. აირჩიე BOG.');
+    return;
+  }
+
+  const paymentType =
+    document.getElementById('payNatalUnlock')?.style.display !== 'none' ? 'natal_unlock'
+    : document.getElementById('paySynastrySlot')?.style.display !== 'none' ? 'invite_slot'
+    : 'premium_upgrade';
+
+  try {
+    setPromoBusy(true);
+    const { withCsrfHeaders } = await import('@/lib/auth/client');
+    const init = await withCsrfHeaders({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        payment_type: paymentType,
+        provider: 'bog',
+        promo_code: promoNormalised || undefined,
+      }),
+    });
+
+    const res = await fetch('/api/payment/create', init);
+    const payload = await res.json().catch(() => ({})) as { redirect_url?: string; error?: string };
+
+    if (!res.ok || !payload.redirect_url) {
+      alert(payload.error ?? (isEn ? 'Payment could not be started' : 'გადახდა ვერ დაიწყო'));
       return;
     }
-    // astrolo10 / no-code / invalid — fall through to the existing bank
-    // redirect placeholder. Real bank integration replaces this alert later.
-    alert('→ გადამისამართება ბანკის გვერდზე…');
-  }, [promoBusy, promoVariant, promoNormalised]);
+
+    window.location.href = payload.redirect_url;
+  } finally {
+    setPromoBusy(false);
+  }
+}, [promoBusy, promoVariant, promoNormalised]);
 
   // For convenience inside JSX — recalculated each render via promoLangTick.
   const promoIsEn =
     typeof document !== 'undefined' && document.body.classList.contains('lang-en');
   const promoLabelText = promoIsEn ? 'Promo code' : 'ფასდაკლების კოდი';
   const promoStatusText =
-    promoVariant === 'discount' ? (promoIsEn ? '✓ −₾5 discount applied' : '✓ −₾5 ფასდაკლება')
-    : promoVariant === 'unlock' ? (promoIsEn ? '✦ Free unlock — no payment needed' : '✦ უფასო განბლოკვა — გადახდა არ საჭიროებს')
-    : promoVariant === 'invalid' ? (promoIsEn ? '✕ Invalid code' : '✕ არასწორი კოდი')
-    : '';
+  promoVariant === 'discount' ? (promoIsEn ? '✓ −₾5 discount applied' : '✓ −₾5 ფასდაკლება')
+  : promoVariant === 'luka' ? (promoIsEn ? '✓ 80% discount applied' : '✓ 80% ფასდაკლება')
+  : promoVariant === 'unlock' ? (promoIsEn ? '✦ Free unlock — no payment needed' : '✦ უფასო განბლოკვა — გადახდა არ საჭიროებს')
+  : promoVariant === 'invalid' ? (promoIsEn ? '✕ Invalid code' : '✕ არასწორი კოდი')
+  : '';
   const promoStatusColor =
-    promoVariant === 'discount' ? '#4caf50'
-    : promoVariant === 'unlock' ? 'var(--gold)'
-    : promoVariant === 'invalid' ? '#e57373'
-    : 'var(--txd)';
+  promoVariant === 'discount' || promoVariant === 'luka' ? '#4caf50'
+  : promoVariant === 'unlock' ? 'var(--gold)'
+  : promoVariant === 'invalid' ? '#e57373'
+  : 'var(--txd)';
 
   void promoLangTick;
   const inviteGenBtnLabel =
