@@ -24,6 +24,11 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-weight:300;
 .lg{display:flex;background:rgba(255,255,255,.04);border:1px solid rgba(201,168,76,.1);border-radius:100px;padding:2px}
 .lo{padding:4px 12px;font-size:.7rem;color:var(--txd);border-radius:100px;border:none;background:none;cursor:pointer;transition:all .3s;font-family:'Outfit',sans-serif;letter-spacing:.06em}
 .lo.active{background:rgba(201,168,76,.12);color:var(--gold)}
+.zt{display:flex;background:rgba(255,255,255,.04);border:1px solid rgba(201,168,76,.1);border-radius:100px;padding:2px}
+.zo{height:24px;min-width:30px;padding:0 9px;font-size:.68rem;color:var(--txd);border-radius:100px;border:none;background:none;cursor:pointer;transition:all .3s;font-family:'Outfit',sans-serif;letter-spacing:.03em;display:flex;align-items:center;justify-content:center}
+.zo.active{background:rgba(201,168,76,.12);color:var(--gold)}
+.zs{display:inline-flex;align-items:center;color:var(--gold);font-weight:400}
+@media(max-width:720px){.tbr{gap:8px}.lo{padding:4px 9px}.zo{min-width:27px;padding:0 7px}}
 .pb{display:flex;align-items:center;gap:8px;background:none;border:1px solid rgba(201,168,76,.1);border-radius:100px;padding:4px 14px 4px 4px;cursor:pointer;transition:all .35s}
 .pb:hover{border-color:rgba(201,168,76,.3);box-shadow:0 0 20px rgba(201,168,76,.06)}
 .pa{width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,.08);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--gold)}

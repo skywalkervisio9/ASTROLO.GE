@@ -26,6 +26,72 @@ const SIGN_ELEMENT: Record<string, string> = {
   libra:'air',scorpio:'water',sagittarius:'fire',capricorn:'earth',aquarius:'air',pisces:'water',
 };
 
+export type ZodiacDisplayMode = 'icon' | 'name';
+
+let _zodiacDisplayMode: ZodiacDisplayMode = 'icon';
+
+export function setZodiacDisplayMode(mode: ZodiacDisplayMode) {
+  _zodiacDisplayMode = mode === 'name' ? 'name' : 'icon';
+}
+
+const SIGN_NAMES_EN: Record<string, string> = {
+  aries:'Aries',taurus:'Taurus',gemini:'Gemini',cancer:'Cancer',leo:'Leo',virgo:'Virgo',
+  libra:'Libra',scorpio:'Scorpio',sagittarius:'Sagittarius',capricorn:'Capricorn',aquarius:'Aquarius',pisces:'Pisces',
+};
+
+const SIGN_NAMES_KA: Record<string, { nom: string; gen: string; loc: string; dat: string; inst: string; adv: string; for: string; with: string; voc: string }> = {
+  aries:{nom:'ვერძი',gen:'ვერძის',loc:'ვერძში',dat:'ვერძს',inst:'ვერძით',adv:'ვერძად',for:'ვერძისთვის',with:'ვერძთან',voc:'ვერძო'},
+  taurus:{nom:'კურო',gen:'კუროს',loc:'კუროში',dat:'კუროს',inst:'კუროთი',adv:'კუროდ',for:'კუროსთვის',with:'კუროსთან',voc:'კურო'},
+  gemini:{nom:'ტყუპები',gen:'ტყუპების',loc:'ტყუპებში',dat:'ტყუპებს',inst:'ტყუპებით',adv:'ტყუპებად',for:'ტყუპებისთვის',with:'ტყუპებთან',voc:'ტყუპებო'},
+  cancer:{nom:'კირჩხიბი',gen:'კირჩხიბის',loc:'კირჩხიბში',dat:'კირჩხიბს',inst:'კირჩხიბით',adv:'კირჩხიბად',for:'კირჩხიბისთვის',with:'კირჩხიბთან',voc:'კირჩხიბო'},
+  leo:{nom:'ლომი',gen:'ლომის',loc:'ლომში',dat:'ლომს',inst:'ლომით',adv:'ლომად',for:'ლომისთვის',with:'ლომთან',voc:'ლომო'},
+  virgo:{nom:'ქალწული',gen:'ქალწულის',loc:'ქალწულში',dat:'ქალწულს',inst:'ქალწულით',adv:'ქალწულად',for:'ქალწულისთვის',with:'ქალწულთან',voc:'ქალწულო'},
+  libra:{nom:'სასწორი',gen:'სასწორის',loc:'სასწორში',dat:'სასწორს',inst:'სასწორით',adv:'სასწორად',for:'სასწორისთვის',with:'სასწორთან',voc:'სასწორო'},
+  scorpio:{nom:'მორიელი',gen:'მორიელის',loc:'მორიელში',dat:'მორიელს',inst:'მორიელით',adv:'მორიელად',for:'მორიელისთვის',with:'მორიელთან',voc:'მორიელო'},
+  sagittarius:{nom:'მშვილდოსანი',gen:'მშვილდოსნის',loc:'მშვილდოსანში',dat:'მშვილდოსანს',inst:'მშვილდოსნით',adv:'მშვილდოსნად',for:'მშვილდოსნისთვის',with:'მშვილდოსანთან',voc:'მშვილდოსანო'},
+  capricorn:{nom:'თხის რქა',gen:'თხის რქის',loc:'თხის რქაში',dat:'თხის რქას',inst:'თხის რქით',adv:'თხის რქად',for:'თხის რქისთვის',with:'თხის რქასთან',voc:'თხის რქავ'},
+  aquarius:{nom:'მერწყული',gen:'მერწყულის',loc:'მერწყულში',dat:'მერწყულს',inst:'მერწყულით',adv:'მერწყულად',for:'მერწყულისთვის',with:'მერწყულთან',voc:'მერწყულო'},
+  pisces:{nom:'თევზები',gen:'თევზების',loc:'თევზებში',dat:'თევზებს',inst:'თევზებით',adv:'თევზებად',for:'თევზებისთვის',with:'თევზებთან',voc:'თევზებო'},
+};
+
+const SIGN_SYMBOL_TO_KEY: Record<string, string> = {
+  '♈':'aries','♉':'taurus','♊':'gemini','♋':'cancer','♌':'leo','♍':'virgo',
+  '♎':'libra','♏':'scorpio','♐':'sagittarius','♑':'capricorn','♒':'aquarius','♓':'pisces',
+};
+
+function kaSignName(key: string, suffix = '') {
+  const f = SIGN_NAMES_KA[key];
+  if (!f) return key;
+  const s = suffix.replace(/^-/, '');
+  if (s === 'ის') return f.gen;
+  if (s === 'ში') return f.loc;
+  if (s === 'ს') return f.dat;
+  if (s === 'ით') return f.inst;
+  if (s === 'ად') return f.adv;
+  if (s === 'სთვის' || s === 'თვის') return f.for;
+  if (s === 'სთან' || s === 'თან') return f.with;
+  if (s === 'ო') return f.voc;
+  return f.nom;
+}
+
+export function renderZodiacSignToken(key: string, suffix = '', nodeKey?: React.Key): React.ReactNode {
+  const elKey = SIGN_ELEMENT[key] || '';
+  const signTips = _renderLang === 'ka' ? SIGN_TIPS_KA : SIGN_TIPS_EN;
+  const tip = signTips[key];
+
+  if (_zodiacDisplayMode === 'name') {
+    const label = _renderLang === 'ka' ? kaSignName(key, suffix) : SIGN_NAMES_EN[key] || key;
+    return <span key={nodeKey} className={`zs zs-${elKey} tip`} data-tip={tip} style={{cursor:'help'}}>{label}</span>;
+  }
+
+  return (
+    <React.Fragment key={nodeKey}>
+      <span className={`gi gi-${elKey} tip`} data-tip={tip} style={{cursor:'help'}}><svg><use href={`#gl-${key}`}/></svg></span>
+      {suffix}
+    </React.Fragment>
+  );
+}
+
 // Tokenizer: bold, italic, chart points (ASC/MC/IC), retrograde ℞, astro Unicode symbols,
 // and element words (Georgian stems + English) with optional trailing "(NN%)".
 //
@@ -45,8 +111,7 @@ const SIGN_ELEMENT: Record<string, string> = {
 // Matches any Georgian ending [ა-ჰ]* after the stem — so ცეცხლი / ცეცხლის / წყალში all work.
 // Water has two stems in Georgian: წყალ (nominative) and წყლ (genitive — წყლის, წყლისა, წყლით…)
 // Order matters: წყალ before წყლ so the longer match wins on "წყალისა".
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([☉☽☿♀♂♃♄♅♆♇⚸☊☋♈♉♊♋♌♍♎♏♐♑♒♓☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)|(\(R\))/giu;
-
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([♈♉♊♋♌♍♎♏♐♑♒♓])(-(?:სთვის|სთან|თვის|თან|ის|ში|ით|ად|ს|ო))?|([☉☽☿♀♂♃♄♅♆♇⚸☊☋☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)|(\(R\))/giu;
 /** Classify the stem of an element word to its CSS modifier */
 function getElementClass(word: string): string | null {
   const w = word.toLowerCase();
@@ -138,46 +203,57 @@ export function getRenderLang(): RenderLang {
  */
 export function renderText(text: string): React.ReactNode {
   if (!text) return null;
+
   const ptTips = _renderLang === 'ka' ? PT_TIPS_KA : PT_TIPS_EN;
-  const retroTip = _renderLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
+  const retroTip = _renderLang === 'ka'
+    ? 'რეტროგრადული — ინტერნალიზებული ენერგია'
+    : 'Retrograde — internalized energy';
+
   const nodes: React.ReactNode[] = [];
-  let last = 0; let k = 0;
+  let last = 0;
+  let k = 0;
+
   TEXT_TOKEN_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
+
   while ((m = TEXT_TOKEN_RE.exec(text)) !== null) {
     if (m.index > last) nodes.push(text.slice(last, m.index));
+
     if (m[1] !== undefined) {
-      const savedIdx1 = TEXT_TOKEN_RE.lastIndex;
-      const inner1 = renderText(m[1]);
-      TEXT_TOKEN_RE.lastIndex = savedIdx1;
-      nodes.push(<strong key={k++}>{inner1}</strong>);
+      const savedIdx = TEXT_TOKEN_RE.lastIndex;
+      const inner = renderText(m[1]);
+      TEXT_TOKEN_RE.lastIndex = savedIdx;
+      nodes.push(<strong key={k++}>{inner}</strong>);
     } else if (m[2] !== undefined) {
-      const savedIdx2 = TEXT_TOKEN_RE.lastIndex;
-      const inner2 = renderText(m[2]);
-      TEXT_TOKEN_RE.lastIndex = savedIdx2;
-      nodes.push(<em key={k++} className="hl">{inner2}</em>);
+      const savedIdx = TEXT_TOKEN_RE.lastIndex;
+      const inner = renderText(m[2]);
+      TEXT_TOKEN_RE.lastIndex = savedIdx;
+      nodes.push(<em key={k++} className="hl">{inner}</em>);
     } else if (m[3] !== undefined) {
       nodes.push(<span key={k++} className="pt tip" data-tip={ptTips[m[3]]}>{m[3]}</span>);
     } else if (m[4] !== undefined) {
       nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
     } else if (m[5] !== undefined) {
-      const ch = m[5]; const glyph = SYMBOL_TO_GLYPH[ch];
+      const signKey = SIGN_SYMBOL_TO_KEY[m[5]];
+      nodes.push(renderZodiacSignToken(signKey, m[6] || '', k++));
+    } else if (m[7] !== undefined) {
+      const ch = m[7];
+      const glyph = SYMBOL_TO_GLYPH[ch];
+
       if (glyph) {
-        const isSign = !PLANET_SET.has(ch) && !ASPECT_SET.has(ch);
-        const elKey = SIGN_ELEMENT[glyph] || '';
-        const cls = isSign ? `gi gi-${elKey}` : 'gi gi-pl';
-        if (isSign) {
-          const signTips = _renderLang === 'ka' ? SIGN_TIPS_KA : SIGN_TIPS_EN;
-          const tip = signTips[glyph];
-          nodes.push(<span key={k++} className={`${cls} tip`} data-tip={tip} style={{cursor:'help'}}><svg><use href={`#gl-${glyph}`}/></svg></span>);
-        } else {
-          nodes.push(<span key={k++} className={cls}><svg><use href={`#gl-${glyph}`}/></svg></span>);
-        }
-      } else nodes.push(ch);
-    } else if (m[6] !== undefined) {
-      const rawWord = (m[7] ?? '').trim();
-      const pct = m[8];
+        nodes.push(
+          <span key={k++} className="gi gi-pl">
+            <svg><use href={`#gl-${glyph}`}/></svg>
+          </span>
+        );
+      } else {
+        nodes.push(ch);
+      }
+    } else if (m[8] !== undefined) {
+      const rawWord = (m[9] ?? '').trim();
+      const pct = m[10];
       const el = getElementClass(rawWord);
+
       if (el) {
         const tip = (_renderLang === 'ka' ? ELEMENT_TIP_KA : ELEMENT_TIP_EN)[el];
         nodes.push(
@@ -187,20 +263,22 @@ export function renderText(text: string): React.ReactNode {
           </span>
         );
       } else {
-        nodes.push(m[6]);
+        nodes.push(m[8]);
       }
-    } else if (m[9] !== undefined) {
+    } else if (m[11] !== undefined) {
       nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
       if (/[ა-ჰ]/u.test(text[m.index + m[0].length] ?? '')) nodes.push('-');
-    } else if (m[10] !== undefined) {
+    } else if (m[12] !== undefined) {
       nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
     }
+
     last = m.index + m[0].length;
   }
+
   if (last < text.length) nodes.push(text.slice(last));
+
   return nodes.length === 1 ? nodes[0] : nodes;
 }
-
 // ── Element CSS helpers ──
 
 export const ELEMENT_CSS_CLASS: Record<string, string> = {

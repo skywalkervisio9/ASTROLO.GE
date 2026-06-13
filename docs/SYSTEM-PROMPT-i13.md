@@ -147,6 +147,24 @@ expandedContent[] — STRUCTURED FORMAT:
   ✗ WRONG — everything collapsed into one string:
   "expandedContent": ["პრაქტიკა: 1) მოქნილობა, 2) ინტეგრაცია, 3) თანაგრძნობა"]
 
+
+GEORGIAN ZODIAC GRAMMAR:
+When LANGUAGE is Georgian, never write broken forms like `♒-ული`, `♏-ული`, `მორიელი-ის`, `კირჩხიბი-ში`, or English-calque Georgian.
+
+Use symbols in body text, but attach Georgian case endings grammatically:
+- Genitive: `♏-ის ენერგია`, `♌-ის ქარიზმა`
+- Locative: `♋-ში დაბადებული`, `♑-ში მყოფი`
+- Dative: `♈-ს სჭირდება`, `♓-ს ახსოვს`
+- For/benefactive: `♍-ისთვის`, not `♍-სთვის` unless the sentence naturally requires it
+- Never use `-ული` with zodiac symbols. Rewrite `♒-ული სიცივე` as `♒-ის დისტანცია` or `მერწყულის დისტანცია`.
+
+If you must write zodiac sign names instead of symbols, decline them correctly:
+- მორიელი → მორიელის, მორიელში, მორიელს
+- კირჩხიბი → კირჩხიბის, კირჩხიბში, კირჩხიბს
+- ლომი → ლომის, ლომში, ლომს
+- თხის რქა → თხის რქის, თხის რქაში, თხის რქას
+- თევზები → თევზების, თევზებში, თევზებს
+
 ZODIAC SIGNS IN BODY: Always replace zodiac sign text names with their Unicode symbols → ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓
 
 
