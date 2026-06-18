@@ -37,12 +37,8 @@ export async function GET(request: NextRequest) {
           // most users will still need to type in time/place anyway.
           let birthday: { day: number | null; month: number | null; year: number | null } | null = null;
           const providerToken = exchangeData?.session?.provider_token;
-          console.log('[oauth-callback] provider_token present?', !!providerToken, '| user:', u.email);
           if (providerToken) {
             birthday = await fetchGoogleBirthday(providerToken);
-            console.log('[oauth-callback] fetched birthday:', birthday);
-          } else {
-            console.warn('[oauth-callback] no provider_token on session — Supabase did not forward Google access token');
           }
           await ensureUserProfileRow({
             user: u,

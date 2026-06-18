@@ -835,7 +835,8 @@ body[data-view="auth"] .auth-page:not(.active){display:none}
 body[data-view="auth"] .auth-sigil{margin-bottom:8px;width:74px;height:74px;flex-shrink:0}
 body[data-view="auth"] .auth-sigil-svg{width:58px;height:58px}
 body[data-view="auth"] .auth-header{margin-bottom:12px;flex-shrink:0}
-body[data-view="auth"] .auth-panel{padding:18px;overflow-y:auto;min-height:0}
+body[data-view="auth"] .auth-panel{padding:18px;overflow-y:auto;min-height:0;scrollbar-width:none;-ms-overflow-style:none}
+body[data-view="auth"] .auth-panel::-webkit-scrollbar{display:none}
 body[data-view="auth"] .auth-divider{margin:14px 0}
 body[data-view="auth"] #page-signup .field{margin-bottom:8px}
 /* Hint-box star rotates on hover, eases back out smoothly. */
