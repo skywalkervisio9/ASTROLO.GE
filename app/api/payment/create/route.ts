@@ -49,6 +49,12 @@ export async function POST(req: NextRequest) {
       promoMetadata.promo_code = 'LUKA111';
       promoMetadata.discount_percent = 80;
       promoMetadata.original_amount = baseAmount;
+    } else if (promoCode === 'skywalker') {
+      if (payment_type !== 'premium_upgrade') return jsonBadRequest('Promo code SKYWALKER is only valid for premium upgrade');
+      amount = Number((baseAmount * 0.5).toFixed(2));
+      promoMetadata.promo_code = 'SKYWALKER';
+      promoMetadata.discount_percent = 50;
+      promoMetadata.original_amount = baseAmount;
     } else if (promoCode) {
       return jsonBadRequest('Invalid promo code');
     }

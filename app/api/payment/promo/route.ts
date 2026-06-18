@@ -36,6 +36,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, action: 'discount', amount: 10 });
     }
 
+    if (code === 'skywalker') {
+      return NextResponse.json({ ok: true, action: 'discount', amount: 7.5, discount_percent: 50 });
+    }
+
     if (code === 'synastry2') {
       // Half-price on an extra synastry slot. Client pre-applies this code
       // by default on the slot payment page; this endpoint just confirms

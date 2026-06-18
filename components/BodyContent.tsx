@@ -110,13 +110,14 @@ const IconTikTok = (
 // ─── Promo display ───────────────────────────────────────────────────────
 // Drives both the React-rendered status line and the imperative DOM mutation
 // that keeps prototype-runtime.js's payment markup (price/badge/CTA) in sync.
-type PromoVariant = 'discount' | 'luka' | 'unlock' | 'invalid' | 'none';
+type PromoVariant = 'discount' | 'luka' | 'skywalker' | 'unlock' | 'invalid' | 'none';
 const PROMO_DISPLAY: Record<PromoVariant, { amount: string; oldPriceVisible: boolean; badgeVisible: boolean; badgeText?: string }> = {
-  discount: { amount: '₾10', oldPriceVisible: true,  badgeVisible: true,  badgeText: '-33%' },
-  luka:     { amount: '₾3',  oldPriceVisible: true,  badgeVisible: true,  badgeText: '-80%' },
-  unlock:   { amount: '₾0',  oldPriceVisible: true,  badgeVisible: false },
-  invalid:  { amount: '₾15', oldPriceVisible: false, badgeVisible: false },
-  none:     { amount: '₾15', oldPriceVisible: false, badgeVisible: false },
+  discount:  { amount: '₾10',  oldPriceVisible: true,  badgeVisible: true,  badgeText: '-33%' },
+  luka:      { amount: '₾3',   oldPriceVisible: true,  badgeVisible: true,  badgeText: '-80%' },
+  skywalker: { amount: '₾7.5', oldPriceVisible: true,  badgeVisible: true,  badgeText: '-50%' },
+  unlock:    { amount: '₾0',   oldPriceVisible: true,  badgeVisible: false },
+  invalid:   { amount: '₾15',  oldPriceVisible: false, badgeVisible: false },
+  none:      { amount: '₾15',  oldPriceVisible: false, badgeVisible: false },
 };
 
 // ─── Dev helper: sign in as a test user ──────────────────────────────────
@@ -311,6 +312,7 @@ export default function BodyContent() {
   const promoVariant: PromoVariant =
     promoNormalised === 'astrolo10' ? 'discount'
     : promoNormalised === 'luka111' ? 'luka'
+    : promoNormalised === 'skywalker' ? 'skywalker'
     : promoNormalised === 'lotus' ? 'unlock'
     : promoNormalised === '' ? 'none'
     : 'invalid';
@@ -318,11 +320,23 @@ export default function BodyContent() {
   // The runtime adds/removes 'lang-en' on document.body — there's no React
   // signal for it, so we observe the body's class attribute and bump a
   // counter to force re-renders of the language-aware promo strings.
+  // Also observes #payPremium's style so the React→DOM sync re-fires when
+  // showPaymentPage() hides/re-shows the premium sub-page (e.g. premium →
+  // natal-unlock → premium would otherwise leave the CTA on "₾5").
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const observer = new MutationObserver(() => setPromoLangTick(t => t + 1));
-    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
+    const bump = () => setPromoLangTick(t => t + 1);
+    const bodyObserver = new MutationObserver(bump);
+    bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    const payPremium = document.getElementById('payPremium');
+    const payObserver = payPremium ? new MutationObserver(bump) : null;
+    if (payPremium && payObserver) {
+      payObserver.observe(payPremium, { attributes: true, attributeFilter: ['style'] });
+    }
+    return () => {
+      bodyObserver.disconnect();
+      payObserver?.disconnect();
+    };
   }, []);
 
   // Mirror promo state into the prototype DOM (price, old-price strikethrough,
@@ -385,7 +399,7 @@ export default function BodyContent() {
     document.getElementById('payTbc')?.classList.contains('selected') ? 'tbc' : 'bog';
 
   if (selectedProvider !== 'bog') {
-    alert(isEn ? 'TBC is not connected yet. Please choose BOG.' : 'TBC ჯერ არ არის ჩართული. აირჩიე BOG.');
+    alert(isEn ? 'TBC is temporarily unavailable. Please choose BOG.' : 'TBC დროებით მიუწვდომელია. აირჩიე BOG.');
     return;
   }
 
@@ -429,11 +443,13 @@ export default function BodyContent() {
   const promoStatusText =
   promoVariant === 'discount' ? (promoIsEn ? '✓ −₾5 discount applied' : '✓ −₾5 ფასდაკლება')
   : promoVariant === 'luka' ? (promoIsEn ? '✓ 80% discount applied' : '✓ 80% ფასდაკლება')
+  : promoVariant === 'skywalker' ? (promoIsEn ? '✦ 50% discount applied' : '✦ 50% ფასდაკლება')
   : promoVariant === 'unlock' ? (promoIsEn ? '✦ Free unlock — no payment needed' : '✦ უფასო განბლოკვა — გადახდა არ საჭიროებს')
   : promoVariant === 'invalid' ? (promoIsEn ? '✕ Invalid code' : '✕ არასწორი კოდი')
   : '';
   const promoStatusColor =
   promoVariant === 'discount' || promoVariant === 'luka' ? '#4caf50'
+  : promoVariant === 'skywalker' ? 'var(--gold)'
   : promoVariant === 'unlock' ? 'var(--gold)'
   : promoVariant === 'invalid' ? '#e57373'
   : 'var(--txd)';
@@ -678,24 +694,23 @@ export default function BodyContent() {
 
   {/* ── Premium Upgrade Page ── */}
   <div id="payPremium">
-    <div className="pay-sigil"><svg><use href="#gl-sparkle"/></svg></div>
-    <div className="pay-badge">PREMIUM — ერთჯერადი გადახდა</div>
-    <div className="pay-title">სრული ვარსკვლავური<br/>კითხვა გახსენი</div>
-    <div className="pay-subtitle">ყველა 8 სექცია, სინასტრიის წვდომა და მოწვევის საშუალება — ერთხელ, სამუდამოდ.</div>
+    <div className={`pay-sigil pay-sigil--anim${promoVariant === 'skywalker' ? ' pay-sigil--lit' : ''}`}><svg><use href="#gl-sparkle"/></svg></div>
+    <div className="pay-title">გახსენი შენი სრული<br/>ვარსკვლავური ხედვა</div>
+    <div className="pay-subtitle">8 სრული სექცია, სინასტრიის წვდომა და მოწვევის უფლება — ერთხელ და სამუდამოდ.</div>
     <div className="pay-price">
       <span className="pay-price-old" id="payOldPrice" style={{display:'none'}}>₾15</span>
       <span className="pay-price-amount" id="payAmount">₾15</span>
       <span className="pay-discount-badge" id="payDiscountBadge" style={{display:'none'}}>-33%</span>
     </div>
-    <div className="pay-note">ყოველთვიური გადასახადი არ არის</div>
+    <div className="pay-badge pay-badge--under-price">PREMIUM — ერთჯერადი გადახდა</div>
 
     <div className="pay-compare">
       <div className="pay-compare-header">
-        <span className="pay-compare-label">FREE vs PREMIUM</span>
+        <span className="pay-compare-label">FREE</span>
         <span className="pay-compare-badge">● PREMIUM</span>
       </div>
       <div className="pay-compare-table">
-        <div className="pay-compare-row"><span className="row-label">სექციები</span><span className="row-free">3 სექცია</span><span className="row-premium">8 სექცია ✦</span></div>
+        <div className="pay-compare-row"><span className="row-label">სექციები</span><span className="row-free">1 სექცია</span><span className="row-premium">8 სექცია ✦</span></div>
         <div className="pay-compare-row"><span className="row-label">სინასტრია</span><span className="row-free">—</span><span className="row-premium">✦ ჩართულია</span></div>
         <div className="pay-compare-row"><span className="row-label">მოწვევა</span><span className="row-free">—</span><span className="row-premium">✦ 1 უფასოდ</span></div>
         <div className="pay-compare-row"><span className="row-label">ვარსკვლავური ბარათები</span><span className="row-free">ნაწილობრივ</span><span className="row-premium">✦ სრულად</span></div>
@@ -748,10 +763,15 @@ export default function BodyContent() {
       <div className="pay-method-name bog">BOG</div>
       <div className="pay-method-cards">Visa · Mastercard · AmEx</div>
     </div>
-    <div className="pay-method" id="payTbc" onClick={(e) => { proto().selectPayMethod?.('tbc', e.currentTarget); }}>
-      <div className="pay-method-check">✓</div>
+    <div className="pay-method locked" id="payTbc" aria-disabled="true">
+      <div className="pay-method-lock" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
       <div className="pay-method-name tbc">TBC</div>
-      <div className="pay-method-cards">Visa · Mastercard · QR</div>
+      <div className="pay-method-cards">
+        <span className="lg-ka">დროებით მიუწვდომელია</span>
+        <span className="lg-en">Temporarily unavailable</span>
+      </div>
     </div>
   </div>
 
