@@ -543,7 +543,7 @@ export default function BodyContent() {
     <button className="lo" onClick={(e) => { proto().setLang?.("en", e.currentTarget); }}>EN</button>
   </div>
   <div className="zt" aria-label="Zodiac display">
-    <button className="zo active" data-zodiac-mode="icon" title="Zodiac icons" onClick={(e) => { proto().setZodiacMode?.("icon", e.currentTarget); }}>♈</button>
+    <button className="zo active" data-zodiac-mode="icon" title="Zodiac icons" onClick={(e) => { proto().setZodiacMode?.("icon", e.currentTarget); }}><svg aria-hidden="true"><use href="#gl-sparkle"/></svg></button>
     <button className="zo" data-zodiac-mode="name" title="Zodiac names" onClick={(e) => { proto().setZodiacMode?.("name", e.currentTarget); }}>Aa</button>
   </div>
 <button type="button" className="pb" onClick={() => { proto().openSidebar?.(); }}><div className="pa"></div><span className="pn"></span></button></div></nav>
