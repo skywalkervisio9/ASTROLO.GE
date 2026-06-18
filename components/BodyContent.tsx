@@ -74,6 +74,7 @@ type ProtoGlobals = {
   go?: (id: string) => void;
   toggleExp?: (btn: HTMLElement) => void;
   showAuthPage?: (id: string) => void;
+  navigateAuthStep?: (id: string) => void;
   goAuthStep?: (n: number) => void;
   togglePw?: (btn: HTMLElement) => void;
   selectGender?: (el: HTMLElement, v: string) => void;
@@ -589,9 +590,9 @@ export default function BodyContent() {
 <div className="auth-wrap" id="authWrap">
   <div className="auth-card">
     <div className="steps-bar" id="stepsBar">
-      <div className="step-dot active" id="sd1"></div><div className="step-line" id="sl1"></div>
-      <div className="step-dot" id="sd2"></div><div className="step-line" id="sl2"></div>
-      <div className="step-dot" id="sd3"></div>
+      <button type="button" className="step-dot active" id="sd1" aria-label="შესვლა" onClick={() => { proto().navigateAuthStep?.("page-login"); }}></button><div className="step-line" id="sl1"></div>
+      <button type="button" className="step-dot" id="sd2" aria-label="რეგისტრაცია" onClick={() => { proto().navigateAuthStep?.("page-signup"); }}></button><div className="step-line" id="sl2"></div>
+      <button type="button" className="step-dot" id="sd3" aria-label="დაბადების მონაცემები" onClick={() => { proto().navigateAuthStep?.("page-birth"); }}></button>
     </div>
 
     
