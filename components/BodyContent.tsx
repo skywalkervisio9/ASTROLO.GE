@@ -645,7 +645,7 @@ export default function BodyContent() {
     
     <div className="auth-page" id="page-birth">
       <div className="auth-sigil"><div className="auth-sigil-icon">⊛</div></div>
-      <div className="auth-header"><h1>დაბადების მონაცემები</h1><div className="sub">ნატალური რუკის აგებისთვის</div></div>
+      <div className="auth-header"><h1>დაბადების მონაცემები</h1></div>
       <div className="auth-panel">
         <div className="msg error" id="birth-error"></div>
         <div className="auth-hint"><div className="hint-t">✦ რატომ გვჭირდება?</div><p>ნატალური რუკა ზუსტ პლანეტარულ პოზიციებს ეფუძნება შენი დაბადების მომენტში. რაც უფრო ზუსტი — მით უფრო ღრმა ანალიზი.</p></div>
