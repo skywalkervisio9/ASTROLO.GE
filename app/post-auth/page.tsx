@@ -40,13 +40,17 @@ export default async function PostAuthPage({
   }
 
   // If profile row isn't there yet (or RLS blocks read), treat as "needs onboarding".
+  // Note: birth_city is part of the check because Google OAuth may seed
+  // birth_day/year from People API, but place/gender/time always require the
+  // birth form. Without this, a Google-DOB-pre-filled user would skip the
+  // form and chart generation would fail on missing place/coords.
   const { data: profile } = await supabase
     .from('users')
-    .select('birth_day, birth_year')
+    .select('birth_day, birth_year, birth_city')
     .eq('id', user.id)
     .maybeSingle();
 
-  const hasBirth = !!(profile?.birth_day && profile?.birth_year);
+  const hasBirth = !!(profile?.birth_day && profile?.birth_year && profile?.birth_city);
 
   // If a reading already exists, take them to the canonical /r/[slug] URL.
   const { data: readingRow } = await supabase
