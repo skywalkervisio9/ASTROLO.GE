@@ -7,6 +7,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { consumeOauthStateCookie } from '@/lib/auth/oauth-state';
 import { sanitizeNextPath } from '@/lib/auth/redirect';
 import { ensureUserProfileRow } from '@/lib/auth/profile';
+import { fetchGoogleBirthday } from '@/lib/auth/google-people';
 import { authAudit } from '@/lib/auth/audit';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -24,13 +25,27 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createServerSupabase();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: exchangeData, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       try {
         const { data: authData } = await supabase.auth.getUser();
         const u = authData.user;
         if (u) {
-          await ensureUserProfileRow({ user: u });
+          // Best-effort DOB pre-fill: if the OAuth flow returned a Google
+          // provider token and the user shared their birthday, persist it
+          // so the birth form arrives pre-populated. Failures are silent —
+          // most users will still need to type in time/place anyway.
+          let birthday: { day: number | null; month: number | null; year: number | null } | null = null;
+          const providerToken = exchangeData?.session?.provider_token;
+          if (providerToken) {
+            birthday = await fetchGoogleBirthday(providerToken);
+          }
+          await ensureUserProfileRow({
+            user: u,
+            birthDay: birthday?.day ?? null,
+            birthMonth: birthday?.month ?? null,
+            birthYear: birthday?.year ?? null,
+          });
           authAudit({ event: 'oauth.callback', route: '/api/auth/callback', userId: u.id, outcome: 'success' });
         }
       } catch (e) {

@@ -131,7 +131,14 @@ export default function AuthBridge() {
 
           const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
-            options: { redirectTo },
+            options: {
+              redirectTo,
+              // Request birthday in addition to default email+profile so we can
+              // pre-fill the DOB form from People API in the callback. Users
+              // who haven't set their birthday in Google will still complete
+              // the flow — we just won't get one back.
+              scopes: "email profile https://www.googleapis.com/auth/user.birthday.read",
+            },
           });
           if (error) throw error;
         } catch (error) {
@@ -583,6 +590,28 @@ export default function AuthBridge() {
         topName.textContent = parts[0] + (parts[1] ? " " + parts[1].charAt(0) + "." : "");
       }
 
+      // Pre-fill day/month/year selects from values seeded by Google OAuth
+      // (see /api/auth/callback → fetchGoogleBirthday). Partial values are
+      // expected — Google often returns month/day without a year.
+      const prefillBirthSelects = (p: ProfileRow | null) => {
+        if (!p) return;
+        const set = (id: string, value: number | null) => {
+          if (value == null) return;
+          const el = document.getElementById(id) as HTMLSelectElement | null;
+          if (!el) return;
+          const v = String(value);
+          // Verify the option exists before assigning, otherwise the select
+          // silently keeps its placeholder and the user sees a blank field.
+          if (Array.from(el.options).some((o) => o.value === v)) {
+            el.value = v;
+            el.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        };
+        set("birth-day", p.birth_day);
+        set("birth-month", p.birth_month);
+        set("birth-year", p.birth_year);
+      };
+
       // Wait for prototype-runtime.js to finish loading before trying to switch views.
       // The script uses strategy="afterInteractive" so it may not be ready immediately
       // after React hydrates — especially on fresh Google OAuth redirects.
@@ -610,6 +639,7 @@ export default function AuthBridge() {
           switchView("auth", document.getElementById("devAuth") as HTMLElement);
           goAuthStep(2);
           showAuthPage("page-birth");
+          prefillBirthSelects(profile);
         } else if (profile?.birth_day && profile?.birth_year) {
           console.log("[AB] applyView: user has birth data → natal view");
           switchView("natal", document.getElementById("devNatal") as HTMLElement);
@@ -618,6 +648,7 @@ export default function AuthBridge() {
           switchView("auth", document.getElementById("devAuth") as HTMLElement);
           goAuthStep(2);
           showAuthPage("page-birth");
+          prefillBirthSelects(profile);
         }
         return true;
       };
