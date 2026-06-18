@@ -469,8 +469,9 @@ function showPaymentPage(type) {
   var isEn = document.body.classList.contains('lang-en');
   if (type === 'premium') {
     document.getElementById('payPremium').style.display = '';
-    const price = discountOn ? '₾10' : '₾15';
-    ctaText.textContent = (isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ') + price;
+    // CTA text is driven by the React promo effect in BodyContent.tsx —
+    // don't overwrite it here, or it'll fall out of sync with the selected
+    // promo code (e.g. skywalker would still show ₾10).
   } else if (type === 'natal-unlock') {
     document.getElementById('payNatalUnlock').style.display = '';
     ctaText.textContent = isEn ? '✦ Unlock natal chart — ₾5' : '✦ ნატალური რუკის განბლოკვა — ₾5';
