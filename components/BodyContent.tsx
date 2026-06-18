@@ -5,6 +5,8 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import SynastryViewWrapper from './synastry/SynastryViewWrapper';
 import SynastryConnectionSync from './SynastryConnectionSync';
+import AuthSigil from './AuthSigil';
+import LegalOverlay, { type LegalDoc } from './LegalOverlay';
 import { createClient } from '@/lib/supabase/client';
 import { createSynastryInviteLink } from '@/lib/invite/create-invite-link';
 
@@ -168,6 +170,9 @@ export default function BodyContent() {
   /** Invite modal: React must own `disabled` — static JSX `disabled` was always true and re-applied on every render, blocking clicks. */
   const [inviteKind, setInviteKind] = useState<'couple' | 'friend' | null>(null);
   const [inviteGenPhase, setInviteGenPhase] = useState<'idle' | 'loading' | 'success'>('idle');
+
+  /** Legal pages shown as an in-app overlay ('terms' = combined Terms & Privacy, 'payment' = Payment Terms). */
+  const [legalDoc, setLegalDoc] = useState<LegalDoc>(null);
 
   const openUnlockDialog = useCallback(() => {
     setUnlockError(null);
@@ -538,7 +543,7 @@ export default function BodyContent() {
     <button className="lo" onClick={(e) => { proto().setLang?.("en", e.currentTarget); }}>EN</button>
   </div>
   <div className="zt" aria-label="Zodiac display">
-    <button className="zo active" data-zodiac-mode="icon" title="Zodiac icons" onClick={(e) => { proto().setZodiacMode?.("icon", e.currentTarget); }}>♈</button>
+    <button className="zo active" data-zodiac-mode="icon" title="Zodiac icons" onClick={(e) => { proto().setZodiacMode?.("icon", e.currentTarget); }}><svg aria-hidden="true"><use href="#gl-sparkle"/></svg></button>
     <button className="zo" data-zodiac-mode="name" title="Zodiac names" onClick={(e) => { proto().setZodiacMode?.("name", e.currentTarget); }}>Aa</button>
   </div>
 <button type="button" className="pb" onClick={() => { proto().openSidebar?.(); }}><div className="pa"></div><span className="pn"></span></button></div></nav>
@@ -570,7 +575,7 @@ export default function BodyContent() {
 <a href="#" className="social-link" title="Facebook">{IconFacebook}</a>
 <a href="#" className="social-link" title="TikTok">{IconTikTok}</a>
 </div>
-<div className="footer-links"><a href="#">ჩვენს შესახებ</a><a href="#">კონფიდენციალობა</a><a href="#">პირობები</a><a href="#">კონტაქტი</a></div>
+<div className="footer-links"><a href="#">ჩვენს შესახებ</a><a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>კონფიდენციალობა</a><a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>პირობები</a><a href="mailto:contact@astrolo.ge">კონტაქტი</a></div>
 <div className="footer-copy">© 2026 ASTROLO.GE</div>
 </div></footer>
 </div>
@@ -597,7 +602,7 @@ export default function BodyContent() {
 
     
     <div className="auth-page active" id="page-login">
-      <div className="auth-sigil"><div className="auth-sigil-icon">☽</div></div>
+      <div className="auth-sigil"><AuthSigil kind="login" /></div>
       <div className="auth-header"><h1>შესვლა</h1><div className="sub">შენი ციური ნახაზი გელოდება</div></div>
       <div className="auth-panel">
         <div className="msg error" id="login-error"></div>
@@ -614,7 +619,7 @@ export default function BodyContent() {
 
     
     <div className="auth-page" id="page-signup">
-      <div className="auth-sigil"><div className="auth-sigil-icon">✦</div></div>
+      <div className="auth-sigil"><AuthSigil kind="signup" /></div>
       <div className="auth-header"><h1>რეგისტრაცია</h1><div className="sub">დაიწყე შენი ციური მოგზაურობა</div></div>
       <div className="auth-panel">
         <div className="msg error" id="signup-error"></div>
@@ -625,14 +630,17 @@ export default function BodyContent() {
         <div className="field"><label>ელ-ფოსტა</label><input type="email" id="signup-email" placeholder="name@example.com" autoComplete="email"/></div>
         <div className="field"><label>პაროლი</label><div className="field-pw"><input type="password" id="signup-pw" placeholder="მინ. 8 სიმბოლო" autoComplete="new-password"/><button className="pw-toggle" onClick={(e) => { proto().togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
         <button className="auth-btn" onClick={() => { proto().handleSignup?.(); }} style={{marginTop: '4px'}}><span className="btn-text">რეგისტრაცია</span></button>
-        <div className="terms">რეგისტრაციით ეთანხმები <a href="#">პირობებს</a> და <a href="#">კონფიდენციალობას</a></div>
+        <div className="terms">
+          <span className="lg-ka">რეგისტრაციით ეთანხმები <a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>პირობებს</a> და <a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>კონფიდენციალობას</a></span>
+          <span className="lg-en">By registering you agree to the <a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>Terms</a> and <a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>Privacy</a></span>
+        </div>
         <div className="auth-footer">უკვე გაქვს ანგარიში? <a href="#" onClick={(e) => { e.preventDefault(); proto().showAuthPage?.("page-login"); }}>შესვლა</a></div>
       </div>
     </div>
 
     
     <div className="auth-page" id="page-forgot">
-      <div className="auth-sigil"><div className="auth-sigil-icon">✧</div></div>
+      <div className="auth-sigil"><AuthSigil kind="forgot" /></div>
       <div className="auth-header"><h1>პაროლის აღდგენა</h1><div className="sub">შეიყვანე ელ-ფოსტა</div></div>
       <div className="auth-panel">
         <button className="back-link" onClick={() => { proto().showAuthPage?.("page-login"); }}><span>←</span> შესვლაზე დაბრუნება</button>
@@ -644,7 +652,7 @@ export default function BodyContent() {
 
     
     <div className="auth-page" id="page-birth">
-      <div className="auth-sigil"><div className="auth-sigil-icon">⊛</div></div>
+      <div className="auth-sigil"><AuthSigil kind="birth" /></div>
       <div className="auth-header"><h1>დაბადების მონაცემები</h1></div>
       <div className="auth-panel">
         <div className="msg error" id="birth-error"></div>
@@ -777,6 +785,12 @@ export default function BodyContent() {
   >
     <span id="payCtaText">✦ PREMIUM-ის განბლოკვა — ₾10</span>
   </button>
+  <div className="pay-legal-link">
+    <a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('payment'); }}>
+      <span className="lg-ka">გადახდის პირობები</span>
+      <span className="lg-en">Payment terms</span>
+    </a>
+  </div>
 </div>
 </div>
 
@@ -810,6 +824,7 @@ export default function BodyContent() {
     </div>
   </div>
 )}
+<LegalOverlay doc={legalDoc} onClose={() => setLegalDoc(null)} />
 <div className="dev-panel" id="devPanel">
   <button className="dev-toggle" onClick={onDevToggleClick}>⚙ DEV</button>
   {devMode && (
