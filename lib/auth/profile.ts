@@ -44,7 +44,8 @@ export async function ensureUserProfileRow({
     if (existing?.birth_year == null && birthYear != null) seedDob.birth_year = birthYear;
   }
 
-  await admin.from('users').upsert(
+  console.log('[ensureUserProfileRow] seeding for', user.email, '| dob seed:', seedDob);
+  const { error: upsertErr } = await admin.from('users').upsert(
     {
       id: user.id,
       email: user.email ?? 'unknown',
@@ -53,4 +54,5 @@ export async function ensureUserProfileRow({
     },
     { onConflict: 'id' }
   );
+  if (upsertErr) console.warn('[ensureUserProfileRow] upsert error:', upsertErr);
 }
