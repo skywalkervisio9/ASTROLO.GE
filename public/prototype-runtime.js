@@ -1623,6 +1623,10 @@ const _HOUSE_DATA = {
 function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
   const svg = document.getElementById('miniChart');
   if (!svg) return;
+  // Mobile crops the 40px label margin (labels are hidden via CSS), so the
+  // chart circle fills more of the container.
+  const isMobile = window.matchMedia && window.matchMedia('(max-width: 720px)').matches;
+  svg.setAttribute('viewBox', isMobile ? '10 10 400 400' : '-40 -40 500 500');
   const wrap = svg.parentElement;
   const tip = document.getElementById('chartTip');
   const CX = 210, CY = 210, R = 190, RI = 150, RP = 118;
@@ -1753,41 +1757,52 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
       if (activeTag !== g) return;
       const popup = activePopup;
       if (!popup) return;
-      // Watch the cursor: if it reaches the popup, hand close over to the
-      // popup itself; otherwise close after a generous fallback. This stays
-      // robust when the popup is flipped BELOW the sign (page scrolled, sign
-      // near the header) where the user must cross an 8px gap to read it —
-      // a hard 200ms timer was closing the popup mid-traversal.
+      // Coordinate-based hit-tracking: treat the sign + popup (plus a small
+      // margin that bridges the 8px gap) as a single "engaged" region. The
+      // popup only closes once the cursor has been clearly outside that
+      // region for HOVER_OUT ms. This survives the case where the popup is
+      // flipped BELOW the sign (sign near header after scroll) — the previous
+      // `:hover`-based check would race style recalc and close on traversal.
+      const HOVER_OUT = 220;
+      const FALLBACK = 2500;
       let resolved = false;
+      let closeTimer = null;
+      const inEngagedZone = (x, y) => {
+        if (activeTag !== g || activePopup !== popup) return false;
+        const pr = popup.getBoundingClientRect();
+        const sr = g.getBoundingClientRect();
+        const inPopup = x >= pr.left - 6 && x <= pr.right + 6 &&
+                        y >= pr.top - 14 && y <= pr.bottom + 6;
+        const inSign  = x >= sr.left - 6 && x <= sr.right + 6 &&
+                        y >= sr.top - 6  && y <= sr.bottom + 14;
+        return inPopup || inSign;
+      };
       const cleanup = () => {
         if (resolved) return;
         resolved = true;
-        clearTimeout(fallback);
+        if (closeTimer) clearTimeout(closeTimer);
+        clearTimeout(fallbackTimer);
         document.removeEventListener('pointermove', onMove, true);
       };
-      const attachPopupLeave = () => {
-        cleanup();
-        popup.addEventListener('pointerleave', function onPopupLeave(evt) {
-          if (evt.pointerType === 'touch') return;
-          popup.removeEventListener('pointerleave', onPopupLeave);
-          setTimeout(() => {
-            if (activeTag === g && activePopup === popup && !popup.matches(':hover')) closePopup();
-          }, 100);
-        });
-      };
-      const onMove = () => {
+      const onMove = (evt) => {
         if (resolved) return;
         if (activeTag !== g || activePopup !== popup) { cleanup(); return; }
-        if (popup.matches(':hover')) attachPopupLeave();
+        if (inEngagedZone(evt.clientX, evt.clientY)) {
+          if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+        } else if (!closeTimer) {
+          closeTimer = setTimeout(() => {
+            closeTimer = null;
+            if (activeTag === g && activePopup === popup) closePopup();
+            cleanup();
+          }, HOVER_OUT);
+        }
       };
       document.addEventListener('pointermove', onMove, true);
-      const fallback = setTimeout(() => {
+      const fallbackTimer = setTimeout(() => {
         if (resolved) return;
         cleanup();
-        if (activeTag !== g || activePopup !== popup) return;
-        if (popup.matches(':hover')) { attachPopupLeave(); return; }
-        closePopup();
-      }, 600);
+        if (activeTag === g && activePopup === popup) closePopup();
+      }, FALLBACK);
     });
   });
 }
@@ -3192,13 +3207,33 @@ function hydrateReading(reading, user) {
     var _signDeg = function(sign, degree) {
       return _tr(SIGN_KA, sign) + (degree ? ' ' + degree : '');
     };
+    var chipTipsEn = {
+      sun: 'Sun — core identity & vitality',
+      moon: 'Moon — emotions & inner needs',
+      ASC: 'Ascendant — outer mask & first impression',
+      MC: 'Midheaven — career & public role',
+      IC: 'Imum Coeli — roots & private self',
+      DSC: 'Descendant — the mirror & partnerships'
+    };
+    var chipTipsKa = {
+      sun: 'მზე — ცენტრალური ვინაობა და სიცოცხლის ენერგია',
+      moon: 'მთვარე — ემოციები და შინაგანი მოთხოვნილებები',
+      ASC: 'ასცენდენტი — გარეგანი ნიღაბი და პირველი შთაბეჭდილება',
+      MC: 'ცის შუაწერტილი — კარიერა და საჯარო როლი',
+      IC: 'ცის ფსკერი — ფესვები და შინაგანი სამყარო',
+      DSC: 'დესცენდენტი — სარკე და პარტნიორობა'
+    };
+    var chipTips = _hydrateLang === 'ka' ? chipTipsKa : chipTipsEn;
+    var _chip = function(key, glyphHtml, valHtml) {
+      return '<span><span class="chip-label tip" data-tip="' + _esc(chipTips[key]) + '">' + glyphHtml + '</span> ' + valHtml + '</span>';
+    };
     var chips = '';
-    if (sun) chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-sun"/></svg></span> ' + _esc(_signDeg(sun.sign, sun.degree)) + '</span>';
-    if (moon) chips += '<span><span class="chip-label"><svg style="color:var(--gd)"><use href="#gl-moon"/></svg></span> ' + _esc(_signDeg(moon.sign, moon.degree)) + '</span>';
-    if (pts.ascendant) chips += '<span><span class="chip-label">ASC</span> ' + _esc(_signDeg(pts.ascendant.sign, pts.ascendant.degree)) + '</span>';
-    if (pts.midheaven) chips += '<span><span class="chip-label">MC</span> ' + _esc(_signDeg(pts.midheaven.sign, pts.midheaven.degree)) + '</span>';
-    if (pts.ic) chips += '<span><span class="chip-label">IC</span> ' + _esc(_signDeg(pts.ic.sign, pts.ic.degree)) + '</span>';
-    if (pts.descendant) chips += '<span><span class="chip-label">DSC</span> ' + _esc(_signDeg(pts.descendant.sign, pts.descendant.degree)) + '</span>';
+    if (sun)  chips += _chip('sun',  '<svg style="color:var(--gd)"><use href="#gl-sun"/></svg>',  _esc(_signDeg(sun.sign, sun.degree)));
+    if (moon) chips += _chip('moon', '<svg style="color:var(--gd)"><use href="#gl-moon"/></svg>', _esc(_signDeg(moon.sign, moon.degree)));
+    if (pts.ascendant)  chips += _chip('ASC', 'ASC', _esc(_signDeg(pts.ascendant.sign, pts.ascendant.degree)));
+    if (pts.midheaven)  chips += _chip('MC',  'MC',  _esc(_signDeg(pts.midheaven.sign, pts.midheaven.degree)));
+    if (pts.ic)         chips += _chip('IC',  'IC',  _esc(_signDeg(pts.ic.sign, pts.ic.degree)));
+    if (pts.descendant) chips += _chip('DSC', 'DSC', _esc(_signDeg(pts.descendant.sign, pts.descendant.degree)));
     if (chips) heroChips.innerHTML = chips;
   }
 

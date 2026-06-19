@@ -570,8 +570,8 @@ export default function BodyContent() {
 <div id="view-natal">
 
 <div className="hero"><div className="hero-glow"></div>
-<div className="sigil"><svg className="mini-chart" id="miniChart" viewBox="-40 -40 500 500" style={{overflow: 'visible'}}></svg><div className="chart-tip" id="chartTip"><div className="tip-planet"></div><div className="tip-sign"></div><div className="tip-house"></div></div></div>
 <div className="hero-sub">სულის ნახაზი</div>
+<div className="sigil"><svg className="mini-chart" id="miniChart" viewBox="-40 -40 500 500" style={{overflow: 'visible'}}></svg><div className="chart-tip" id="chartTip"><div className="tip-planet"></div><div className="tip-sign"></div><div className="tip-house"></div></div></div>
 <h1>ნატალური რუკის წაკითხვა</h1>
 <div className="hero-chips"></div></div>
 
