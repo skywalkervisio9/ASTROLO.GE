@@ -577,6 +577,8 @@ body[data-view="payment"] .payment-view{display:block}
 body[data-view="payment"] .main-natal,body[data-view="payment"] .synastry-wrap,body[data-view="payment"] .auth-overlay{display:none}
 .pay-container{max-width:520px;margin:0 auto}
 .pay-badge{text-align:center;margin-bottom:8px;font-family:'Outfit',sans-serif;font-size:.68rem;letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
+/* Variant placed below the price — replaces the old .pay-note. */
+.pay-badge--under-price{margin-top:4px;margin-bottom:32px}
 .pay-title{text-align:center;font-family:var(--fd);font-size:1.8rem;font-weight:400;color:var(--tx);line-height:1.3;margin-bottom:12px}
 .pay-subtitle{text-align:center;font-size:.82rem;color:var(--txd);line-height:1.6;margin-bottom:24px;max-width:400px;margin-left:auto;margin-right:auto}
 .pay-price{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px}
@@ -617,10 +619,36 @@ body[data-view="payment"] .main-natal,body[data-view="payment"] .synastry-wrap,b
 .pay-method-name.bog{color:var(--gold)}
 .pay-method-name.tbc{color:#00a0e3}
 .pay-method-cards{font-size:.62rem;color:var(--txd);letter-spacing:.06em}
+.pay-method-cards .lg-en{display:none}
+body.lang-en .pay-method-cards .lg-en{display:inline}
+body.lang-en .pay-method-cards .lg-ka{display:none}
+/* Locked payment method (temporarily disabled) */
+.pay-method.locked{cursor:not-allowed;opacity:.5;filter:grayscale(.6)}
+.pay-method.locked:hover{border-color:rgba(201,168,76,.06)}
+.pay-method-lock{position:absolute;top:10px;right:10px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;color:var(--txd);opacity:.7}
 
 /* Sigil at top of payment page */
-.pay-sigil{width:80px;height:80px;margin:0 auto 20px;border:1px solid rgba(201,168,76,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(201,168,76,.06),transparent 70%)}
-.pay-sigil svg{width:28px;height:28px;color:var(--gold)}
+.pay-sigil{width:80px;height:80px;margin:0 auto 20px;border:1px solid rgba(201,168,76,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(201,168,76,.06),transparent 70%);position:relative;transition:border-color .55s var(--ease),box-shadow .55s var(--ease)}
+.pay-sigil svg{width:28px;height:28px;color:var(--gold);filter:drop-shadow(0 0 10px rgba(228,199,107,.2));scale:1;transition:filter .55s var(--ease),scale .55s var(--ease)}
+/* Animated state — slow spin + concentric rings, like .auth-sigil.
+   Use the individual `rotate` property (not the transform shorthand) so the
+   hover `scale` below doesn't fight the running spin animation. */
+@keyframes paySigilSpin{to{rotate:360deg}}
+@keyframes paySigilSpinRev{to{rotate:-360deg}}
+.pay-sigil--anim{animation:paySigilSpin 60s linear infinite;cursor:pointer}
+.pay-sigil--anim::before{content:'';position:absolute;inset:-8px;border:1px solid rgba(201,168,76,.1);border-radius:50%}
+.pay-sigil--anim::after{content:'';position:absolute;inset:-16px;border:1px solid rgba(201,168,76,.05);border-radius:50%}
+.pay-sigil--anim svg{animation:paySigilSpinRev 60s linear infinite}
+/* Interactive hover glow — same gold halo + bloom as auth-sigil. Scale
+   eases smoothly because it rides the `scale` property, while the spin
+   keeps running on `rotate`. */
+.pay-sigil--anim:hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
+.pay-sigil--anim:hover svg{filter:drop-shadow(0 0 24px rgba(228,199,107,.65));scale:1.12}
+/* "Lit" state — skywalker promo amplifies the glow even without hover. */
+.pay-sigil--lit{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.22)}
+.pay-sigil--lit svg{filter:drop-shadow(0 0 22px rgba(228,199,107,.65))}
+.pay-sigil--lit:hover{box-shadow:0 0 36px rgba(228,199,107,.32)}
+.pay-sigil--lit:hover svg{filter:drop-shadow(0 0 28px rgba(228,199,107,.8));scale:1.14}
 
 /* Promo code section (premium payment page only) */
 .pay-promo{margin-bottom:20px}
