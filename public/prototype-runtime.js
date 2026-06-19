@@ -1418,7 +1418,7 @@ if (typeof window !== 'undefined' && window.matchMedia &&
     window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
   const HOVER_OPEN_DELAY = 1000;
   const HOVER_CLOSE_GRACE = 200;
-  const HOVER_TRIGGER_SEL = '.pl-btn,.sign-td,.house-td';
+  const HOVER_TRIGGER_SEL = '.pl-btn,.sign-td,.house-td,.et';
   let openTimer = null, openTarget = null;
   let closeTimer = null, hoverOpenedFor = null;
   const cancelOpen = () => {
@@ -1428,9 +1428,17 @@ if (typeof window !== 'undefined' && window.matchMedia &&
   const cancelClose = () => {
     if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
   };
-  const isOverHoverGroup = (node) =>
-    !!node && !!hoverOpenedFor && !!activePopup &&
-    (hoverOpenedFor.contains(node) || activePopup.contains(node));
+  // Owns the currently open popup if its trigger is one of the hover-supported
+  // planet-table cells (works for both hover- and click-opened popups).
+  const currentHoverTrigger = () =>
+    activeTag && activeTag.matches && activeTag.matches(HOVER_TRIGGER_SEL)
+      ? activeTag : null;
+  const isOverHoverGroup = (node) => {
+    if (!node || !activePopup) return false;
+    const trig = currentHoverTrigger();
+    if (!trig) return false;
+    return trig.contains(node) || activePopup.contains(node);
+  };
 
   document.addEventListener('mouseover', e => {
     // Re-entering the trigger or popup cancels a pending close.
@@ -1453,15 +1461,16 @@ if (typeof window !== 'undefined' && window.matchMedia &&
     if (trigger && trigger === openTarget && !trigger.contains(e.relatedTarget)) {
       cancelOpen();
     }
-    // Auto-close hover-opened popups when leaving both the trigger and
-    // the popup. Click-opened popups (hoverOpenedFor === null) are unaffected.
-    if (!hoverOpenedFor || !activePopup) return;
+    // Auto-close planet-table popups (hover- or click-opened) when leaving
+    // both the trigger and the popup.
+    const trig = currentHoverTrigger();
+    if (!trig) return;
     if (!isOverHoverGroup(e.target)) return;
     if (isOverHoverGroup(e.relatedTarget)) return;
     cancelClose();
     closeTimer = setTimeout(() => {
       closeTimer = null;
-      if (hoverOpenedFor && activeTag === hoverOpenedFor) closePopup();
+      if (activeTag === trig) closePopup();
       hoverOpenedFor = null;
     }, HOVER_CLOSE_GRACE);
   });
@@ -1742,9 +1751,43 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
     g.addEventListener('pointerleave', e => {
       if (e.pointerType === 'touch') return;
       if (activeTag !== g) return;
-      setTimeout(() => {
-        if (activeTag === g && activePopup && !activePopup.matches(':hover')) closePopup();
-      }, 200);
+      const popup = activePopup;
+      if (!popup) return;
+      // Watch the cursor: if it reaches the popup, hand close over to the
+      // popup itself; otherwise close after a generous fallback. This stays
+      // robust when the popup is flipped BELOW the sign (page scrolled, sign
+      // near the header) where the user must cross an 8px gap to read it —
+      // a hard 200ms timer was closing the popup mid-traversal.
+      let resolved = false;
+      const cleanup = () => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(fallback);
+        document.removeEventListener('pointermove', onMove, true);
+      };
+      const attachPopupLeave = () => {
+        cleanup();
+        popup.addEventListener('pointerleave', function onPopupLeave(evt) {
+          if (evt.pointerType === 'touch') return;
+          popup.removeEventListener('pointerleave', onPopupLeave);
+          setTimeout(() => {
+            if (activeTag === g && activePopup === popup && !popup.matches(':hover')) closePopup();
+          }, 100);
+        });
+      };
+      const onMove = () => {
+        if (resolved) return;
+        if (activeTag !== g || activePopup !== popup) { cleanup(); return; }
+        if (popup.matches(':hover')) attachPopupLeave();
+      };
+      document.addEventListener('pointermove', onMove, true);
+      const fallback = setTimeout(() => {
+        if (resolved) return;
+        cleanup();
+        if (activeTag !== g || activePopup !== popup) return;
+        if (popup.matches(':hover')) { attachPopupLeave(); return; }
+        closePopup();
+      }, 600);
     });
   });
 }
