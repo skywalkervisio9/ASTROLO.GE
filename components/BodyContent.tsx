@@ -891,6 +891,7 @@ export default function BodyContent() {
 </div>
 
 <div className="loading-overlay" id="loadingScreen">
+  <div className="cosmic-stars" id="cosmicStars" aria-hidden="true"></div>
   <div className="constellation" id="constellation"></div>
   <div className="orrery"><div className="zodiac-ring" id="zodiacRing"></div><div className="orbit o5"></div><div className="orbit o4"></div><div className="orbit o3"></div><div className="orbit o2"></div><div className="orbit o1"></div><div className="orrery-center"></div></div>
   <div className="loading-text"><div className="loading-title">ვარსკვლავები ლაპარაკობენ…</div><div className="loading-msg" id="loadingMsg"></div><div className="loading-progress"><div className="loading-fill" id="loadingFill"></div></div></div>

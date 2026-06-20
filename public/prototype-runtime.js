@@ -2523,6 +2523,23 @@ function startLoading(lang, durationMs) {
     d.style.setProperty('--dur', (6 + Math.random() * 10) + 's');
     d.style.animationDelay = Math.random() * 8 + 's'; con.appendChild(d);
   }
+
+  // Background star field (parallax target)
+  const csEl = document.getElementById('cosmicStars');
+  if (csEl) {
+    csEl.innerHTML = '';
+    for (let i = 0; i < 90; i++) {
+      const s = document.createElement('div'); s.className = 'cs-star';
+      s.style.left = Math.random() * 100 + '%';
+      s.style.top = Math.random() * 100 + '%';
+      s.style.setProperty('--sz', (Math.random() * 1.6 + 0.8).toFixed(2) + 'px');
+      s.style.setProperty('--gl', (3 + Math.random() * 6).toFixed(1) + 'px');
+      s.style.setProperty('--tdur', (4 + Math.random() * 6).toFixed(1) + 's');
+      s.style.setProperty('--td', (Math.random() * 5).toFixed(1) + 's');
+      s.style.setProperty('--td2', (Math.random() * 1.2).toFixed(2) + 's');
+      csEl.appendChild(s);
+    }
+  }
   // Zodiac ring — SVG glyphs
   const signIds = ['gl-aries','gl-taurus','gl-gemini','gl-cancer','gl-leo','gl-virgo','gl-libra','gl-scorpio','gl-sagittarius','gl-capricorn','gl-aquarius','gl-pisces'];
   const ring = document.getElementById('zodiacRing'); ring.innerHTML = '';
@@ -2571,6 +2588,7 @@ function startLoading(lang, durationMs) {
 
     if (!liveMode && elapsed >= TOTAL_DURATION) {
       clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
+      stopParallax();
       setTimeout(() => {
         overlay.style.opacity = '0';
         setTimeout(() => {
@@ -2585,10 +2603,60 @@ function startLoading(lang, durationMs) {
   tick();
   const tickInt = setInterval(tick, 1000);
 
+  // Parallax: stars shift opposite to cursor / device tilt, eased via rAF.
+  // Mouse drives desktop; deviceorientation drives mobile gyro.
+  const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let pxT = 0, pyT = 0, pxC = 0, pyC = 0, prRaf = 0;
+  function applyParallax() {
+    pxC += (pxT - pxC) * 0.08;
+    pyC += (pyT - pyC) * 0.08;
+    if (csEl) {
+      csEl.style.setProperty('--csx', (-pxC * 18).toFixed(2) + 'px');
+      csEl.style.setProperty('--csy', (-pyC * 18).toFixed(2) + 'px');
+    }
+    if (Math.abs(pxT - pxC) > 0.001 || Math.abs(pyT - pyC) > 0.001) {
+      prRaf = requestAnimationFrame(applyParallax);
+    } else { prRaf = 0; }
+  }
+  function schedulePr() { if (!prRaf) prRaf = requestAnimationFrame(applyParallax); }
+  function onPrMouse(e) {
+    if (prefersReducedMotion) return;
+    pxT = (e.clientX / window.innerWidth) * 2 - 1;
+    pyT = (e.clientY / window.innerHeight) * 2 - 1;
+    schedulePr();
+  }
+  function onPrTilt(e) {
+    if (prefersReducedMotion) return;
+    const g = e.gamma == null ? 0 : Math.max(-25, Math.min(25, e.gamma)) / 25;
+    const b = e.beta == null ? 0 : Math.max(-25, Math.min(25, e.beta - 20)) / 25;
+    pxT = g; pyT = b;
+    schedulePr();
+  }
+  function stopParallax() {
+    if (prRaf) cancelAnimationFrame(prRaf);
+    prRaf = 0;
+    overlay.removeEventListener('mousemove', onPrMouse);
+    window.removeEventListener('deviceorientation', onPrTilt);
+  }
+  if (!prefersReducedMotion) {
+    overlay.addEventListener('mousemove', onPrMouse);
+    window.addEventListener('deviceorientation', onPrTilt);
+    // iOS 13+ requires explicit permission; request on first touch inside the overlay.
+    const DOE = window.DeviceOrientationEvent;
+    if (DOE && typeof DOE.requestPermission === 'function') {
+      const askGyro = () => {
+        overlay.removeEventListener('touchstart', askGyro);
+        DOE.requestPermission().catch(() => {});
+      };
+      overlay.addEventListener('touchstart', askGyro, { once: true, passive: true });
+    }
+  }
+
   // Expose a completion hook for the React layer.
   window.finishLoading = function finishLoading() {
     try {
       clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
+      stopParallax();
       // Snap progress bar to 100%
       fillEl.style.width = '100%';
       overlay.style.opacity = '0';
