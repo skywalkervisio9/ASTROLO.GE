@@ -2810,11 +2810,51 @@ function _renderRichText(text) {
   escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   // Convert _italic_ or *italic* to <em>
   escaped = escaped.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em class="hl">$1</em>');
-  // Highlight chart points: ASC, MC, IC → gold styled span with tooltip
+  // Highlight chart points: ASC, MC, IC → gold styled span with tooltip.
+  // In name mode (KA), inflect the Georgian word grammatically using the
+  // optional case suffix attached after a hyphen (validator emits this
+  // canonical form for inflected source like "ასცენდენტთან" or
+  // "ასცენდენტი-მა").
   var ptTipsEn = { ASC: 'Ascendant — outer mask & first impression', MC: 'Midheaven — career & public role', IC: 'Imum Coeli — roots & private self', DSC: 'Descendant — the mirror & partnerships' };
   var ptTipsKa = { ASC: 'ასცენდენტი — გარეგანი ნიღაბი და პირველი შთაბეჭდილება', MC: 'ცის შუაწერტილი — კარიერა და საჯარო როლი', IC: 'ცის ფსკერი — ფესვები და შინაგანი სამყარო', DSC: 'დესცენდენტი — სარკე და პარტნიორობა' };
+  var ptNamesEn = { ASC: 'Ascendant', MC: 'Midheaven', IC: 'Imum Coeli', DSC: 'Descendant' };
+  var ptStemsKa = {
+    ASC: { prefix: '', stem: 'ასცენდენტ' },
+    DSC: { prefix: '', stem: 'დესცენდენტ' },
+    MC:  { prefix: 'ცის ', stem: 'შუაწერტილ' },
+    IC:  { prefix: 'ცის ', stem: 'ფსკერ' }
+  };
   var ptTips = _hydrateLang === 'ka' ? ptTipsKa : ptTipsEn;
-  escaped = escaped.replace(/\b(ASC|MC|IC|DSC)\b/g, function(m) { return '<span class="pt tip" data-tip="' + ptTips[m] + '">' + m + '</span>'; });
+  var ptShowName = _zodiacDisplayMode === 'name';
+  var _kaPtInflect = function(key, s) {
+    var e = ptStemsKa[key]; if (!e) return key;
+    var p = e.prefix, st = e.stem;
+    if (!s) return p + st + 'ი';
+    if (s === 'ის') return p + st + 'ის';
+    if (s === 'ს') return p + st + 'ს';
+    if (s === 'ით') return p + st + 'ით';
+    if (s === 'ად') return p + st + 'ად';
+    if (s === 'მა' || s === 'მან') return p + st + 'მა';
+    if (s === 'ში') return p + st + 'ში';
+    if (s === 'სთვის' || s === 'თვის' || s === 'ისთვის') return p + st + 'ისთვის';
+    if (s === 'სთან' || s === 'თან' || s === 'ისთან') return p + st + 'თან';
+    if (s === 'ო') return p + st + 'ო';
+    return p + st + 'ი';
+  };
+  escaped = escaped.replace(
+    /\b(ASC|MC|IC|DSC)(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო))?/g,
+    function(_m, key, suffix) {
+      var label;
+      if (ptShowName) {
+        label = _hydrateLang === 'ka'
+          ? _kaPtInflect(key, suffix || '')
+          : (ptNamesEn[key] || key);
+      } else {
+        label = suffix ? (key + '-' + suffix) : key;
+      }
+      return '<span class="pt tip" data-tip="' + ptTips[key] + '">' + label + '</span>';
+    }
+  );
   // Retrograde symbol → tooltip
   var retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
   escaped = escaped.replace(/℞/g, '<span class="retro tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');

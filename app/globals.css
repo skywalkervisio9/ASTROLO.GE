@@ -303,7 +303,8 @@ section.vis{opacity:1;transform:translateY(0)}
 .c:hover .dn{font-size:.75em;opacity:.85}
 .af .dn{color:var(--fire)}.ae .dn{color:var(--earth)}.aa .dn{color:var(--air)}.aw .dn{color:var(--water)}
 /* Chart point labels: ASC / MC / IC */
-span.pt{color:var(--gold);font-family:'Outfit',sans-serif;letter-spacing:.07em;font-weight:500;font-size:.88em;cursor:help;position:relative}
+span.pt{color:var(--gold);font-family:'Outfit',var(--fb),sans-serif;letter-spacing:.07em;font-weight:500;font-size:.88em;cursor:help;position:relative}
+html[lang="ka"] body.zodiac-names span.pt{font-family:var(--fb);letter-spacing:.02em}
 /* Tooltip system */
 .tip{position:relative;cursor:help}.tip::after{content:attr(data-tip);position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:var(--sf2);color:var(--silver);padding:5px 10px;border-radius:6px;font-size:.68rem;font-family:var(--fb);font-weight:400;font-style:normal;letter-spacing:.02em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .25s;border:1px solid rgba(201,168,76,.12);z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.4)}
 .tip:hover::after{opacity:1}

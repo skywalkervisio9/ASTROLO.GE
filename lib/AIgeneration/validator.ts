@@ -154,15 +154,52 @@ function numberBoldColonItems(paragraphs: string[]): string[] {
   return result;
 }
 
+// Georgian case suffixes attached to chart-point words. Ordered longest-first so
+// the regex prefers სთვის over თვის, ისთვის over სთვის, etc.
+const KA_PT_SUFFIX_RE_SRC = '(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო|ი)';
+
+// Stems for ASC/DSC/MC/IC in Georgian. The "ცის " prefix on MC/IC stays fixed —
+// only the head word inflects. Stems intentionally exclude the final ი of the
+// nominative so we can re-attach it (or substitute another suffix) consistently.
+const KA_PT_STEM_TO_ABBR: Record<string, 'ASC' | 'DSC' | 'MC' | 'IC'> = {
+  'ასცენდენტ': 'ASC',
+  'დესცენდენტ': 'DSC',
+  'ცის შუაწერტილ': 'MC',
+  'ცის ფსკერ': 'IC',
+};
+
 /** Replace verbose English terms with standard abbreviations (i12) */
 function sanitizeTerminology(p: string): string {
   if (typeof p !== 'string') return p;
-  return p
+  let t = p
     .replace(/\bAscendant\b/gi, 'ASC')
     .replace(/\bDescendant\b/gi, 'DSC')
     .replace(/\bMidheaven\b/gi, 'MC')
-    .replace(/\bასცენდენტი/g, 'ASC')
-    .replace(/\bდესცენდენტი/g, 'DSC');
+    .replace(/\bImum Coeli\b/gi, 'IC');
+
+  // Georgian chart-point words: catch all inflected forms — with or without an
+  // explicit hyphen between stem and case marker — and rewrite to ABBR
+  // (nominative) or ABBR-suffix (oblique). The AI sometimes writes
+  // "ასცენდენტი-მან" or "ცის ფსკერი-ის" with literal hyphens; without this
+  // normalization those would render as "ასცენდენტი-მან" in name mode (wrong:
+  // should be "ასცენდენტმა"). The renderer re-inflects the canonical form back
+  // into grammatical Georgian when the user has the name-display mode on.
+  const stemPattern = '(ცის\\s+შუა\\s*წერტილ|ცის\\s+ფსკერ|ასცენდენტ|დესცენდენტ)';
+  t = t.replace(
+    new RegExp(stemPattern + '-?' + KA_PT_SUFFIX_RE_SRC + '?', 'g'),
+    (_full, rawStem, suffix) => {
+      const stem = String(rawStem).replace(/\s+/g, ' ').replace('ცის შუა წერტილ', 'ცის შუაწერტილ');
+      const abbr = KA_PT_STEM_TO_ABBR[stem];
+      if (!abbr) return _full;
+      if (!suffix || suffix === 'ი') return abbr;
+      return `${abbr}-${suffix}`;
+    }
+  );
+
+  // Collapse ABBR-ი (nominative-with-dash, e.g. "ASC-ი") back to bare ABBR.
+  t = t.replace(/\b(ASC|MC|IC|DSC)-ი\b/g, '$1');
+
+  return t;
 }
 
 /** Normalize accentElement on all cards in a section */
