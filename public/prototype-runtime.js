@@ -2523,6 +2523,23 @@ function startLoading(lang, durationMs) {
     d.style.setProperty('--dur', (6 + Math.random() * 10) + 's');
     d.style.animationDelay = Math.random() * 8 + 's'; con.appendChild(d);
   }
+
+  // Background star field (parallax target)
+  const csEl = document.getElementById('cosmicStars');
+  if (csEl) {
+    csEl.innerHTML = '';
+    for (let i = 0; i < 90; i++) {
+      const s = document.createElement('div'); s.className = 'cs-star';
+      s.style.left = Math.random() * 100 + '%';
+      s.style.top = Math.random() * 100 + '%';
+      s.style.setProperty('--sz', (Math.random() * 1.6 + 0.8).toFixed(2) + 'px');
+      s.style.setProperty('--gl', (3 + Math.random() * 6).toFixed(1) + 'px');
+      s.style.setProperty('--tdur', (4 + Math.random() * 6).toFixed(1) + 's');
+      s.style.setProperty('--td', (Math.random() * 5).toFixed(1) + 's');
+      s.style.setProperty('--td2', (Math.random() * 1.2).toFixed(2) + 's');
+      csEl.appendChild(s);
+    }
+  }
   // Zodiac ring — SVG glyphs
   const signIds = ['gl-aries','gl-taurus','gl-gemini','gl-cancer','gl-leo','gl-virgo','gl-libra','gl-scorpio','gl-sagittarius','gl-capricorn','gl-aquarius','gl-pisces'];
   const ring = document.getElementById('zodiacRing'); ring.innerHTML = '';
@@ -2571,6 +2588,7 @@ function startLoading(lang, durationMs) {
 
     if (!liveMode && elapsed >= TOTAL_DURATION) {
       clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
+      stopParallax();
       setTimeout(() => {
         overlay.style.opacity = '0';
         setTimeout(() => {
@@ -2585,10 +2603,60 @@ function startLoading(lang, durationMs) {
   tick();
   const tickInt = setInterval(tick, 1000);
 
+  // Parallax: stars shift opposite to cursor / device tilt, eased via rAF.
+  // Mouse drives desktop; deviceorientation drives mobile gyro.
+  const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let pxT = 0, pyT = 0, pxC = 0, pyC = 0, prRaf = 0;
+  function applyParallax() {
+    pxC += (pxT - pxC) * 0.08;
+    pyC += (pyT - pyC) * 0.08;
+    if (csEl) {
+      csEl.style.setProperty('--csx', (-pxC * 18).toFixed(2) + 'px');
+      csEl.style.setProperty('--csy', (-pyC * 18).toFixed(2) + 'px');
+    }
+    if (Math.abs(pxT - pxC) > 0.001 || Math.abs(pyT - pyC) > 0.001) {
+      prRaf = requestAnimationFrame(applyParallax);
+    } else { prRaf = 0; }
+  }
+  function schedulePr() { if (!prRaf) prRaf = requestAnimationFrame(applyParallax); }
+  function onPrMouse(e) {
+    if (prefersReducedMotion) return;
+    pxT = (e.clientX / window.innerWidth) * 2 - 1;
+    pyT = (e.clientY / window.innerHeight) * 2 - 1;
+    schedulePr();
+  }
+  function onPrTilt(e) {
+    if (prefersReducedMotion) return;
+    const g = e.gamma == null ? 0 : Math.max(-25, Math.min(25, e.gamma)) / 25;
+    const b = e.beta == null ? 0 : Math.max(-25, Math.min(25, e.beta - 20)) / 25;
+    pxT = g; pyT = b;
+    schedulePr();
+  }
+  function stopParallax() {
+    if (prRaf) cancelAnimationFrame(prRaf);
+    prRaf = 0;
+    overlay.removeEventListener('mousemove', onPrMouse);
+    window.removeEventListener('deviceorientation', onPrTilt);
+  }
+  if (!prefersReducedMotion) {
+    overlay.addEventListener('mousemove', onPrMouse);
+    window.addEventListener('deviceorientation', onPrTilt);
+    // iOS 13+ requires explicit permission; request on first touch inside the overlay.
+    const DOE = window.DeviceOrientationEvent;
+    if (DOE && typeof DOE.requestPermission === 'function') {
+      const askGyro = () => {
+        overlay.removeEventListener('touchstart', askGyro);
+        DOE.requestPermission().catch(() => {});
+      };
+      overlay.addEventListener('touchstart', askGyro, { once: true, passive: true });
+    }
+  }
+
   // Expose a completion hook for the React layer.
   window.finishLoading = function finishLoading() {
     try {
       clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
+      stopParallax();
       // Snap progress bar to 100%
       fillEl.style.width = '100%';
       overlay.style.opacity = '0';
@@ -2742,11 +2810,51 @@ function _renderRichText(text) {
   escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   // Convert _italic_ or *italic* to <em>
   escaped = escaped.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em class="hl">$1</em>');
-  // Highlight chart points: ASC, MC, IC → gold styled span with tooltip
+  // Highlight chart points: ASC, MC, IC → gold styled span with tooltip.
+  // In name mode (KA), inflect the Georgian word grammatically using the
+  // optional case suffix attached after a hyphen (validator emits this
+  // canonical form for inflected source like "ასცენდენტთან" or
+  // "ასცენდენტი-მა").
   var ptTipsEn = { ASC: 'Ascendant — outer mask & first impression', MC: 'Midheaven — career & public role', IC: 'Imum Coeli — roots & private self', DSC: 'Descendant — the mirror & partnerships' };
   var ptTipsKa = { ASC: 'ასცენდენტი — გარეგანი ნიღაბი და პირველი შთაბეჭდილება', MC: 'ცის შუაწერტილი — კარიერა და საჯარო როლი', IC: 'ცის ფსკერი — ფესვები და შინაგანი სამყარო', DSC: 'დესცენდენტი — სარკე და პარტნიორობა' };
+  var ptNamesEn = { ASC: 'Ascendant', MC: 'Midheaven', IC: 'Imum Coeli', DSC: 'Descendant' };
+  var ptStemsKa = {
+    ASC: { prefix: '', stem: 'ასცენდენტ' },
+    DSC: { prefix: '', stem: 'დესცენდენტ' },
+    MC:  { prefix: 'ცის ', stem: 'შუაწერტილ' },
+    IC:  { prefix: 'ცის ', stem: 'ფსკერ' }
+  };
   var ptTips = _hydrateLang === 'ka' ? ptTipsKa : ptTipsEn;
-  escaped = escaped.replace(/\b(ASC|MC|IC|DSC)\b/g, function(m) { return '<span class="pt tip" data-tip="' + ptTips[m] + '">' + m + '</span>'; });
+  var ptShowName = _zodiacDisplayMode === 'name';
+  var _kaPtInflect = function(key, s) {
+    var e = ptStemsKa[key]; if (!e) return key;
+    var p = e.prefix, st = e.stem;
+    if (!s) return p + st + 'ი';
+    if (s === 'ის') return p + st + 'ის';
+    if (s === 'ს') return p + st + 'ს';
+    if (s === 'ით') return p + st + 'ით';
+    if (s === 'ად') return p + st + 'ად';
+    if (s === 'მა' || s === 'მან') return p + st + 'მა';
+    if (s === 'ში') return p + st + 'ში';
+    if (s === 'სთვის' || s === 'თვის' || s === 'ისთვის') return p + st + 'ისთვის';
+    if (s === 'სთან' || s === 'თან' || s === 'ისთან') return p + st + 'თან';
+    if (s === 'ო') return p + st + 'ო';
+    return p + st + 'ი';
+  };
+  escaped = escaped.replace(
+    /\b(ASC|MC|IC|DSC)(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო))?/g,
+    function(_m, key, suffix) {
+      var label;
+      if (ptShowName) {
+        label = _hydrateLang === 'ka'
+          ? _kaPtInflect(key, suffix || '')
+          : (ptNamesEn[key] || key);
+      } else {
+        label = suffix ? (key + '-' + suffix) : key;
+      }
+      return '<span class="pt tip" data-tip="' + ptTips[key] + '">' + label + '</span>';
+    }
+  );
   // Retrograde symbol → tooltip
   var retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
   escaped = escaped.replace(/℞/g, '<span class="retro tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');

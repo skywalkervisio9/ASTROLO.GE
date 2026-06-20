@@ -155,6 +155,44 @@ const PT_TIPS_KA: Record<string, string> = {
   DSC: 'დესცენდენტი — სარკე და პარტნიორობა',
 };
 
+const PT_NAMES_EN: Record<string, string> = {
+  ASC: 'Ascendant', MC: 'Midheaven', IC: 'Imum Coeli', DSC: 'Descendant',
+};
+const PT_NAMES_KA: Record<string, string> = {
+  ASC: 'ასცენდენტი', MC: 'ცის შუაწერტილი', IC: 'ცის ფსკერი', DSC: 'დესცენდენტი',
+};
+
+// For Georgian name-mode inflection. Each chart point splits into a fixed
+// prefix ("ცის " for MC/IC) and an inflectable stem; the stem takes the case
+// marker. The validator emits ABBR-suffix for oblique forms; this map turns
+// the canonical pair back into a grammatical word (no literal hyphen).
+const PT_STEMS_KA: Record<string, { prefix: string; stem: string }> = {
+  ASC: { prefix: '', stem: 'ასცენდენტ' },
+  DSC: { prefix: '', stem: 'დესცენდენტ' },
+  MC: { prefix: 'ცის ', stem: 'შუაწერტილ' },
+  IC: { prefix: 'ცის ', stem: 'ფსკერ' },
+};
+
+function kaChartPointInflect(key: string, suffix: string): string {
+  const entry = PT_STEMS_KA[key];
+  if (!entry) return key;
+  const { prefix, stem } = entry;
+  const s = suffix;
+  if (!s) return prefix + stem + 'ი';
+  if (s === 'ის') return prefix + stem + 'ის';
+  if (s === 'ს') return prefix + stem + 'ს';
+  if (s === 'ით') return prefix + stem + 'ით';
+  if (s === 'ად') return prefix + stem + 'ად';
+  if (s === 'მა' || s === 'მან') return prefix + stem + 'მა';
+  if (s === 'ში') return prefix + stem + 'ში';
+  if (s === 'სთვის' || s === 'თვის' || s === 'ისთვის') return prefix + stem + 'ისთვის';
+  if (s === 'სთან' || s === 'თან' || s === 'ისთან') return prefix + stem + 'თან';
+  if (s === 'ო') return prefix + stem + 'ო';
+  return prefix + stem + 'ი';
+}
+
+const PT_SUFFIX_LOOKAHEAD_RE = /^-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო)(?![ა-ჰ])/u;
+
 const SIGN_TIPS_EN: Record<string, string> = {
   aries:       'Aries — initiative, courage, raw drive',
   taurus:      'Taurus — stability, sensuality, persistence',
@@ -230,7 +268,31 @@ export function renderText(text: string): React.ReactNode {
       TEXT_TOKEN_RE.lastIndex = savedIdx;
       nodes.push(<em key={k++} className="hl">{inner}</em>);
     } else if (m[3] !== undefined) {
-      nodes.push(<span key={k++} className="pt tip" data-tip={ptTips[m[3]]}>{m[3]}</span>);
+      const ptKey = m[3];
+      // Look ahead for a Georgian case suffix attached with a literal hyphen
+      // (e.g. "ASC-თან", "MC-ის"). Validator normalizes inflected Georgian
+      // chart-point words to this canonical form so we can re-inflect them
+      // grammatically in name mode, or pass them through unchanged in icon mode.
+      const tail = text.slice(m.index + m[0].length);
+      const sufMatch = tail.match(PT_SUFFIX_LOOKAHEAD_RE);
+      const suffix = sufMatch ? sufMatch[1] : '';
+      const consumed = m[0].length + (sufMatch ? sufMatch[0].length : 0);
+
+      let label: string;
+      if (_zodiacDisplayMode === 'name') {
+        label = _renderLang === 'ka'
+          ? kaChartPointInflect(ptKey, suffix)
+          : (PT_NAMES_EN[ptKey] || ptKey);
+      } else {
+        label = suffix ? `${ptKey}-${suffix}` : ptKey;
+      }
+      nodes.push(<span key={k++} className="pt tip" data-tip={ptTips[ptKey]}>{label}</span>);
+
+      if (sufMatch) {
+        last = m.index + consumed;
+        TEXT_TOKEN_RE.lastIndex = last;
+        continue;
+      }
     } else if (m[4] !== undefined) {
       nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
     } else if (m[5] !== undefined) {
