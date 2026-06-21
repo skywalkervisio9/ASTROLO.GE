@@ -171,7 +171,6 @@ body[data-public-view] .pn{color:#a6d9e4;max-width:180px;white-space:nowrap;over
 
 /* ═══ HERO ═══ */
 .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;padding-top:88px;position:relative}
-.hero::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:1px;height:100px;background:linear-gradient(to bottom,transparent,rgba(201,168,76,.12),transparent)}
 .hero-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(640px,calc(100vw - 32px));height:min(640px,calc(100vw - 32px));background:radial-gradient(circle,rgba(201,168,76,.04) 0%,rgba(201,168,76,.01) 40%,transparent 70%);pointer-events:none}
 .sigil{width:min(640px,calc(100vw - 32px));height:min(640px,calc(100vw - 32px));margin:0 auto 28px;position:relative}
 .mini-chart{width:100%;height:100%}
@@ -305,6 +304,10 @@ section.vis{opacity:1;transform:translateY(0)}
 /* Chart point labels: ASC / MC / IC */
 span.pt{color:var(--gold);font-family:'Outfit',var(--fb),sans-serif;letter-spacing:.07em;font-weight:500;font-size:.88em;cursor:help;position:relative}
 html[lang="ka"] body.zodiac-names span.pt{font-family:var(--fb);letter-spacing:.02em}
+/* Zodiac/chart-point swap: renderers emit both .zm-icon and .zm-name; body.zodiac-names flips visibility. No re-render on toggle. body-prefixed for specificity over .hero-chips span{display:flex}. */
+body .zm-name{display:none}
+body.zodiac-names .zm-icon{display:none}
+body.zodiac-names .zm-name{display:inline}
 /* Tooltip system */
 .tip{position:relative;cursor:help}.tip::after{content:attr(data-tip);position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:var(--sf2);color:var(--silver);padding:5px 10px;border-radius:6px;font-size:.68rem;font-family:var(--fb);font-weight:400;font-style:normal;letter-spacing:.02em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .25s;border:1px solid rgba(201,168,76,.12);z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.4)}
 .tip:hover::after{opacity:1}
