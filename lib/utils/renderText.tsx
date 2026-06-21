@@ -28,11 +28,11 @@ const SIGN_ELEMENT: Record<string, string> = {
 
 export type ZodiacDisplayMode = 'icon' | 'name';
 
-let _zodiacDisplayMode: ZodiacDisplayMode = 'icon';
-
-export function setZodiacDisplayMode(mode: ZodiacDisplayMode) {
-  _zodiacDisplayMode = mode === 'name' ? 'name' : 'icon';
-}
+// Renderer emits both icon and name forms for every zodiac sign and chart-point
+// token (wrapped in .zm-icon / .zm-name). The toggle is a CSS swap off
+// body.zodiac-names — no re-render required. setZodiacDisplayMode is kept as a
+// no-op for callers that still wire it up; remove once those callsites are gone.
+export function setZodiacDisplayMode(_mode: ZodiacDisplayMode) {}
 
 const SIGN_NAMES_EN: Record<string, string> = {
   aries:'Aries',taurus:'Taurus',gemini:'Gemini',cancer:'Cancer',leo:'Leo',virgo:'Virgo',
@@ -78,16 +78,15 @@ export function renderZodiacSignToken(key: string, suffix = '', nodeKey?: React.
   const elKey = SIGN_ELEMENT[key] || '';
   const signTips = _renderLang === 'ka' ? SIGN_TIPS_KA : SIGN_TIPS_EN;
   const tip = signTips[key];
-
-  if (_zodiacDisplayMode === 'name') {
-    const label = _renderLang === 'ka' ? kaSignName(key, suffix) : SIGN_NAMES_EN[key] || key;
-    return <span key={nodeKey} className={`zs zs-${elKey} tip`} data-tip={tip} style={{cursor:'help'}}>{label}</span>;
-  }
+  const nameLabel = _renderLang === 'ka' ? kaSignName(key, suffix) : SIGN_NAMES_EN[key] || key;
 
   return (
     <React.Fragment key={nodeKey}>
-      <span className={`gi gi-${elKey} tip`} data-tip={tip} style={{cursor:'help'}}><svg><use href={`#gl-${key}`}/></svg></span>
-      {suffix}
+      <span className="zm-icon">
+        <span className={`gi gi-${elKey} tip`} data-tip={tip} style={{cursor:'help'}}><svg><use href={`#gl-${key}`}/></svg></span>
+        {suffix}
+      </span>
+      <span className={`zm-name zs zs-${elKey} tip`} data-tip={tip} style={{cursor:'help'}}>{nameLabel}</span>
     </React.Fragment>
   );
 }
@@ -278,15 +277,16 @@ export function renderText(text: string): React.ReactNode {
       const suffix = sufMatch ? sufMatch[1] : '';
       const consumed = m[0].length + (sufMatch ? sufMatch[0].length : 0);
 
-      let label: string;
-      if (_zodiacDisplayMode === 'name') {
-        label = _renderLang === 'ka'
-          ? kaChartPointInflect(ptKey, suffix)
-          : (PT_NAMES_EN[ptKey] || ptKey);
-      } else {
-        label = suffix ? `${ptKey}-${suffix}` : ptKey;
-      }
-      nodes.push(<span key={k++} className="pt tip" data-tip={ptTips[ptKey]}>{label}</span>);
+      const iconLabel = suffix ? `${ptKey}-${suffix}` : ptKey;
+      const nameLabel = _renderLang === 'ka'
+        ? kaChartPointInflect(ptKey, suffix)
+        : (PT_NAMES_EN[ptKey] || ptKey);
+      nodes.push(
+        <span key={k++} className="pt tip" data-tip={ptTips[ptKey]}>
+          <span className="zm-icon">{iconLabel}</span>
+          <span className="zm-name">{nameLabel}</span>
+        </span>
+      );
 
       if (sufMatch) {
         last = m.index + consumed;

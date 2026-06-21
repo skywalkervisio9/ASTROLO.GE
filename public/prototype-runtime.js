@@ -703,8 +703,8 @@ function setZodiacMode(mode, b) {
 
   try { localStorage.setItem('astrolo:zodiac-display', _zodiacDisplayMode); } catch (e) {}
   window.dispatchEvent(new CustomEvent('astrolo:zodiac-display-change', { detail: { mode: _zodiacDisplayMode } }));
-
-  if (_currentReading && _currentUser) hydrateReading(_currentReading, _currentUser);
+  // Renderers emit both icon and name forms (.zm-icon / .zm-name); CSS swaps
+  // visibility off body.zodiac-names. No re-hydrate, no scroll jump.
 }
 
 window.setZodiacMode = setZodiacMode;
@@ -2825,7 +2825,6 @@ function _renderRichText(text) {
     IC:  { prefix: 'ცის ', stem: 'ფსკერ' }
   };
   var ptTips = _hydrateLang === 'ka' ? ptTipsKa : ptTipsEn;
-  var ptShowName = _zodiacDisplayMode === 'name';
   var _kaPtInflect = function(key, s) {
     var e = ptStemsKa[key]; if (!e) return key;
     var p = e.prefix, st = e.stem;
@@ -2841,18 +2840,18 @@ function _renderRichText(text) {
     if (s === 'ო') return p + st + 'ო';
     return p + st + 'ი';
   };
+  // Emit both forms; CSS toggles via body.zodiac-names. No re-render on switch.
   escaped = escaped.replace(
     /\b(ASC|MC|IC|DSC)(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო))?/g,
     function(_m, key, suffix) {
-      var label;
-      if (ptShowName) {
-        label = _hydrateLang === 'ka'
-          ? _kaPtInflect(key, suffix || '')
-          : (ptNamesEn[key] || key);
-      } else {
-        label = suffix ? (key + '-' + suffix) : key;
-      }
-      return '<span class="pt tip" data-tip="' + ptTips[key] + '">' + label + '</span>';
+      var iconLabel = suffix ? (key + '-' + suffix) : key;
+      var nameLabel = _hydrateLang === 'ka'
+        ? _kaPtInflect(key, suffix || '')
+        : (ptNamesEn[key] || key);
+      return '<span class="pt tip" data-tip="' + ptTips[key] + '">' +
+        '<span class="zm-icon">' + iconLabel + '</span>' +
+        '<span class="zm-name">' + nameLabel + '</span>' +
+      '</span>';
     }
   );
   // Retrograde symbol → tooltip
@@ -3335,6 +3334,9 @@ function hydrateReading(reading, user) {
     var _chip = function(key, glyphHtml, valHtml) {
       return '<span><span class="chip-label tip" data-tip="' + _esc(chipTips[key]) + '">' + glyphHtml + '</span> ' + valHtml + '</span>';
     };
+    // Hero chip ASC/MC/IC/DSC labels are intentionally fixed abbreviations
+    // (not affected by the zodiac toggle) — they read as compact chart-axis
+    // tags rather than body prose.
     var chips = '';
     if (sun)  chips += _chip('sun',  '<svg style="color:var(--gd)"><use href="#gl-sun"/></svg>',  _esc(_signDeg(sun.sign, sun.degree)));
     if (moon) chips += _chip('moon', '<svg style="color:var(--gd)"><use href="#gl-moon"/></svg>', _esc(_signDeg(moon.sign, moon.degree)));
