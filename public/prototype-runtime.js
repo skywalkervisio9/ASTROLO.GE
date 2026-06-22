@@ -2564,6 +2564,13 @@ function startLoading(lang, durationMs) {
       s.style.setProperty('--tdur', (4 + Math.random() * 6).toFixed(1) + 's');
       s.style.setProperty('--td', (Math.random() * 5).toFixed(1) + 's');
       s.style.setProperty('--td2', (Math.random() * 1.2).toFixed(2) + 's');
+      // Tag ~30% with a motion trail; vary length (12-44px) and angle (5-30°)
+      // so the starfall looks organic rather than a uniform comb.
+      if (Math.random() < 0.3) {
+        s.classList.add('cs-trail');
+        s.style.setProperty('--trail-len', (12 + Math.random() * 32).toFixed(0) + 'px');
+        s.style.setProperty('--trail-rot', (5 + Math.random() * 25).toFixed(0) + 'deg');
+      }
       csEl.appendChild(s);
     }
   }
@@ -2634,14 +2641,25 @@ function startLoading(lang, durationMs) {
   // Mouse drives desktop; deviceorientation drives mobile gyro.
   const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let pxT = 0, pyT = 0, pxC = 0, pyC = 0, prRaf = 0;
+  // Smoothed motion magnitude (0-1) — drives the per-star trail opacity.
+  // We sample the inter-frame displacement, normalise, and ease it so trails
+  // ramp up smoothly while motion is sustained and fade once the user stops.
+  let mmag = 0, prevPxC = 0, prevPyC = 0;
   function applyParallax() {
     pxC += (pxT - pxC) * 0.08;
     pyC += (pyT - pyC) * 0.08;
     if (csEl) {
       csEl.style.setProperty('--csx', (-pxC * 18).toFixed(2) + 'px');
       csEl.style.setProperty('--csy', (-pyC * 18).toFixed(2) + 'px');
+      // Per-frame velocity → magnitude (capped at 1). Smooth with a slow
+      // ease-down so a single quick tilt leaves trails visible for ~½ second.
+      var vx = pxC - prevPxC, vy = pyC - prevPyC;
+      var speed = Math.min(1, Math.sqrt(vx * vx + vy * vy) * 38);
+      mmag += (speed - mmag) * (speed > mmag ? 0.35 : 0.05);
+      csEl.style.setProperty('--mmag', mmag.toFixed(3));
+      prevPxC = pxC; prevPyC = pyC;
     }
-    if (Math.abs(pxT - pxC) > 0.001 || Math.abs(pyT - pyC) > 0.001) {
+    if (Math.abs(pxT - pxC) > 0.001 || Math.abs(pyT - pyC) > 0.001 || mmag > 0.005) {
       prRaf = requestAnimationFrame(applyParallax);
     } else { prRaf = 0; }
   }
@@ -2663,19 +2681,34 @@ function startLoading(lang, durationMs) {
     if (prRaf) cancelAnimationFrame(prRaf);
     prRaf = 0;
     overlay.removeEventListener('mousemove', onPrMouse);
+    // Match both phases — we attach with `true` (capture) after iOS permission
+    // grant, and without it on Android/desktop fallback path.
+    window.removeEventListener('deviceorientation', onPrTilt, true);
     window.removeEventListener('deviceorientation', onPrTilt);
   }
   if (!prefersReducedMotion) {
     overlay.addEventListener('mousemove', onPrMouse);
-    window.addEventListener('deviceorientation', onPrTilt);
-    // iOS 13+ requires explicit permission; request on first touch inside the overlay.
+    // iOS 13+ gates deviceorientation behind a permission prompt triggered by
+    // a user gesture — and only attaches AFTER the prompt resolves. Attaching
+    // before grant (the previous bug) means the listener silently never fires.
+    // Android/desktop don't gate, so the orientation listener attaches now.
     const DOE = window.DeviceOrientationEvent;
     if (DOE && typeof DOE.requestPermission === 'function') {
-      const askGyro = () => {
+      const askGyro = function() {
         overlay.removeEventListener('touchstart', askGyro);
-        DOE.requestPermission().catch(() => {});
+        overlay.removeEventListener('click', askGyro);
+        DOE.requestPermission()
+          .then(function(state) {
+            if (state === 'granted') {
+              window.addEventListener('deviceorientation', onPrTilt, true);
+            }
+          })
+          .catch(function() { /* user denied — no parallax on mobile, still works on desktop */ });
       };
       overlay.addEventListener('touchstart', askGyro, { once: true, passive: true });
+      overlay.addEventListener('click', askGyro, { once: true });
+    } else {
+      window.addEventListener('deviceorientation', onPrTilt, true);
     }
   }
 
