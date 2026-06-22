@@ -333,20 +333,6 @@ export default function SynastryViewWrapper() {
     }
   };
 
-  // Empty-state CTA → slot payment page (NOT the invite-link modal).
-  // If the user is sitting on the synastry tab without an active reading, the
-  // natural next step is to expand capacity (buy a slot) rather than juggle a
-  // modal. After payment they return here with an unlocked slot to populate.
-  // Matches the sidebar "მოწვევა" handler in BodyContent.tsx.
-  const openInvite = () => {
-    const w = window as unknown as {
-      showPaymentPage?: (type: string) => void;
-      closeSidebar?: () => void;
-    };
-    w.closeSidebar?.();
-    w.showPaymentPage?.('synastry-slot');
-  };
-
   // ── Render states ──
 
   // Has reading → show it
@@ -381,6 +367,10 @@ export default function SynastryViewWrapper() {
     return <SynastryCosmicState mode="error" language={language} errorText={error} />;
   }
 
-  // Empty state — invite CTA, framed in the same cosmic scene.
-  return <SynastryCosmicState mode="empty" language={language} onInvite={openInvite} />;
+  // Fallback — no reading yet and no in-flight state. Most commonly hit by the
+  // inviter while waiting for the partner to accept (or right after they
+  // accepted, before auto-gen flips `generating` to true). Show the cosmic
+  // loader instead of an invite CTA so both sides of the relationship see the
+  // same waiting experience. The sidebar's "+ მოწვევა" handles new invites.
+  return <SynastryCosmicState mode="loading" language={language} />;
 }

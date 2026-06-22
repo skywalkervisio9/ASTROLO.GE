@@ -1342,6 +1342,9 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .sycos-progress::after{content:'';position:absolute;top:0;left:-40%;width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--gold-bright),transparent);animation:sycosSlide 2.4s ease-in-out infinite}
 @keyframes sycosSlide{0%{left:-40%}100%{left:100%}}
 .sycos-note{margin-top:22px;font-size:.7rem;color:var(--txd);opacity:.65;letter-spacing:.05em;animation:fadeUp .8s var(--ease) .25s both}
+.sycos-fact{margin-top:26px;max-width:420px;text-align:center;transition:opacity .4s ease;animation:fadeUp .8s var(--ease) .35s both}
+.sycos-fact-label{font-size:.7rem;color:var(--gold);opacity:.75;letter-spacing:.12em;font-family:var(--fb);margin-bottom:8px}
+.sycos-fact-text{font-size:.82rem;color:var(--txd);opacity:.78;line-height:1.55;letter-spacing:.01em}
 .sycos-err{margin-top:14px;font-size:.82rem;color:#f6a89a;max-width:380px;text-align:center;line-height:1.6}
 @media (max-width:480px){
   .sycos-scene{width:200px;height:200px}

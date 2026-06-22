@@ -1,8 +1,8 @@
 'use client';
 
 // ============================================================
-// SynastryCosmicState — minimalistic cosmic loader / empty CTA
-// for the synastry tab. Used for empty/loading/generating/error.
+// SynastryCosmicState — minimalistic cosmic loader for the
+// synastry tab. Used for loading / generating / error states.
 //
 // Two glowing orbs orbiting a pulsing conjunction glyph, ringed
 // by a slow zodiac/aspect circle and a soft twinkling starfield.
@@ -12,15 +12,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Language } from '@/types/user';
 
-type Mode = 'empty' | 'loading' | 'generating' | 'error';
+type Mode = 'loading' | 'generating' | 'error';
 
 interface Props {
   mode: Mode;
   language: Language;
   /** Free-text status from the wrapper's pollers (generating mode). */
   progressLabel?: string;
-  /** Empty-state CTA handler. */
-  onInvite?: () => void;
   /** Error-mode message. */
   errorText?: string;
 }
@@ -52,31 +50,48 @@ const LOADING_MSGS: Record<Language, string> = {
   en: 'Loading synastry…',
 };
 
-const COPY: Record<Mode, Record<Language, { eyebrow: string; title: string; sub: string; cta?: string; note?: string }>> = {
-  empty: {
-    ka: {
-      eyebrow: '· სინასტრია ·',
-      title: 'ორი რუკის შეხვედრა',
-      sub: 'მოიწვიე პარტნიორი ან მეგობარი — შენი ვარსკვლავური თავსებადობის ღრმა ანალიზისთვის.',
-      cta: 'მოიწვიე პარტნიორი',
-    },
-    en: {
-      eyebrow: '· synastry ·',
-      title: 'Where Two Charts Meet',
-      sub: 'Invite a partner or a friend — for a deep look at the way your stars align.',
-      cta: 'Invite a partner',
-    },
-  },
+// Synastry-oriented "did you know?" facts — rotated under the loader during
+// generation. Same cadence and styling as the individual-loading screen's
+// fun-fact section, but scoped to partner/friend astrology.
+const FACT_LABELS: Record<Language, string> = {
+  ka: '✦ იცოდი?',
+  en: '✦ Did you know?',
+};
+
+const FACTS: Record<Language, string[]> = {
+  ka: [
+    'სინასტრია სწავლობს, როგორ ემთხვევა ორი ციური რუკის ენერგია — სიყვარულში, მეგობრობასა და თანამშრომლობაში.',
+    'ვენერა-მარსის ასპექტი ხშირად განსაზღვრავს ფიზიკურ მიზიდულობასა და რომანტიკულ ქიმიას.',
+    'მთვარის ნიშნების ჰარმონია ხშირად უფრო მნიშვნელოვანია ვიდრე მზის ნიშნების — ემოციური უსაფრთხოებისთვის.',
+    'მეშვიდე სახლი არის პარტნიორობის სახლი — აქ ნაჩვენებია, როგორ ეძებ მეორე ნახევარს.',
+    'სატურნის ასპექტი ორ რუკას შორის ხშირად ნიშნავს გრძელვადიან, კარმულ კავშირს.',
+    'მერკურის შეთანხმება განსაზღვრავს, რამდენად ადვილად გესმით ერთმანეთის.',
+    'მთვარის კვანძების შეხება ერთი რუკიდან მეორეზე — კარმული შეხვედრის ძლიერი ნიშანია.',
+    'პლუტონის სინასტრიული კონტაქტი ღრმა ტრანსფორმაციას იწვევს ორივე პარტნიორში.',
+  ],
+  en: [
+    'Synastry studies how the energies of two charts meet — in love, friendship, and partnership.',
+    'Venus-Mars contacts often define physical attraction and the romantic chemistry between two people.',
+    'Moon-sign harmony often matters more than Sun signs for lasting emotional safety.',
+    'The 7th house is the house of partnership — it shows how you seek your "other half."',
+    'A Saturn aspect between charts often signals a long-term, karmic bond.',
+    'Mercury alignment shapes how easily two people understand each other.',
+    "A lunar-node contact from one chart to the other is a hallmark of a 'destined' meeting.",
+    'Pluto contacts in synastry trigger deep transformation in both partners.',
+  ],
+};
+
+const COPY: Record<Mode, Record<Language, { eyebrow: string; title: string; sub: string }>> = {
   loading: {
     ka: {
       eyebrow: '· სინასტრია ·',
       title: 'ვარსკვლავური თავსებადობა',
-      sub: 'ერთი წამი, თქვენი ციური რუკები ერთიანდება…',
+      sub: 'ანალიზი რამდენიმე წუთს მოითხოვს, თქვენი ციური რუკები ერთიანდება…',
     },
     en: {
       eyebrow: '· synastry ·',
       title: 'Stellar Compatibility',
-      sub: 'One moment — your celestial charts are joining…',
+      sub: 'The analysis takes a few minutes — your celestial charts are joining…',
     },
   },
   generating: {
@@ -84,13 +99,11 @@ const COPY: Record<Mode, Record<Language, { eyebrow: string; title: string; sub:
       eyebrow: '· იქმნება ·',
       title: 'თქვენი ვარსკვლავური ისტორია იწერება',
       sub: 'ანალიზი რამდენიმე წუთს მოითხოვს. შეგიძლია გაჩერდე და დაელოდო — ან მოგვიანებით დაბრუნდე.',
-      note: 'შენ და შენი პარტნიორი ამ მომენტში ცას ერთად კითხულობთ.',
     },
     en: {
       eyebrow: '· generating ·',
       title: 'Your Stellar Story Is Being Written',
       sub: 'This takes a few minutes. You can wait here — or come back later.',
-      note: 'You and your other are being read in the same sky.',
     },
   },
   error: {
@@ -222,13 +235,16 @@ function useParallax() {
   return ref;
 }
 
-export default function SynastryCosmicState({ mode, language, progressLabel, onInvite, errorText }: Props) {
+export default function SynastryCosmicState({ mode, language, progressLabel, errorText }: Props) {
   const stars = useStarfield(42);
   const sceneRef = useParallax();
   const copy = COPY[mode][language];
   const msgs = GENERATING_MSGS[language];
+  const facts = FACTS[language];
   const [msgIdx, setMsgIdx] = useState(0);
   const [fading, setFading] = useState(false);
+  const [factIdx, setFactIdx] = useState(() => Math.floor(Math.random() * FACTS.ka.length));
+  const [factFading, setFactFading] = useState(false);
   const lastProgressRef = useRef<string | undefined>(progressLabel);
 
   // Rotate messages every ~4.5s with a soft fade.
@@ -243,6 +259,20 @@ export default function SynastryCosmicState({ mode, language, progressLabel, onI
     }, 4500);
     return () => window.clearInterval(id);
   }, [mode, msgs.length]);
+
+  // Rotate fun-facts every 8s with a longer fade — matches the individual
+  // /loading screen's `funFact` cadence so the rhythm feels familiar.
+  useEffect(() => {
+    if (mode !== 'generating' && mode !== 'loading') return;
+    const id = window.setInterval(() => {
+      setFactFading(true);
+      window.setTimeout(() => {
+        setFactIdx((i) => (i + 1) % facts.length);
+        setFactFading(false);
+      }, 400);
+    }, 8000);
+    return () => window.clearInterval(id);
+  }, [mode, facts.length]);
 
   // Reset cycle when a fresh upstream progress label arrives.
   useEffect(() => {
@@ -317,20 +347,14 @@ export default function SynastryCosmicState({ mode, language, progressLabel, onI
         <h1 className="sycos-title">{copy.title}</h1>
         <p className="sycos-sub">{copy.sub}</p>
 
-        {mode === 'empty' && onInvite && (
-          <button type="button" className="sycos-cta" onClick={onInvite}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            <span>{copy.cta}</span>
-          </button>
-        )}
-
         {(mode === 'loading' || mode === 'generating') && (
           <>
             <div className={`sycos-msg${fading ? ' fade' : ''}`}>{currentMsg}</div>
             <div className="sycos-progress" aria-hidden />
-            {copy.note && <div className="sycos-note">{copy.note}</div>}
+            <div className="sycos-fact" style={{ opacity: factFading ? 0 : 1 }}>
+              <div className="sycos-fact-label">{FACT_LABELS[language]}</div>
+              <div className="sycos-fact-text">{facts[factIdx]}</div>
+            </div>
           </>
         )}
 
