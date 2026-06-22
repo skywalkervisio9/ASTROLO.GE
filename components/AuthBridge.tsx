@@ -54,6 +54,18 @@ export default function AuthBridge() {
         unauthorized: "ავტორიზაცია საჭიროა",
         generationFailed: "გენერაცია ვერ შესრულდა",
         testUserFailed: "ტესტ მომხმარებლის შექმნა ვერ მოხერხდა",
+        errUserExists: "ეს ელ-ფოსტა უკვე რეგისტრირებულია",
+        errEmailNotConfirmed: "ელ-ფოსტა ჯერ არ არის დადასტურებული",
+        errEmailInvalid: "ელ-ფოსტის ფორმატი არასწორია",
+        errPasswordWeak: "პაროლი ძალიან სუსტია",
+        errRateLimit: "ძალიან ბევრი მცდელობა — სცადე ცოტა ხანში",
+        errRateLimitSecurity: "უსაფრთხოებისთვის სცადე 60 წამში",
+        errEmailSignupDisabled: "ელ-ფოსტით რეგისტრაცია გათიშულია",
+        errPasswordSame: "ახალი პაროლი ძველის იდენტური ვერ იქნება",
+        errLinkExpired: "ბმული არასწორია ან ვადაგასულია",
+        errSessionMissing: "სესია ვერ მოიძებნა — შედი თავიდან",
+        errGoogleFailed: "Google-ით შესვლა ვერ მოხერხდა",
+        errGeneric: "მოხდა შეცდომა, სცადე თავიდან",
       };
       const en: Record<string, string> = {
         loginEmailRequired: "Enter your email",
@@ -69,8 +81,41 @@ export default function AuthBridge() {
         unauthorized: "Unauthorized",
         generationFailed: "Generation failed",
         testUserFailed: "Test user failed",
+        errUserExists: "This email is already registered",
+        errEmailNotConfirmed: "Email not confirmed yet",
+        errEmailInvalid: "Invalid email format",
+        errPasswordWeak: "Password is too weak",
+        errRateLimit: "Too many attempts — try again later",
+        errRateLimitSecurity: "For security, try again in 60 seconds",
+        errEmailSignupDisabled: "Email signups are disabled",
+        errPasswordSame: "New password must differ from the old one",
+        errLinkExpired: "Link is invalid or has expired",
+        errSessionMissing: "Session missing — please sign in again",
+        errGoogleFailed: "Google sign-in failed",
+        errGeneric: "Something went wrong, please try again",
       };
       return (isEn() ? en : ka)[key] ?? key;
+    };
+
+    // Map raw Supabase auth error messages to localized copy. Falls back to
+    // the original text if no pattern matches, so we never hide a useful
+    // diagnostic — but the common, user-actionable ones get translated.
+    const translateAuthError = (raw: string | undefined | null): string => {
+      const msg = (raw || "").trim();
+      if (!msg) return t("errGeneric");
+      const lower = msg.toLowerCase();
+      if (lower.includes("already registered") || lower.includes("already been registered") || lower.includes("user already exists")) return t("errUserExists");
+      if (lower.includes("invalid login credentials")) return t("loginInvalidCredentials");
+      if (lower.includes("email not confirmed")) return t("errEmailNotConfirmed");
+      if (lower.includes("unable to validate email") || lower.includes("invalid format") || lower.includes("invalid email")) return t("errEmailInvalid");
+      if (lower.includes("password should be at least") || lower.includes("password is too short") || lower.includes("weak password")) return t("errPasswordWeak");
+      if (lower.includes("for security purposes") || lower.includes("only request this")) return t("errRateLimitSecurity");
+      if (lower.includes("rate limit") || lower.includes("too many requests")) return t("errRateLimit");
+      if (lower.includes("signups") && lower.includes("disabled")) return t("errEmailSignupDisabled");
+      if (lower.includes("new password should be different") || lower.includes("same as the old")) return t("errPasswordSame");
+      if (lower.includes("link is invalid") || lower.includes("token has expired") || lower.includes("otp_expired") || lower.includes("expired or is invalid")) return t("errLinkExpired");
+      if (lower.includes("auth session missing") || lower.includes("session missing") || lower.includes("session_not_found")) return t("errSessionMissing");
+      return msg;
     };
 
     // Install/refresh runtime auth overrides.
@@ -142,11 +187,11 @@ export default function AuthBridge() {
           });
           if (error) throw error;
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Google login failed";
-          console.error("Google auth error:", message);
+          const raw = error instanceof Error ? error.message : "";
+          console.error("Google auth error:", raw);
           const el = document.getElementById("login-error");
           if (el) {
-            el.textContent = message;
+            el.textContent = raw ? translateAuthError(raw) : t("errGoogleFailed");
             el.classList.add("show");
           }
         }
@@ -168,9 +213,7 @@ export default function AuthBridge() {
         if (btn) btn.classList.remove("loading");
 
         if (error) {
-          showError("login-error", error.message === "Invalid login credentials"
-            ? t("loginInvalidCredentials")
-            : error.message);
+          showError("login-error", translateAuthError(error.message));
           return;
         }
 
@@ -201,7 +244,7 @@ export default function AuthBridge() {
 
         if (error) {
           if (btn) btn.classList.remove("loading");
-          showError("signup-error", error.message);
+          showError("signup-error", translateAuthError(error.message));
           return;
         }
 
@@ -245,7 +288,7 @@ export default function AuthBridge() {
         if (btn) btn.classList.remove("loading");
 
         if (error) {
-          showError("forgot-error", error.message);
+          showError("forgot-error", translateAuthError(error.message));
           return;
         }
 
@@ -274,7 +317,7 @@ export default function AuthBridge() {
         if (btn) btn.classList.remove("loading");
 
         if (error) {
-          showError("reset-error", error.message);
+          showError("reset-error", translateAuthError(error.message));
           return;
         }
 

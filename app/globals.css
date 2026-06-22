@@ -948,6 +948,7 @@ body[data-view="auth"] #page-signup .field{margin-bottom:8px}
 .field input,.field select{width:100%;padding:11px 15px;background:var(--sf2);border:1px solid rgba(201,168,76,.06);border-radius:10px;color:var(--tx);font-family:var(--fb);font-size:.86rem;font-weight:300;outline:none;transition:all .35s var(--ease);-webkit-appearance:none}
 .field input::placeholder{color:var(--txd);font-size:.8rem}
 .field input:focus,.field select:focus{border-color:rgba(201,168,76,.25);background:rgba(201,168,76,.02);box-shadow:0 0 0 3px rgba(201,168,76,.04)}
+.field input:-webkit-autofill,.field input:-webkit-autofill:hover,.field input:-webkit-autofill:focus,.field input:-webkit-autofill:active{-webkit-box-shadow:0 0 0 1000px var(--sf2) inset !important;box-shadow:0 0 0 1000px var(--sf2) inset !important;-webkit-text-fill-color:var(--tx) !important;caret-color:var(--tx);transition:background-color 5000s ease-in-out 0s,color 5000s ease-in-out 0s}
 .field select{cursor:pointer;color:var(--silver)}.field select option{background:var(--sf);color:var(--tx)}
 .field-pw{position:relative}.field-pw input{padding-right:44px}
 .pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--txd);cursor:pointer;font-size:.72rem;padding:4px;transition:color .3s;letter-spacing:.05em}.pw-toggle:hover{color:var(--gold)}
@@ -1024,6 +1025,7 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 @keyframes pageIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .place-suggestions{position:absolute;top:100%;left:0;right:0;background:var(--sf);border:1px solid rgba(201,168,76,.1);border-radius:10px;margin-top:4px;max-height:180px;overflow-y:auto;z-index:50;display:none}
 .place-suggestions.open{display:block;animation:fadeIn .25s ease}
+.place-suggestions.drop-up{top:auto;bottom:100%;margin-top:0;margin-bottom:4px}
 .place-item{padding:10px 15px;font-size:.8rem;color:var(--silver);cursor:pointer;transition:all .2s;border-bottom:1px solid rgba(201,168,76,.03)}
 .place-item:last-child{border-bottom:0}
 .place-item:hover{background:rgba(201,168,76,.04);color:var(--gold)}
