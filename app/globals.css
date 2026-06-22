@@ -948,6 +948,7 @@ body[data-view="auth"] #page-signup .field{margin-bottom:8px}
 .field input,.field select{width:100%;padding:11px 15px;background:var(--sf2);border:1px solid rgba(201,168,76,.06);border-radius:10px;color:var(--tx);font-family:var(--fb);font-size:.86rem;font-weight:300;outline:none;transition:all .35s var(--ease);-webkit-appearance:none}
 .field input::placeholder{color:var(--txd);font-size:.8rem}
 .field input:focus,.field select:focus{border-color:rgba(201,168,76,.25);background:rgba(201,168,76,.02);box-shadow:0 0 0 3px rgba(201,168,76,.04)}
+.field input:-webkit-autofill,.field input:-webkit-autofill:hover,.field input:-webkit-autofill:focus,.field input:-webkit-autofill:active{-webkit-box-shadow:0 0 0 1000px var(--sf2) inset !important;box-shadow:0 0 0 1000px var(--sf2) inset !important;-webkit-text-fill-color:var(--tx) !important;caret-color:var(--tx);transition:background-color 5000s ease-in-out 0s,color 5000s ease-in-out 0s}
 .field select{cursor:pointer;color:var(--silver)}.field select option{background:var(--sf);color:var(--tx)}
 .field-pw{position:relative}.field-pw input{padding-right:44px}
 .pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--txd);cursor:pointer;font-size:.72rem;padding:4px;transition:color .3s;letter-spacing:.05em}.pw-toggle:hover{color:var(--gold)}
