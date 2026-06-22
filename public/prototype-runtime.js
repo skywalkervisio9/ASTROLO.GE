@@ -2468,32 +2468,19 @@ function handleBirthData() {
 
   document.addEventListener('click', function(e) { if (!e.target.closest('.field')) sugBox.classList.remove('open'); });
 
-  // Mobile keyboard handling — when Android shows the soft keyboard, the
-  // dropdown (position:absolute; top:100%) can end up hidden behind it. On
-  // touch devices we scroll the input near the top of the auth-panel and,
-  // if room is still tight, flip the dropdown upward via a .drop-up class.
+  // Mobile keyboard handling — on touch devices, scroll the input near the
+  // top of the auth-panel on focus so the suggestions list below it stays
+  // above the soft keyboard.
   (function mobileKeyboardSafe() {
     var isCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
     if (!isCoarse) return;
     var scrollHost = placeInput.closest('.auth-panel');
-    var MIN_ROOM = 200;
-    function adjustPlacement() {
-      var rect = placeInput.getBoundingClientRect();
-      var vv = window.visualViewport;
-      var vvHeight = vv ? vv.height : window.innerHeight;
-      var vvTop = vv ? vv.offsetTop : 0;
-      var roomBelow = vvHeight - (rect.bottom - vvTop);
-      if (roomBelow < MIN_ROOM) sugBox.classList.add('drop-up');
-      else sugBox.classList.remove('drop-up');
-    }
+    if (!scrollHost) return;
     function ensureVisible() {
-      if (scrollHost) {
-        var rect = placeInput.getBoundingClientRect();
-        var hostRect = scrollHost.getBoundingClientRect();
-        var delta = (rect.top - hostRect.top) - 24;
-        if (delta > 0) scrollHost.scrollTop += delta;
-      }
-      adjustPlacement();
+      var rect = placeInput.getBoundingClientRect();
+      var hostRect = scrollHost.getBoundingClientRect();
+      var delta = (rect.top - hostRect.top) - 24;
+      if (delta > 0) scrollHost.scrollTop += delta;
     }
     placeInput.addEventListener('focus', function() {
       // Two passes: immediate (keyboard already up) + after Android's
