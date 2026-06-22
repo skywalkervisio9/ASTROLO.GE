@@ -1072,10 +1072,13 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .cosmic-stars{position:absolute;inset:-6%;pointer-events:none;overflow:hidden;will-change:transform;transform:translate3d(var(--csx,0),var(--csy,0),0);transition:transform .9s cubic-bezier(.2,.7,.2,1)}
 .cs-star{position:absolute;width:var(--sz,2px);height:var(--sz,2px);background:rgba(245,235,210,.85);border-radius:50%;box-shadow:0 0 var(--gl,5px) rgba(228,212,170,.28);opacity:0;animation:csTw var(--tdur,5s) ease-in-out var(--td,0s) infinite alternate,csFade 1.6s ease-out var(--td2,.3s) forwards}
 @keyframes csTw{0%{opacity:.18}100%{opacity:.6}}
-/* Motion-feedback trails — a thin gradient tail appears on tagged stars when */
-/* the parallax container shifts (var --mmag is updated by the rAF loop). At  */
-/* rest --mmag is 0 so trails are invisible; on motion they smear into view. */
-.cs-star.cs-trail::before{content:'';position:absolute;left:50%;top:50%;width:1.4px;height:var(--trail-len,22px);transform-origin:50% 0;transform:translate(-50%,0) rotate(var(--trail-rot,18deg));background:linear-gradient(to bottom,rgba(245,235,210,.55),transparent 85%);opacity:calc(var(--mmag,0) * .9);transition:opacity .35s ease;border-radius:100px;pointer-events:none}
+/* Motion-feedback trails — a thin gradient tail extends from tagged stars in
+   the direction opposite to current parallax velocity. Container exposes:
+     --motion-angle  (deg) updated when there's actual motion (CSS clockwise)
+     --mmag          (0-1) smoothed motion magnitude, drives length + opacity
+   --trail-jitter is per-star (±15°) so trails don't form a uniform comb,
+   --trail-len is per-star (14-40px) so some stars streak farther than others. */
+.cs-star.cs-trail::before{content:'';position:absolute;left:50%;top:50%;width:2px;height:var(--trail-len,28px);transform-origin:50% 0;transform:translate(-50%,0) rotate(calc(var(--motion-angle,0deg) + var(--trail-jitter,0deg))) scaleY(var(--mmag,0));background:linear-gradient(to bottom,rgba(245,235,210,.95) 0%,rgba(245,235,210,.65) 25%,transparent 95%);opacity:calc(var(--mmag,0) * .95);box-shadow:0 0 4px rgba(245,235,210,.45);border-radius:100px;pointer-events:none;filter:blur(.35px)}
 @media(prefers-reduced-motion:reduce){.cs-star.cs-trail::before{display:none}}
 @keyframes csFade{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.cs-star{animation:csFade 1s ease forwards}.cosmic-stars{transform:none!important;transition:none}}
@@ -1312,11 +1315,11 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .sycos-star.s2{background:var(--silver);width:1.5px;height:1.5px}
 .sycos-star.s3{background:var(--rose);width:1.5px;height:1.5px}
 @keyframes sycosTw{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:var(--tw-max,.55);transform:scale(1)}}
-/* Synastry-side motion trails — same idea as .cs-trail, scoped to .sycos-star.
-   The scene root (.sycos) carries --mmag updated by the useParallax rAF loop. */
-.sycos-star.has-trail::before{content:'';position:absolute;left:50%;top:50%;width:1.4px;height:var(--trail-len,22px);transform-origin:50% 0;transform:translate(-50%,0) rotate(var(--trail-rot,18deg));background:linear-gradient(to bottom,rgba(201,168,76,.55),transparent 85%);opacity:calc(var(--mmag,0) * .9);transition:opacity .35s ease;border-radius:100px;pointer-events:none}
-.sycos-star.has-trail.s2::before{background:linear-gradient(to bottom,rgba(184,184,204,.55),transparent 85%)}
-.sycos-star.has-trail.s3::before{background:linear-gradient(to bottom,rgba(196,122,138,.55),transparent 85%)}
+/* Synastry-side motion trails — same dynamic-direction model as .cs-trail,
+   scoped to .sycos-star and tinted by the star's colour variant. */
+.sycos-star.has-trail::before{content:'';position:absolute;left:50%;top:50%;width:2px;height:var(--trail-len,28px);transform-origin:50% 0;transform:translate(-50%,0) rotate(calc(var(--motion-angle,0deg) + var(--trail-jitter,0deg))) scaleY(var(--mmag,0));background:linear-gradient(to bottom,rgba(201,168,76,.95) 0%,rgba(201,168,76,.65) 25%,transparent 95%);opacity:calc(var(--mmag,0) * .95);box-shadow:0 0 4px rgba(201,168,76,.4);border-radius:100px;pointer-events:none;filter:blur(.35px)}
+.sycos-star.has-trail.s2::before{background:linear-gradient(to bottom,rgba(184,184,204,.95) 0%,rgba(184,184,204,.65) 25%,transparent 95%);box-shadow:0 0 4px rgba(184,184,204,.4)}
+.sycos-star.has-trail.s3::before{background:linear-gradient(to bottom,rgba(196,122,138,.95) 0%,rgba(196,122,138,.65) 25%,transparent 95%);box-shadow:0 0 4px rgba(196,122,138,.4)}
 @media(prefers-reduced-motion:reduce){.sycos-star.has-trail::before{display:none}}
 .sycos-glow{position:absolute;top:38%;left:50%;width:640px;height:640px;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(201,168,76,.06) 0%,rgba(196,122,138,.03) 35%,transparent 70%);pointer-events:none;animation:sycosBreathe 7s ease-in-out infinite;z-index:0}
 @keyframes sycosBreathe{0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}

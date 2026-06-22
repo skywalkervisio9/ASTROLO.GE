@@ -128,7 +128,7 @@ interface Star {
   duration: string;
   twMax: number;
   variant: '' | 's2' | 's3';
-  trail: { len: number; rot: number } | null;
+  trail: { len: number; jitter: number } | null;
 }
 
 function useStarfield(count = 38): Star[] {
@@ -139,11 +139,15 @@ function useStarfield(count = 38): Star[] {
     const arr: Star[] = [];
     for (let i = 0; i < count; i++) {
       const variant = i % 7 === 0 ? 's3' : i % 3 === 0 ? 's2' : '';
-      // ~30% of stars get a motion trail with randomised length + angle so
-      // the starfall looks organic; opacity is driven by --mmag from the
-      // parallax loop, so trails fade in only when the user actually moves.
-      const trail = Math.random() < 0.3
-        ? { len: Math.round(12 + Math.random() * 32), rot: Math.round(5 + Math.random() * 25) }
+      // ~35% of stars are tagged for trails. The base direction comes from
+      // the container's --motion-angle (dynamic, follows current parallax);
+      // per-star jitter (±15°) prevents a uniform comb look. Trail length
+      // varies so some stars streak farther than others.
+      const trail = Math.random() < 0.35
+        ? {
+            len: Math.round(14 + Math.random() * 30),
+            jitter: Math.round(Math.random() * 30 - 15),
+          }
         : null;
       arr.push({
         id: i,
@@ -182,7 +186,9 @@ function useParallax() {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
     let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0;
-    let prevCx = 0, prevCy = 0, mmag = 0;
+    // Trail state: smoothed velocity components + magnitude. Angle is derived
+    // from svx/svy, not from raw cx-prevCx — otherwise it jitters every frame.
+    let prevCx = 0, prevCy = 0, mmag = 0, svx = 0, svy = 0;
     const clamp = (n: number) => (n < -1 ? -1 : n > 1 ? 1 : n);
 
     const tick = () => {
@@ -192,13 +198,19 @@ function useParallax() {
       el.style.setProperty('--rxd', (-cy * 9).toFixed(2) + 'deg');
       el.style.setProperty('--px', (cx * 14).toFixed(2) + 'px');
       el.style.setProperty('--py', (cy * 14).toFixed(2) + 'px');
-      // Smoothed motion magnitude (0-1) for the per-star trail opacity.
-      // Asymmetric easing — fast attack, slow decay — so a single tilt leaves
-      // trails visible for roughly half a second before fading.
-      const vx = cx - prevCx, vy = cy - prevCy;
-      const speed = Math.min(1, Math.sqrt(vx * vx + vy * vy) * 38);
-      mmag += (speed - mmag) * (speed > mmag ? 0.35 : 0.05);
+      // Smooth the velocity components, then derive magnitude + angle. Trail
+      // CSS rotation 0 points downward; opposite-to-motion = motionAngle + 90.
+      const rawVx = cx - prevCx, rawVy = cy - prevCy;
+      svx += (rawVx - svx) * 0.22;
+      svy += (rawVy - svy) * 0.22;
+      const speed = Math.sqrt(svx * svx + svy * svy);
+      const target = Math.min(1, speed * 70);
+      mmag += (target - mmag) * (target > mmag ? 0.32 : 0.045);
       el.style.setProperty('--mmag', mmag.toFixed(3));
+      if (speed > 0.0008) {
+        const deg = Math.atan2(svy, svx) * 180 / Math.PI + 90;
+        el.style.setProperty('--motion-angle', deg.toFixed(1) + 'deg');
+      }
       prevCx = cx; prevCy = cy;
       raf = requestAnimationFrame(tick);
     };
@@ -331,7 +343,7 @@ export default function SynastryCosmicState({ mode, language, progressLabel, err
               ['--tw-max' as never]: String(s.twMax),
               ...(s.trail && {
                 ['--trail-len' as never]: s.trail.len + 'px',
-                ['--trail-rot' as never]: s.trail.rot + 'deg',
+                ['--trail-jitter' as never]: s.trail.jitter + 'deg',
               }),
             }}
           />
