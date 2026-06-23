@@ -171,6 +171,10 @@ export default function BodyContent() {
   /** Invite modal: React must own `disabled` — static JSX `disabled` was always true and re-applied on every render, blocking clicks. */
   const [inviteKind, setInviteKind] = useState<'couple' | 'friend' | null>(null);
   const [inviteGenPhase, setInviteGenPhase] = useState<'idle' | 'loading' | 'success'>('idle');
+  // True when the open invite modal targets an unpaid extra slot (₾5). The CTA
+  // then buys the slot instead of generating a link. Synced from the modal's
+  // data-invite-mode attribute, which openInviteModal() sets.
+  const [invitePurchaseMode, setInvitePurchaseMode] = useState(false);
 
   /** Legal pages shown as an in-app overlay ('terms' = combined Terms & Privacy, 'payment' = Payment Terms). */
   const [legalDoc, setLegalDoc] = useState<LegalDoc>(null);
@@ -214,10 +218,13 @@ export default function BodyContent() {
       if (!el.classList.contains('open')) {
         setInviteKind(null);
         setInviteGenPhase('idle');
+        setInvitePurchaseMode(false);
+      } else {
+        setInvitePurchaseMode(el.getAttribute('data-invite-mode') === 'purchase');
       }
     };
     const obs = new MutationObserver(sync);
-    obs.observe(el, { attributes: true, attributeFilter: ['class'] });
+    obs.observe(el, { attributes: true, attributeFilter: ['class', 'data-invite-mode'] });
     sync();
     return () => obs.disconnect();
   }, []);
@@ -344,6 +351,12 @@ export default function BodyContent() {
   // the payment page, which prototype-runtime.js wrote against directly.
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    // This effect mirrors PREMIUM promo state (price, badge, CTA) into the DOM.
+    // The other payment sub-pages (natal-unlock / synastry-slot) own their own
+    // CTA copy via showPaymentPage(); if PREMIUM isn't the visible sub-page,
+    // bail so we don't overwrite a ₾5 CTA with the premium "₾10" text.
+    const payPremiumEl = document.getElementById('payPremium');
+    if (payPremiumEl && payPremiumEl.style.display === 'none') return;
     const isEn = document.body.classList.contains('lang-en');
     const cfg = PROMO_DISPLAY[promoVariant];
     const ctaPrefix = isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
@@ -460,11 +473,13 @@ export default function BodyContent() {
       ? (promoIsEn ? 'Generating...' : 'იქმნება...')
       : inviteGenPhase === 'success'
         ? (promoIsEn ? '✓ Copied!' : '✓ დაკოპირდა!')
-        : inviteKind === 'couple'
-          ? (promoIsEn ? 'Create link (Couple)' : 'ბმულის შექმნა (მეწყვილე)')
-          : inviteKind === 'friend'
-            ? (promoIsEn ? 'Create link (Friend)' : 'ბმულის შექმნა (მეგობარი)')
-            : (promoIsEn ? 'Choose type' : 'აირჩიე ტიპი');
+        : invitePurchaseMode
+          ? (promoIsEn ? 'Get the slot — ₾5' : 'სლოტის შეძენა — ₾5')
+          : inviteKind === 'couple'
+            ? (promoIsEn ? 'Create link (Couple)' : 'ბმულის შექმნა (მეწყვილე)')
+            : inviteKind === 'friend'
+              ? (promoIsEn ? 'Create link (Friend)' : 'ბმულის შექმნა (მეგობარი)')
+              : (promoIsEn ? 'Choose type' : 'აირჩიე ტიპი');
 
   return (
 <div>
@@ -540,8 +555,16 @@ export default function BodyContent() {
   <button
     className="invite-btn-primary"
     id="inviteGenBtn"
-    disabled={inviteKind === null || inviteGenPhase === 'loading' || inviteGenPhase === 'success'}
-    onClick={() => { void handleInviteLinkGenerate(); }}
+    disabled={(!invitePurchaseMode && inviteKind === null) || inviteGenPhase === 'loading' || inviteGenPhase === 'success'}
+    onClick={() => {
+      if (invitePurchaseMode) {
+        // Unpaid extra slot → send to the ₾5 synastry-slot payment page first.
+        proto().closeInviteModal?.();
+        proto().showPaymentPage?.('synastry-slot');
+        return;
+      }
+      void handleInviteLinkGenerate();
+    }}
   >{inviteGenBtnLabel}</button>
 </div>
 </div>

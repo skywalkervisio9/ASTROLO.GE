@@ -614,6 +614,10 @@ function openInviteModal(prepaid) {
     actions.style.display = 'flex';
     document.getElementById('inviteGenBtn').disabled = true;
     document.getElementById('inviteGenBtn').textContent = 'აირჩიე ტიპი';
+    // `needsPurchase` = an extra synastry slot the user hasn't paid for yet.
+    // In that state the CTA must lead to the ₾5 slot purchase, not link
+    // generation — React reads data-invite-mode to switch the button.
+    var needsPurchase = !prepaid && getSlot1Occupied();
     if (prepaid) {
       // Slot already purchased — label only, no price tag.
       priceTag.textContent = 'დამატებითი სინასტრია';
@@ -623,6 +627,7 @@ function openInviteModal(prepaid) {
       priceTag.textContent = '₾5 — დამატებითი სინასტრია';
       priceTag.classList.add('show');
     }
+    modal.setAttribute('data-invite-mode', needsPurchase ? 'purchase' : 'normal');
   }
   modal.classList.add('open');
 }
@@ -631,8 +636,14 @@ function selectInviteType(type, el) {
   selectedInviteType = type;
   document.querySelectorAll('.invite-opt').forEach(o => o.classList.remove('selected'));
   el.classList.add('selected');
-  document.getElementById('inviteGenBtn').disabled = false;
-  document.getElementById('inviteGenBtn').textContent = type === 'couple' ? 'ბმულის შექმნა (მეწყვილე)' : 'ბმულის შექმნა (მეგობარი)';
+  var genBtn = document.getElementById('inviteGenBtn');
+  genBtn.disabled = false;
+  // In purchase mode the React label/handler turn this into the ₾5 slot buy —
+  // don't clobber it with the link-generation copy.
+  var modal = document.getElementById('inviteModal');
+  if (!modal || modal.getAttribute('data-invite-mode') !== 'purchase') {
+    genBtn.textContent = type === 'couple' ? 'ბმულის შექმნა (მეწყვილე)' : 'ბმულის შექმნა (მეგობარი)';
+  }
   document.getElementById('inviteLinkBox').classList.remove('show');
 }
 function generateInviteLink() {
@@ -656,6 +667,19 @@ function showUpgrade() {
   } else {
     // All paid tiers → open invite modal (handles slot purchase internally)
     openInviteModal();
+  }
+}
+
+// "Unlock Full Analysis" CTA on locked natal sections. Only ever shown to
+// free + invited tiers (paid tiers already have the full natal chart). Invited
+// users were brought in by someone else's payment — their synastry slot is
+// already filled — so this CTA must open the standalone ₾5 natal unlock page,
+// NOT the synastry invite modal that showUpgrade() routes paid tiers to.
+function unlockFullReading() {
+  if (currentAccountType === 'invited') {
+    showPaymentPage('natal-unlock');
+  } else {
+    showPaymentPage('premium');
   }
 }
 
@@ -3244,7 +3268,7 @@ function _buildLockWrap(sectionKey, section, iconId) {
   // Gate — lock icon + CTA
   html += '<div class="lp-gate">';
   html += '<div class="lp-lock-icon">' + lockSvg + '</div>';
-  html += '<button class="btn-unlock" onclick="showUpgrade()">' + _esc(unlockLabel) + '</button>';
+  html += '<button class="btn-unlock" onclick="unlockFullReading()">' + _esc(unlockLabel) + '</button>';
   html += '</div>';
 
   html += '</div></div>';
