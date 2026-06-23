@@ -1069,19 +1069,96 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .c-dot{position:absolute;width:3px;height:3px;background:rgba(201,168,76,.15);border-radius:50%;animation:drift var(--dur) linear infinite}
 @keyframes drift{0%{transform:translateY(0) scale(1);opacity:.1}50%{opacity:.4}100%{transform:translateY(-100vh) scale(.5);opacity:0}}
 
-.cosmic-stars{position:absolute;inset:-6%;pointer-events:none;overflow:hidden;will-change:transform;transform:translate3d(var(--csx,0),var(--csy,0),0);transition:transform .9s cubic-bezier(.2,.7,.2,1)}
-.cs-star{position:absolute;width:var(--sz,2px);height:var(--sz,2px);background:rgba(245,235,210,.85);border-radius:50%;box-shadow:0 0 var(--gl,5px) rgba(228,212,170,.28);opacity:0;animation:csTw var(--tdur,5s) ease-in-out var(--td,0s) infinite alternate,csFade 1.6s ease-out var(--td2,.3s) forwards}
-@keyframes csTw{0%{opacity:.18}100%{opacity:.6}}
-/* Motion-feedback trails — a thin gradient tail extends from tagged stars in
-   the direction opposite to current parallax velocity. Container exposes:
-     --motion-angle  (deg) updated when there's actual motion (CSS clockwise)
-     --mmag          (0-1) smoothed motion magnitude, drives length + opacity
-   --trail-jitter is per-star (±15°) so trails don't form a uniform comb,
-   --trail-len is per-star (14-40px) so some stars streak farther than others. */
-.cs-star.cs-trail::before{content:'';position:absolute;left:50%;top:50%;width:2px;height:var(--trail-len,28px);transform-origin:50% 0;transform:translate(-50%,0) rotate(calc(var(--motion-angle,0deg) + var(--trail-jitter,0deg))) scaleY(var(--mmag,0));background:linear-gradient(to bottom,rgba(245,235,210,.95) 0%,rgba(245,235,210,.65) 25%,transparent 95%);opacity:calc(var(--mmag,0) * .95);box-shadow:0 0 4px rgba(245,235,210,.45);border-radius:100px;pointer-events:none;filter:blur(.35px)}
-@media(prefers-reduced-motion:reduce){.cs-star.cs-trail::before{display:none}}
-@keyframes csFade{from{opacity:0}to{opacity:1}}
-@media(prefers-reduced-motion:reduce){.cs-star{animation:csFade 1s ease forwards}.cosmic-stars{transform:none!important;transition:none}}
+.cosmic-stars{position:absolute;inset:-6%;pointer-events:none;overflow:hidden}
+/* Each star moves by --csx/--csy scaled by its own --depth. Stars with high
+   --depth (strong-feedback foreground particles) move a lot; --depth near 0
+   = deep background, holds still. The container itself no longer translates.
+   Only csTw drives opacity — the previous csFade animation was overriding
+   csTw at the end of its forwards-fill, masking the twinkle. */
+.cs-star{position:absolute;width:var(--sz,2px);height:var(--sz,2px);background:rgba(245,235,210,.85);border-radius:50%;box-shadow:0 0 var(--gl,5px) rgba(228,212,170,.28);opacity:0;will-change:transform,opacity;transform:translate3d(calc(var(--csx,0px) * var(--depth,0)),calc(var(--csy,0px) * var(--depth,0)),0);animation:csTw var(--tdur,5s) ease-in-out var(--td,0s) infinite alternate}
+/* Twinkle fades from 0 → peak → 0 each cycle, with a dwell band so stars
+   stay visible long enough to read rather than blinking constantly. With
+   alternate iteration the cycle plays both forward and back. */
+@keyframes csTw{0%{opacity:0}20%{opacity:.65}80%{opacity:.65}100%{opacity:0}}
+/* Motion-feedback trails — ghost copies of each tagged star rendered at the
+   container's past viewport offsets. The container exposes --t1x/--t1y …
+   --t6x/--t6y (deltas to recent past positions) updated by the rAF loop, so
+   the trail bends with whatever path you actually moved through. Opacity
+   tracks --mmag, so trails fade in only while motion is active. Per-star
+   --trail-mult scales each star's trail brightness for varied prominence. */
+/* Per-star "fluidity" groups — each samples a different stride through the
+   shared position-history vars (t1..t48 written by the rAF loop each frame).
+   Ghost stride is small (1-3 frames) so consecutive ghosts overlap and the
+   trail reads as a continuous streak rather than discrete dots. tg-fast =
+   tight snappy streak; tg-med = balanced tail; tg-slow = long lingering
+   plume. Picked at random per trail star to feel like varied particle mass. */
+/* Stride-1 dense ghosts (one per frame back, no gaps). Spread radius grows
+   1 → 4-5px so consecutive ghosts always overlap by their spread and read
+   as a continuous streak instead of a chain of dots. Group classes differ
+   only in length and how aggressively the alpha decays — fast = short crisp
+   tail, slow = longer plume. No per-ghost noise; the path itself is the
+   variation. */
+.cs-star.cs-trail.tg-fast{box-shadow:
+  0 0 var(--gl,5px) rgba(228,212,170,.28),
+  calc(var(--t1x,0px)  * var(--depth,1)) calc(var(--t1y,0px)  * var(--depth,1)) 0.5px 0.4px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .72)),
+  calc(var(--t2x,0px)  * var(--depth,1)) calc(var(--t2y,0px)  * var(--depth,1)) 0.8px 0.5px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .63)),
+  calc(var(--t3x,0px)  * var(--depth,1)) calc(var(--t3y,0px)  * var(--depth,1)) 1px   0.6px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .55)),
+  calc(var(--t4x,0px)  * var(--depth,1)) calc(var(--t4y,0px)  * var(--depth,1)) 1.2px 0.7px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .46)),
+  calc(var(--t5x,0px)  * var(--depth,1)) calc(var(--t5y,0px)  * var(--depth,1)) 1.4px 0.8px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .38)),
+  calc(var(--t6x,0px)  * var(--depth,1)) calc(var(--t6y,0px)  * var(--depth,1)) 1.6px 0.9px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .30)),
+  calc(var(--t7x,0px)  * var(--depth,1)) calc(var(--t7y,0px)  * var(--depth,1)) 1.8px 0.9px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .22)),
+  calc(var(--t8x,0px)  * var(--depth,1)) calc(var(--t8y,0px)  * var(--depth,1)) 2px   1px   rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .14)),
+  calc(var(--t9x,0px)  * var(--depth,1)) calc(var(--t9y,0px)  * var(--depth,1)) 2.4px 1px   rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .08)),
+  calc(var(--t10x,0px) * var(--depth,1)) calc(var(--t10y,0px) * var(--depth,1)) 3px   1.1px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .04))
+}
+.cs-star.cs-trail.tg-med{box-shadow:
+  0 0 var(--gl,5px) rgba(228,212,170,.28),
+  calc(var(--t1x,0px)  * var(--depth,1)) calc(var(--t1y,0px)  * var(--depth,1)) 0.5px 0.4px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .68)),
+  calc(var(--t2x,0px)  * var(--depth,1)) calc(var(--t2y,0px)  * var(--depth,1)) 0.7px 0.5px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .60)),
+  calc(var(--t3x,0px)  * var(--depth,1)) calc(var(--t3y,0px)  * var(--depth,1)) 0.9px 0.6px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .53)),
+  calc(var(--t4x,0px)  * var(--depth,1)) calc(var(--t4y,0px)  * var(--depth,1)) 1.1px 0.7px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .47)),
+  calc(var(--t5x,0px)  * var(--depth,1)) calc(var(--t5y,0px)  * var(--depth,1)) 1.3px 0.8px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .41)),
+  calc(var(--t6x,0px)  * var(--depth,1)) calc(var(--t6y,0px)  * var(--depth,1)) 1.5px 0.9px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .35)),
+  calc(var(--t7x,0px)  * var(--depth,1)) calc(var(--t7y,0px)  * var(--depth,1)) 1.7px 1px   rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .30)),
+  calc(var(--t8x,0px)  * var(--depth,1)) calc(var(--t8y,0px)  * var(--depth,1)) 1.9px 1px   rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .25)),
+  calc(var(--t9x,0px)  * var(--depth,1)) calc(var(--t9y,0px)  * var(--depth,1)) 2.1px 1.1px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .20)),
+  calc(var(--t10x,0px) * var(--depth,1)) calc(var(--t10y,0px) * var(--depth,1)) 2.3px 1.1px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .16)),
+  calc(var(--t11x,0px) * var(--depth,1)) calc(var(--t11y,0px) * var(--depth,1)) 2.5px 1.2px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .12)),
+  calc(var(--t12x,0px) * var(--depth,1)) calc(var(--t12y,0px) * var(--depth,1)) 2.8px 1.2px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .09)),
+  calc(var(--t13x,0px) * var(--depth,1)) calc(var(--t13y,0px) * var(--depth,1)) 3.2px 1.3px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .06)),
+  calc(var(--t14x,0px) * var(--depth,1)) calc(var(--t14y,0px) * var(--depth,1)) 3.6px 1.3px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .03))
+}
+.cs-star.cs-trail.tg-slow{box-shadow:
+  0 0 var(--gl,5px) rgba(228,212,170,.28),
+  calc(var(--t1x,0px)  * var(--depth,1)) calc(var(--t1y,0px)  * var(--depth,1)) 0.5px 0.4px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .60)),
+  calc(var(--t2x,0px)  * var(--depth,1)) calc(var(--t2y,0px)  * var(--depth,1)) 0.7px 0.5px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .54)),
+  calc(var(--t3x,0px)  * var(--depth,1)) calc(var(--t3y,0px)  * var(--depth,1)) 0.9px 0.6px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .48)),
+  calc(var(--t4x,0px)  * var(--depth,1)) calc(var(--t4y,0px)  * var(--depth,1)) 1.1px 0.7px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .43)),
+  calc(var(--t5x,0px)  * var(--depth,1)) calc(var(--t5y,0px)  * var(--depth,1)) 1.3px 0.8px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .38)),
+  calc(var(--t6x,0px)  * var(--depth,1)) calc(var(--t6y,0px)  * var(--depth,1)) 1.5px 0.9px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .34)),
+  calc(var(--t7x,0px)  * var(--depth,1)) calc(var(--t7y,0px)  * var(--depth,1)) 1.7px 1px   rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .30)),
+  calc(var(--t8x,0px)  * var(--depth,1)) calc(var(--t8y,0px)  * var(--depth,1)) 1.9px 1px   rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .27)),
+  calc(var(--t9x,0px)  * var(--depth,1)) calc(var(--t9y,0px)  * var(--depth,1)) 2.1px 1.1px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .24)),
+  calc(var(--t10x,0px) * var(--depth,1)) calc(var(--t10y,0px) * var(--depth,1)) 2.3px 1.1px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .21)),
+  calc(var(--t11x,0px) * var(--depth,1)) calc(var(--t11y,0px) * var(--depth,1)) 2.5px 1.2px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .18)),
+  calc(var(--t12x,0px) * var(--depth,1)) calc(var(--t12y,0px) * var(--depth,1)) 2.7px 1.2px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .15)),
+  calc(var(--t13x,0px) * var(--depth,1)) calc(var(--t13y,0px) * var(--depth,1)) 2.9px 1.3px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .13)),
+  calc(var(--t14x,0px) * var(--depth,1)) calc(var(--t14y,0px) * var(--depth,1)) 3.1px 1.3px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .11)),
+  calc(var(--t15x,0px) * var(--depth,1)) calc(var(--t15y,0px) * var(--depth,1)) 3.3px 1.4px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .09)),
+  calc(var(--t16x,0px) * var(--depth,1)) calc(var(--t16y,0px) * var(--depth,1)) 3.5px 1.4px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .07)),
+  calc(var(--t17x,0px) * var(--depth,1)) calc(var(--t17y,0px) * var(--depth,1)) 3.8px 1.5px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .05)),
+  calc(var(--t18x,0px) * var(--depth,1)) calc(var(--t18y,0px) * var(--depth,1)) 4.2px 1.5px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .04)),
+  calc(var(--t19x,0px) * var(--depth,1)) calc(var(--t19y,0px) * var(--depth,1)) 4.6px 1.6px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .03)),
+  calc(var(--t20x,0px) * var(--depth,1)) calc(var(--t20y,0px) * var(--depth,1)) 5px   1.6px rgb(245 235 210 / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .02))
+}
+@media(prefers-reduced-motion:reduce){.cs-star.cs-trail{box-shadow:0 0 var(--gl,5px) rgba(228,212,170,.28)}}
+/* Desktop has more screen real estate, so the same trail strength reads as
+   heavy/busy. Scale the effective magnitude down to keep trails present
+   but subtle on wider viewports — mobile keeps the full 1.0 strength. */
+@media (min-width:768px){.cs-star.cs-trail{--mmag-scale:0.55}}
+/* Reduced motion: hold stars at a steady opacity, no twinkle, no parallax
+   transform on individual stars either. */
+@media(prefers-reduced-motion:reduce){.cs-star{animation:none;opacity:.5;transform:none!important}}
 
 /* Section Picker (loading screen) */
 .section-picker{max-width:420px;margin:28px auto 0;text-align:center;opacity:0;animation:fadeUp .8s ease 1.2s forwards}
@@ -1310,17 +1387,82 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 
 /* ═══ SYNASTRY COSMIC STATE — empty / generating / loading ═══ */
 .sycos{position:relative;min-height:calc(100vh - 140px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px 96px;overflow:hidden}
-.sycos-starfield{position:absolute;inset:0;pointer-events:none;z-index:0;transform:translate3d(calc(var(--px,0px) * -0.6),calc(var(--py,0px) * -0.6),0);will-change:transform}
-.sycos-star{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--gold);opacity:0;animation:sycosTw 5s ease-in-out infinite}
-.sycos-star.s2{background:var(--silver);width:1.5px;height:1.5px}
-.sycos-star.s3{background:var(--rose);width:1.5px;height:1.5px}
-@keyframes sycosTw{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:var(--tw-max,.55);transform:scale(1)}}
-/* Synastry-side motion trails — same dynamic-direction model as .cs-trail,
-   scoped to .sycos-star and tinted by the star's colour variant. */
-.sycos-star.has-trail::before{content:'';position:absolute;left:50%;top:50%;width:2px;height:var(--trail-len,28px);transform-origin:50% 0;transform:translate(-50%,0) rotate(calc(var(--motion-angle,0deg) + var(--trail-jitter,0deg))) scaleY(var(--mmag,0));background:linear-gradient(to bottom,rgba(201,168,76,.95) 0%,rgba(201,168,76,.65) 25%,transparent 95%);opacity:calc(var(--mmag,0) * .95);box-shadow:0 0 4px rgba(201,168,76,.4);border-radius:100px;pointer-events:none;filter:blur(.35px)}
-.sycos-star.has-trail.s2::before{background:linear-gradient(to bottom,rgba(184,184,204,.95) 0%,rgba(184,184,204,.65) 25%,transparent 95%);box-shadow:0 0 4px rgba(184,184,204,.4)}
-.sycos-star.has-trail.s3::before{background:linear-gradient(to bottom,rgba(196,122,138,.95) 0%,rgba(196,122,138,.65) 25%,transparent 95%);box-shadow:0 0 4px rgba(196,122,138,.4)}
-@media(prefers-reduced-motion:reduce){.sycos-star.has-trail::before{display:none}}
+.sycos-starfield{position:absolute;inset:0;pointer-events:none;z-index:0;
+  /* Mask out the central orbital diagram so randomly-placed stars don't
+     peek through orbit lines. Center matches --sycos-glow's top:38%. Hard
+     hide within 140px, soft fade out to 230px so the edge isn't a circle. */
+  -webkit-mask:radial-gradient(circle at 50% 38%,transparent 0,transparent 140px,#000 230px);
+  mask:radial-gradient(circle at 50% 38%,transparent 0,transparent 140px,#000 230px)}
+/* Same interactive model as the individual /loading background:
+   - Per-star depth parallax: tagged stars (strong feedback) move a lot,
+     background stars barely move. Container itself does not translate;
+     each .sycos-star transforms by (--px,--py) × its own --depth.
+   - Trail shape comes from position-history (--t1..--t20) written by
+     useParallax every frame — bends naturally with motion direction.
+   - --trail-color is per-variant so the three group rules below collapse
+     gold/silver/rose tints into a single box-shadow definition each. */
+.sycos-star{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--gold);opacity:0;will-change:transform,opacity;transform:translate3d(calc(var(--px,0px) * var(--depth,0)),calc(var(--py,0px) * var(--depth,0)),0);animation:sycosTw var(--tdur,5s) ease-in-out var(--td,0s) infinite alternate;--trail-color:201 168 76}
+.sycos-star.s2{background:var(--silver);width:1.5px;height:1.5px;--trail-color:184 184 204}
+.sycos-star.s3{background:var(--rose);width:1.5px;height:1.5px;--trail-color:196 122 138}
+/* Twinkle fully fades 0 → peak → 0 with a dwell band so stars actually
+   appear/disappear and the field never feels static at rest. */
+@keyframes sycosTw{0%{opacity:0}20%{opacity:var(--tw-max,.65)}80%{opacity:var(--tw-max,.65)}100%{opacity:0}}
+
+/* Trail groups — stride-1 ghosts so adjacent shadows always overlap and
+   read as a continuous streak. fast/med/slow only differ in length and how
+   aggressively alpha decays; --trail-color tints them per star variant. */
+.sycos-star.has-trail.tg-fast{box-shadow:
+  calc(var(--t1x,0px)  * var(--depth,1)) calc(var(--t1y,0px)  * var(--depth,1)) 0.5px 0.4px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .72)),
+  calc(var(--t2x,0px)  * var(--depth,1)) calc(var(--t2y,0px)  * var(--depth,1)) 0.8px 0.5px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .63)),
+  calc(var(--t3x,0px)  * var(--depth,1)) calc(var(--t3y,0px)  * var(--depth,1)) 1px   0.6px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .55)),
+  calc(var(--t4x,0px)  * var(--depth,1)) calc(var(--t4y,0px)  * var(--depth,1)) 1.2px 0.7px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .46)),
+  calc(var(--t5x,0px)  * var(--depth,1)) calc(var(--t5y,0px)  * var(--depth,1)) 1.4px 0.8px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .38)),
+  calc(var(--t6x,0px)  * var(--depth,1)) calc(var(--t6y,0px)  * var(--depth,1)) 1.6px 0.9px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .30)),
+  calc(var(--t7x,0px)  * var(--depth,1)) calc(var(--t7y,0px)  * var(--depth,1)) 1.8px 0.9px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .22)),
+  calc(var(--t8x,0px)  * var(--depth,1)) calc(var(--t8y,0px)  * var(--depth,1)) 2px   1px   rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .14)),
+  calc(var(--t9x,0px)  * var(--depth,1)) calc(var(--t9y,0px)  * var(--depth,1)) 2.4px 1px   rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .08)),
+  calc(var(--t10x,0px) * var(--depth,1)) calc(var(--t10y,0px) * var(--depth,1)) 3px   1.1px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .04))
+}
+.sycos-star.has-trail.tg-med{box-shadow:
+  calc(var(--t1x,0px)  * var(--depth,1)) calc(var(--t1y,0px)  * var(--depth,1)) 0.5px 0.4px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .68)),
+  calc(var(--t2x,0px)  * var(--depth,1)) calc(var(--t2y,0px)  * var(--depth,1)) 0.7px 0.5px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .60)),
+  calc(var(--t3x,0px)  * var(--depth,1)) calc(var(--t3y,0px)  * var(--depth,1)) 0.9px 0.6px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .53)),
+  calc(var(--t4x,0px)  * var(--depth,1)) calc(var(--t4y,0px)  * var(--depth,1)) 1.1px 0.7px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .47)),
+  calc(var(--t5x,0px)  * var(--depth,1)) calc(var(--t5y,0px)  * var(--depth,1)) 1.3px 0.8px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .41)),
+  calc(var(--t6x,0px)  * var(--depth,1)) calc(var(--t6y,0px)  * var(--depth,1)) 1.5px 0.9px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .35)),
+  calc(var(--t7x,0px)  * var(--depth,1)) calc(var(--t7y,0px)  * var(--depth,1)) 1.7px 1px   rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .30)),
+  calc(var(--t8x,0px)  * var(--depth,1)) calc(var(--t8y,0px)  * var(--depth,1)) 1.9px 1px   rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .25)),
+  calc(var(--t9x,0px)  * var(--depth,1)) calc(var(--t9y,0px)  * var(--depth,1)) 2.1px 1.1px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .20)),
+  calc(var(--t10x,0px) * var(--depth,1)) calc(var(--t10y,0px) * var(--depth,1)) 2.3px 1.1px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .16)),
+  calc(var(--t11x,0px) * var(--depth,1)) calc(var(--t11y,0px) * var(--depth,1)) 2.5px 1.2px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .12)),
+  calc(var(--t12x,0px) * var(--depth,1)) calc(var(--t12y,0px) * var(--depth,1)) 2.8px 1.2px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .09)),
+  calc(var(--t13x,0px) * var(--depth,1)) calc(var(--t13y,0px) * var(--depth,1)) 3.2px 1.3px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .06)),
+  calc(var(--t14x,0px) * var(--depth,1)) calc(var(--t14y,0px) * var(--depth,1)) 3.6px 1.3px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .03))
+}
+.sycos-star.has-trail.tg-slow{box-shadow:
+  calc(var(--t1x,0px)  * var(--depth,1)) calc(var(--t1y,0px)  * var(--depth,1)) 0.5px 0.4px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .60)),
+  calc(var(--t2x,0px)  * var(--depth,1)) calc(var(--t2y,0px)  * var(--depth,1)) 0.7px 0.5px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .54)),
+  calc(var(--t3x,0px)  * var(--depth,1)) calc(var(--t3y,0px)  * var(--depth,1)) 0.9px 0.6px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .48)),
+  calc(var(--t4x,0px)  * var(--depth,1)) calc(var(--t4y,0px)  * var(--depth,1)) 1.1px 0.7px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .43)),
+  calc(var(--t5x,0px)  * var(--depth,1)) calc(var(--t5y,0px)  * var(--depth,1)) 1.3px 0.8px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .38)),
+  calc(var(--t6x,0px)  * var(--depth,1)) calc(var(--t6y,0px)  * var(--depth,1)) 1.5px 0.9px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .34)),
+  calc(var(--t7x,0px)  * var(--depth,1)) calc(var(--t7y,0px)  * var(--depth,1)) 1.7px 1px   rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .30)),
+  calc(var(--t8x,0px)  * var(--depth,1)) calc(var(--t8y,0px)  * var(--depth,1)) 1.9px 1px   rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .27)),
+  calc(var(--t9x,0px)  * var(--depth,1)) calc(var(--t9y,0px)  * var(--depth,1)) 2.1px 1.1px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .24)),
+  calc(var(--t10x,0px) * var(--depth,1)) calc(var(--t10y,0px) * var(--depth,1)) 2.3px 1.1px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .21)),
+  calc(var(--t11x,0px) * var(--depth,1)) calc(var(--t11y,0px) * var(--depth,1)) 2.5px 1.2px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .18)),
+  calc(var(--t12x,0px) * var(--depth,1)) calc(var(--t12y,0px) * var(--depth,1)) 2.7px 1.2px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .15)),
+  calc(var(--t13x,0px) * var(--depth,1)) calc(var(--t13y,0px) * var(--depth,1)) 2.9px 1.3px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .13)),
+  calc(var(--t14x,0px) * var(--depth,1)) calc(var(--t14y,0px) * var(--depth,1)) 3.1px 1.3px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .11)),
+  calc(var(--t15x,0px) * var(--depth,1)) calc(var(--t15y,0px) * var(--depth,1)) 3.3px 1.4px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .09)),
+  calc(var(--t16x,0px) * var(--depth,1)) calc(var(--t16y,0px) * var(--depth,1)) 3.5px 1.4px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .07)),
+  calc(var(--t17x,0px) * var(--depth,1)) calc(var(--t17y,0px) * var(--depth,1)) 3.8px 1.5px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .05)),
+  calc(var(--t18x,0px) * var(--depth,1)) calc(var(--t18y,0px) * var(--depth,1)) 4.2px 1.5px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .04)),
+  calc(var(--t19x,0px) * var(--depth,1)) calc(var(--t19y,0px) * var(--depth,1)) 4.6px 1.6px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .03)),
+  calc(var(--t20x,0px) * var(--depth,1)) calc(var(--t20y,0px) * var(--depth,1)) 5px   1.6px rgb(var(--trail-color,201 168 76) / calc(var(--mmag,0) * var(--mmag-scale,1) * var(--trail-mult,1) * .02))
+}
+@media(prefers-reduced-motion:reduce){.sycos-star.has-trail{box-shadow:none}}
+@media (min-width:768px){.sycos-star.has-trail{--mmag-scale:0.55}}
 .sycos-glow{position:absolute;top:38%;left:50%;width:640px;height:640px;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(201,168,76,.06) 0%,rgba(196,122,138,.03) 35%,transparent 70%);pointer-events:none;animation:sycosBreathe 7s ease-in-out infinite;z-index:0}
 @keyframes sycosBreathe{0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
 .sycos-scene{position:relative;width:240px;height:240px;margin:0 auto 32px;z-index:1;perspective:900px;perspective-origin:50% 50%}
@@ -1338,11 +1480,6 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .sycos-glyph{position:absolute;top:50%;left:50%;width:62px;height:62px;transform:translate(-50%,-50%) translateZ(34px);display:flex;align-items:center;justify-content:center;border-radius:50%;background:radial-gradient(circle,rgba(10,10,15,.95) 30%,rgba(10,10,15,0) 75%);animation:sycosGlyph 3.2s ease-in-out infinite;z-index:2}
 .sycos-glyph svg{width:30px;height:30px;color:var(--gold);fill:var(--gold)}
 @keyframes sycosGlyph{0%,100%{filter:drop-shadow(0 0 8px rgba(201,168,76,.45))}50%{filter:drop-shadow(0 0 20px rgba(201,168,76,.75))}}
-.sycos-dust{position:absolute;inset:0;transform:translateZ(52px);transform-style:preserve-3d;pointer-events:none;z-index:1}
-.sycos-dust-rot{position:absolute;inset:0;animation:sp 64s linear infinite}
-.sycos-mote{position:absolute;top:50%;left:50%;border-radius:50%;background:radial-gradient(circle,rgba(228,199,107,.95) 0%,rgba(201,168,76,0) 70%);box-shadow:0 0 6px rgba(228,199,107,.5);opacity:.3;animation:sycosMote 4.5s ease-in-out infinite}
-.sycos-mote.rose{background:radial-gradient(circle,rgba(228,180,196,.95) 0%,rgba(196,122,138,0) 70%);box-shadow:0 0 6px rgba(228,180,196,.5)}
-@keyframes sycosMote{0%,100%{opacity:.22}50%{opacity:.92}}
 .sycos-content{position:relative;z-index:1;text-align:center;max-width:440px;margin:0 auto}
 .sycos-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gd);margin-bottom:14px;opacity:.7;animation:fadeUp .8s var(--ease) both}
 .sycos-eyebrow::before,.sycos-eyebrow::after{content:'';width:18px;height:1px;background:rgba(201,168,76,.3)}

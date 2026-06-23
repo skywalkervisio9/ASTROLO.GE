@@ -2564,14 +2564,27 @@ function startLoading(lang, durationMs) {
       s.style.setProperty('--tdur', (4 + Math.random() * 6).toFixed(1) + 's');
       s.style.setProperty('--td', (Math.random() * 5).toFixed(1) + 's');
       s.style.setProperty('--td2', (Math.random() * 1.2).toFixed(2) + 's');
-      // Tag ~35% of stars with motion-trail. The angle comes from the
-      // container's --motion-angle (dynamic, follows parallax). --trail-jitter
-      // adds ±15° per-star variance so the streaks don't form a uniform comb,
-      // and --trail-len varies (14-44px) so some streaks reach farther.
-      if (Math.random() < 0.35) {
+      // Tag ~45% of stars with motion-trail. Trail shape reflects actual
+      // motion path (stride 1 = every frame back, no gaps to read as dots).
+      // Each star picks one of three groups (fast/med/slow) for tail length,
+      // and --trail-mult varies brightness so the field isn't uniform.
+      //
+      // --depth ties parallax magnitude to trail feedback: a star that leaves
+      // a strong trail also moves more (foreground), a star that leaves a
+      // faint trail moves less (mid-ground), and untagged stars stay nearly
+      // static (deep background). The container itself no longer translates;
+      // CSS multiplies --csx/--csy by --depth per-star.
+      if (Math.random() < 0.45) {
         s.classList.add('cs-trail');
-        s.style.setProperty('--trail-len', (14 + Math.random() * 30).toFixed(0) + 'px');
-        s.style.setProperty('--trail-jitter', (Math.random() * 30 - 15).toFixed(0) + 'deg');
+        var r = Math.random();
+        s.classList.add(r < 0.4 ? 'tg-fast' : r < 0.75 ? 'tg-med' : 'tg-slow');
+        var mult = 0.55 + Math.random() * 0.85;
+        s.style.setProperty('--trail-mult', mult.toFixed(2));
+        s.style.setProperty('--depth', mult.toFixed(2));
+      } else {
+        // Background stars: tiny parallax so the depth pillow feels real
+        // but they don't compete with the trail stars for attention.
+        s.style.setProperty('--depth', (Math.random() * 0.25).toFixed(2));
       }
       csEl.appendChild(s);
     }
@@ -2643,35 +2656,47 @@ function startLoading(lang, durationMs) {
   // Mouse drives desktop; deviceorientation drives mobile gyro.
   const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let pxT = 0, pyT = 0, pxC = 0, pyC = 0, prRaf = 0;
-  // Smoothed parallax velocity → drives the trail effect.
-  //   svx/svy  smoothed velocity components (signed)
-  //   mmag     0-1 magnitude, asymmetric ease (fast attack, slow decay) so
-  //            trails linger ~600ms after motion stops
-  // Angle is derived from svx/svy only when speed exceeds noise — at rest we
-  // hold the last angle so trails decay along their final direction.
-  let mmag = 0, prevPxC = 0, prevPyC = 0, svx = 0, svy = 0;
+  // Particle trail state — push container offset every frame into a 60-deep
+  // ring buffer of past positions, then expose t1..t56 vars (delta from
+  // current to that-many-frames-ago) every frame. Each star's CSS chooses
+  // a *subset* of those vars to render as box-shadow ghosts; that subset
+  // determines whether the star reads as a snappy short streak, a medium
+  // tail, or a long lingering plume — giving the field per-star fluidity
+  // variety without anyone star losing the dynamic curving behaviour.
+  var trailHist = []; var BUF_MAX = 60;
+  // We sample every frame and write through t20 — that's the deepest index
+  // the slowest trail group reads (~333ms back, stride 1 throughout). Dense
+  // sampling with no gaps is what makes the trail read as a continuous
+  // streak instead of a dot pattern.
+  var WRITE_MAX = 20;
+  var mmag = 0;
+  // Smoothed velocity source — faster low-pass (0.5) so quick wiggles still
+  // register as motion. Final mmag has its own ease layer for extra smoothness.
+  var sVx = 0, sVy = 0, prevX = 0, prevY = 0;
+  var PARALLAX_RANGE = 24;
   function applyParallax() {
     pxC += (pxT - pxC) * 0.08;
     pyC += (pyT - pyC) * 0.08;
     if (csEl) {
-      csEl.style.setProperty('--csx', (-pxC * 18).toFixed(2) + 'px');
-      csEl.style.setProperty('--csy', (-pyC * 18).toFixed(2) + 'px');
-      var rawVx = pxC - prevPxC, rawVy = pyC - prevPyC;
-      // Smooth the velocity components themselves so the derived angle is
-      // stable; without this, atan2 jitters on every tiny sub-pixel wiggle.
-      svx += (rawVx - svx) * 0.22;
-      svy += (rawVy - svy) * 0.22;
-      var speed = Math.sqrt(svx * svx + svy * svy);
-      var target = Math.min(1, speed * 70);
-      mmag += (target - mmag) * (target > mmag ? 0.32 : 0.045);
-      csEl.style.setProperty('--mmag', mmag.toFixed(3));
-      if (speed > 0.0008) {
-        // CSS rotate(0) renders the trail pointing down. We want the trail to
-        // extend OPPOSITE to motion, so: trail = motionAngle + 90 (CSS CW).
-        var deg = Math.atan2(svy, svx) * 180 / Math.PI + 90;
-        csEl.style.setProperty('--motion-angle', deg.toFixed(1) + 'deg');
+      var curX = -pxC * PARALLAX_RANGE, curY = -pyC * PARALLAX_RANGE;
+      csEl.style.setProperty('--csx', curX.toFixed(2) + 'px');
+      csEl.style.setProperty('--csy', curY.toFixed(2) + 'px');
+      trailHist.unshift({ x: curX, y: curY });
+      if (trailHist.length > BUF_MAX) trailHist.pop();
+      for (var i = 1; i <= WRITE_MAX; i++) {
+        var p = trailHist[i] || trailHist[trailHist.length - 1];
+        if (p) {
+          csEl.style.setProperty('--t' + i + 'x', (p.x - curX).toFixed(1) + 'px');
+          csEl.style.setProperty('--t' + i + 'y', (p.y - curY).toFixed(1) + 'px');
+        }
       }
-      prevPxC = pxC; prevPyC = pyC;
+      var rawVx = curX - prevX, rawVy = curY - prevY;
+      sVx += (rawVx - sVx) * 0.5; sVy += (rawVy - sVy) * 0.5;
+      var d = Math.sqrt(sVx * sVx + sVy * sVy);
+      var target = 1 - Math.exp(-d * 0.55);
+      mmag += (target - mmag) * (target > mmag ? 0.32 : 0.05);
+      csEl.style.setProperty('--mmag', mmag.toFixed(3));
+      prevX = curX; prevY = curY;
     }
     if (Math.abs(pxT - pxC) > 0.001 || Math.abs(pyT - pyC) > 0.001 || mmag > 0.005) {
       prRaf = requestAnimationFrame(applyParallax);
@@ -2680,8 +2705,11 @@ function startLoading(lang, durationMs) {
   function schedulePr() { if (!prRaf) prRaf = requestAnimationFrame(applyParallax); }
   function onPrMouse(e) {
     if (prefersReducedMotion) return;
-    pxT = (e.clientX / window.innerWidth) * 2 - 1;
-    pyT = (e.clientY / window.innerHeight) * 2 - 1;
+    // Negated vs the gyro path: stars should follow the cursor on desktop
+    // (cursor right → stars shift right), not parallax-shift opposite.
+    // The gyro handler keeps the natural "head-fixed, world tilts" feel.
+    pxT = -((e.clientX / window.innerWidth) * 2 - 1);
+    pyT = -((e.clientY / window.innerHeight) * 2 - 1);
     schedulePr();
   }
   function onPrTilt(e) {

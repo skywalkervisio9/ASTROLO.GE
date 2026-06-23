@@ -120,6 +120,8 @@ const COPY: Record<Mode, Record<Language, { eyebrow: string; title: string; sub:
   },
 };
 
+type TrailGroup = 'tg-fast' | 'tg-med' | 'tg-slow';
+
 interface Star {
   id: number;
   left: string;
@@ -128,7 +130,10 @@ interface Star {
   duration: string;
   twMax: number;
   variant: '' | 's2' | 's3';
-  trail: { len: number; jitter: number } | null;
+  trail: { mult: number; group: TrailGroup } | null;
+  // Depth ties parallax magnitude to trail feedback: tagged stars move with
+  // strength = trail-mult; background stars barely move (0-0.25).
+  depth: number;
 }
 
 function useStarfield(count = 38): Star[] {
@@ -139,16 +144,19 @@ function useStarfield(count = 38): Star[] {
     const arr: Star[] = [];
     for (let i = 0; i < count; i++) {
       const variant = i % 7 === 0 ? 's3' : i % 3 === 0 ? 's2' : '';
-      // ~35% of stars are tagged for trails. The base direction comes from
-      // the container's --motion-angle (dynamic, follows current parallax);
-      // per-star jitter (±15°) prevents a uniform comb look. Trail length
-      // varies so some stars streak farther than others.
-      const trail = Math.random() < 0.35
-        ? {
-            len: Math.round(14 + Math.random() * 30),
-            jitter: Math.round(Math.random() * 30 - 15),
-          }
-        : null;
+      // ~45% tagged for trails. Each tagged star picks one of three fluidity
+      // groups (fast/med/slow) for tail-length variety. --depth matches the
+      // trail-mult so visual feedback strength = parallax motion magnitude.
+      const isTrail = Math.random() < 0.45;
+      let trail: Star['trail'] = null;
+      let depth = Math.random() * 0.25;
+      if (isTrail) {
+        const mult = 0.55 + Math.random() * 0.85;
+        const gr = Math.random();
+        const group: TrailGroup = gr < 0.4 ? 'tg-fast' : gr < 0.75 ? 'tg-med' : 'tg-slow';
+        trail = { mult, group };
+        depth = mult;
+      }
       arr.push({
         id: i,
         left: (Math.random() * 100).toFixed(2) + '%',
@@ -158,22 +166,13 @@ function useStarfield(count = 38): Star[] {
         twMax: 0.35 + Math.random() * 0.45,
         variant,
         trail,
+        depth,
       });
     }
     setStars(arr);
   }, [count]);
   return stars;
 }
-
-// Soft aura of glowing star-motes that replaces the old radial "spark" ticks.
-// Deterministic (no Math.random) so SSR and CSR markup match.
-const MOTES = Array.from({ length: 14 }).map((_, i) => ({
-  a: (360 / 14) * i,
-  r: 78 + (i % 3) * 9,
-  size: i % 4 === 0 ? 3.5 : i % 2 === 0 ? 2.5 : 2,
-  rose: i % 3 === 1,
-  delay: (i * 0.34).toFixed(2),
-}));
 
 // Parallax tilt driven by mouse position (desktop) or device gyro (mobile).
 // Writes smoothed CSS vars on the root: --ryd/--rxd (scene rotation, deg) and
@@ -186,9 +185,18 @@ function useParallax() {
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
     let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0;
-    // Trail state: smoothed velocity components + magnitude. Angle is derived
-    // from svx/svy, not from raw cx-prevCx — otherwise it jitters every frame.
-    let prevCx = 0, prevCy = 0, mmag = 0, svx = 0, svy = 0;
+    // Position-history particle trails — mirrors individual /loading exactly.
+    // Push every frame, render 8-20 ghosts (depending on group) at fixed
+    // indices into the buffer so vars evolve smoothly per-frame and trail
+    // shape curves with actual motion path.
+    const BUF_MAX = 24, WRITE_MAX = 20;
+    const trailHist: { x: number; y: number }[] = [];
+    let mmag = 0;
+    let prevX = 0, prevY = 0, sVx = 0, sVy = 0;
+    // Parallax range: --px = -cx * SCALE so per-star translate(--px * --depth)
+    // moves stars opposite to gyro tilt (natural parallax) and same as mouse
+    // cursor (negated in onMouse → double-negate = same direction).
+    const PX_RANGE = 18;
     const clamp = (n: number) => (n < -1 ? -1 : n > 1 ? 1 : n);
 
     const tick = () => {
@@ -196,29 +204,37 @@ function useParallax() {
       cy += (ty - cy) * 0.07;
       el.style.setProperty('--ryd', (cx * 9).toFixed(2) + 'deg');
       el.style.setProperty('--rxd', (-cy * 9).toFixed(2) + 'deg');
-      el.style.setProperty('--px', (cx * 14).toFixed(2) + 'px');
-      el.style.setProperty('--py', (cy * 14).toFixed(2) + 'px');
-      // Smooth the velocity components, then derive magnitude + angle. Trail
-      // CSS rotation 0 points downward; opposite-to-motion = motionAngle + 90.
-      const rawVx = cx - prevCx, rawVy = cy - prevCy;
-      svx += (rawVx - svx) * 0.22;
-      svy += (rawVy - svy) * 0.22;
-      const speed = Math.sqrt(svx * svx + svy * svy);
-      const target = Math.min(1, speed * 70);
-      mmag += (target - mmag) * (target > mmag ? 0.32 : 0.045);
-      el.style.setProperty('--mmag', mmag.toFixed(3));
-      if (speed > 0.0008) {
-        const deg = Math.atan2(svy, svx) * 180 / Math.PI + 90;
-        el.style.setProperty('--motion-angle', deg.toFixed(1) + 'deg');
+      const curX = -cx * PX_RANGE, curY = -cy * PX_RANGE;
+      el.style.setProperty('--px', curX.toFixed(2) + 'px');
+      el.style.setProperty('--py', curY.toFixed(2) + 'px');
+      trailHist.unshift({ x: curX, y: curY });
+      if (trailHist.length > BUF_MAX) trailHist.pop();
+      for (let i = 1; i <= WRITE_MAX; i++) {
+        const p = trailHist[i] || trailHist[trailHist.length - 1];
+        if (p) {
+          el.style.setProperty('--t' + i + 'x', (p.x - curX).toFixed(1) + 'px');
+          el.style.setProperty('--t' + i + 'y', (p.y - curY).toFixed(1) + 'px');
+        }
       }
-      prevCx = cx; prevCy = cy;
+      // Smoothed velocity → sigmoid magnitude. Asymmetric ease (fast attack,
+      // slow decay) so trails appear immediately and linger ~600ms after stop.
+      const rawVx = curX - prevX, rawVy = curY - prevY;
+      sVx += (rawVx - sVx) * 0.5;
+      sVy += (rawVy - sVy) * 0.5;
+      const d = Math.sqrt(sVx * sVx + sVy * sVy);
+      const target = 1 - Math.exp(-d * 0.55);
+      mmag += (target - mmag) * (target > mmag ? 0.32 : 0.05);
+      el.style.setProperty('--mmag', mmag.toFixed(3));
+      prevX = curX; prevY = curY;
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
 
     const onMouse = (e: MouseEvent) => {
-      tx = (e.clientX / window.innerWidth) * 2 - 1;
-      ty = (e.clientY / window.innerHeight) * 2 - 1;
+      // Negated so cursor right → stars follow right (paired with --px's own
+      // negate in tick). Gyro stays opposite-tilt for natural parallax.
+      tx = -((e.clientX / window.innerWidth) * 2 - 1);
+      ty = -((e.clientY / window.innerHeight) * 2 - 1);
     };
     window.addEventListener('mousemove', onMouse, { passive: true });
 
@@ -265,7 +281,7 @@ function useParallax() {
 }
 
 export default function SynastryCosmicState({ mode, language, progressLabel, errorText }: Props) {
-  const stars = useStarfield(42);
+  const stars = useStarfield(90);
   const sceneRef = useParallax();
   const copy = COPY[mode][language];
   const msgs = GENERATING_MSGS[language];
@@ -334,16 +350,16 @@ export default function SynastryCosmicState({ mode, language, progressLabel, err
         {stars.map((s) => (
           <span
             key={s.id}
-            className={`sycos-star${s.variant ? ' ' + s.variant : ''}${s.trail ? ' has-trail' : ''}`}
+            className={`sycos-star${s.variant ? ' ' + s.variant : ''}${s.trail ? ' has-trail ' + s.trail.group : ''}`}
             style={{
               left: s.left,
               top: s.top,
               animationDelay: s.delay,
               animationDuration: s.duration,
               ['--tw-max' as never]: String(s.twMax),
+              ['--depth' as never]: s.depth.toFixed(2),
               ...(s.trail && {
-                ['--trail-len' as never]: s.trail.len + 'px',
-                ['--trail-jitter' as never]: s.trail.jitter + 'deg',
+                ['--trail-mult' as never]: s.trail.mult.toFixed(2),
               }),
             }}
           />
@@ -358,22 +374,6 @@ export default function SynastryCosmicState({ mode, language, progressLabel, err
             <span className="sycos-orbit-line" />
             <span className="sycos-orb sycos-orb-a" />
             <span className="sycos-orb sycos-orb-b" />
-          </div>
-          <div className="sycos-dust">
-            <div className="sycos-dust-rot">
-              {MOTES.map((m, i) => (
-                <span
-                  key={i}
-                  className={`sycos-mote${m.rose ? ' rose' : ''}`}
-                  style={{
-                    width: m.size,
-                    height: m.size,
-                    transform: `translate(-50%,-50%) rotate(${m.a}deg) translateY(-${m.r}px)`,
-                    animationDelay: m.delay + 's',
-                  }}
-                />
-              ))}
-            </div>
           </div>
           <div className="sycos-glyph">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
