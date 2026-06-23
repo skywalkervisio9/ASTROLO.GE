@@ -480,6 +480,11 @@ function showPaymentPage(type) {
     ctaText.textContent = isEn ? '✦ Unlock slot — ₾5' : '✦ სლოტის განბლოკვა — ₾5';
   }
 
+  // Expose the active sub-page so React's promo effect can apply the right
+  // base price + discount (premium ₾15 vs natal-unlock ₾5).
+  var payView = document.getElementById('paymentView');
+  if (payView) payView.setAttribute('data-pay-page', type);
+
   switchView('payment');
 }
 

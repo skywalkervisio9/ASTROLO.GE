@@ -315,14 +315,31 @@ export default function BodyContent() {
   const [promoCode, setPromoCode] = useState('astrolo10');
   const [promoBusy, setPromoBusy] = useState(false);
   const [promoLangTick, setPromoLangTick] = useState(0);
+  // Which payment sub-page is showing — mirrored from #paymentView's
+  // data-pay-page attribute (set by showPaymentPage). Drives the per-page
+  // promo base price (premium ₾15 vs natal-unlock ₾5).
+  const [payPage, setPayPage] = useState<'premium' | 'natal-unlock' | 'synastry-slot' | null>(null);
   const promoNormalised = promoCode.trim().toLowerCase();
   const promoVariant: PromoVariant =
     promoNormalised === 'astrolo10' ? 'discount'
     : promoNormalised === 'luka111' ? 'luka'
     : promoNormalised === 'skywalker' ? 'skywalker'
     : promoNormalised === 'lotus' ? 'unlock'
-    : promoNormalised === '' ? 'none'
-    : 'invalid';
+    // Empty or unrecognised codes alike are simply ignored (full price, no
+    // error shown) — there's no invalid-code state.
+    : 'none';
+
+  // The ₾5 pages accept the percentage codes and the lotus comp unlock;
+  // the premium-only astrolo10 is ignored here (full price, no error shown).
+  const PAGE_PROMO_VARIANTS: Record<'natal-unlock' | 'synastry-slot', PromoVariant[]> = {
+    'natal-unlock': ['luka', 'skywalker', 'unlock'],
+    'synastry-slot': ['luka', 'skywalker', 'unlock'],
+  };
+  const effectivePromoVariant: PromoVariant =
+    (payPage === 'natal-unlock' || payPage === 'synastry-slot')
+      && !PAGE_PROMO_VARIANTS[payPage].includes(promoVariant)
+      ? 'none'
+      : promoVariant;
 
   // The runtime adds/removes 'lang-en' on document.body — there's no React
   // signal for it, so we observe the body's class attribute and bump a
@@ -340,26 +357,41 @@ export default function BodyContent() {
     if (payPremium && payObserver) {
       payObserver.observe(payPremium, { attributes: true, attributeFilter: ['style'] });
     }
+    // Track which payment sub-page is active so the promo effect can pick the
+    // right base price.
+    const payView = document.getElementById('paymentView');
+    const syncPage = () => {
+      const p = payView?.getAttribute('data-pay-page');
+      setPayPage(p === 'premium' || p === 'natal-unlock' || p === 'synastry-slot' ? p : null);
+    };
+    const pageObserver = payView ? new MutationObserver(syncPage) : null;
+    if (payView && pageObserver) {
+      pageObserver.observe(payView, { attributes: true, attributeFilter: ['data-pay-page'] });
+      syncPage();
+    }
     return () => {
       bodyObserver.disconnect();
       payObserver?.disconnect();
+      pageObserver?.disconnect();
     };
   }, []);
+
+  // Default to an empty promo field on the ₾5 pages — the premium page
+  // pre-fills "astrolo10", which doesn't apply to natal unlock or slot.
+  useEffect(() => {
+    if ((payPage === 'natal-unlock' || payPage === 'synastry-slot')
+      && promoCode.trim().toLowerCase() === 'astrolo10') {
+      setPromoCode('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payPage]);
 
   // Mirror promo state into the prototype DOM (price, old-price strikethrough,
   // discount badge, CTA text) so the visual stays consistent with the rest of
   // the payment page, which prototype-runtime.js wrote against directly.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    // This effect mirrors PREMIUM promo state (price, badge, CTA) into the DOM.
-    // The other payment sub-pages (natal-unlock / synastry-slot) own their own
-    // CTA copy via showPaymentPage(); if PREMIUM isn't the visible sub-page,
-    // bail so we don't overwrite a ₾5 CTA with the premium "₾10" text.
-    const payPremiumEl = document.getElementById('payPremium');
-    if (payPremiumEl && payPremiumEl.style.display === 'none') return;
     const isEn = document.body.classList.contains('lang-en');
-    const cfg = PROMO_DISPLAY[promoVariant];
-    const ctaPrefix = isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
     const setShow = (id: string, show: boolean) => {
       const el = document.getElementById(id);
       if (el) el.style.display = show ? '' : 'none';
@@ -368,24 +400,50 @@ export default function BodyContent() {
       const el = document.getElementById(id);
       if (el) el.textContent = text;
     };
+
+    // ── ₾5 pages (natal unlock / synastry slot) — percentage codes (+ lotus
+    //    on natal) apply off the ₾5 base; everything else is ignored ──
+    if (payPage === 'natal-unlock' || payPage === 'synastry-slot') {
+      const isNatal = payPage === 'natal-unlock';
+      const ids = isNatal
+        ? { old: 'payNatalOldPrice', amount: 'payNatalAmount', badge: 'payNatalDiscountBadge' }
+        : { old: 'paySlotOldPrice', amount: 'paySlotAmount', badge: 'paySlotDiscountBadge' };
+      const ctaPrefix = isNatal
+        ? (isEn ? '✦ Unlock natal chart — ' : '✦ ნატალური რუკის განბლოკვა — ')
+        : (isEn ? '✦ Unlock slot — ' : '✦ სლოტის განბლოკვა — ');
+      const disc =
+        effectivePromoVariant === 'skywalker' ? { amount: '₾2.50', badge: '-50%' }
+        : effectivePromoVariant === 'luka' ? { amount: '₾1', badge: '-80%' }
+        : effectivePromoVariant === 'unlock' ? { amount: '₾0', badge: '' }
+        : null;
+      setShow(ids.old, !!disc);
+      setShow(ids.badge, !!(disc && disc.badge));
+      if (disc && disc.badge) setText(ids.badge, disc.badge);
+      setText(ids.amount, disc ? disc.amount : '₾5');
+      setText('payCtaText', ctaPrefix + (disc ? disc.amount : '₾5'));
+      return;
+    }
+
+    // ── Premium (₾15) — mirror promo price/badge/CTA into the DOM ──
+    // If PREMIUM isn't the visible sub-page, bail so we don't overwrite another
+    // page's ₾5 CTA with the premium text.
+    const payPremiumEl = document.getElementById('payPremium');
+    if (payPremiumEl && payPremiumEl.style.display === 'none') return;
+    const cfg = PROMO_DISPLAY[promoVariant];
+    const ctaPrefix = isEn ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
     setShow('payOldPrice', cfg.oldPriceVisible);
     setShow('payDiscountBadge', cfg.badgeVisible);
     if (cfg.badgeText) setText('payDiscountBadge', cfg.badgeText);
     setText('payAmount', cfg.amount);
     setText('payCtaText', ctaPrefix + cfg.amount);
-  }, [promoVariant, promoLangTick]);
+  }, [promoVariant, effectivePromoVariant, promoLangTick, payPage]);
 
   const onPayCtaClick = useCallback(async () => {
   if (promoBusy) return;
 
   const isEn = typeof document !== 'undefined' && document.body.classList.contains('lang-en');
 
-  if (promoVariant === 'invalid') {
-    alert(isEn ? 'Invalid promo code' : 'არასწორი კოდი');
-    return;
-  }
-
-  if (promoVariant === 'unlock') {
+  if (effectivePromoVariant === 'unlock') {
     try {
       setPromoBusy(true);
       const { withCsrfHeaders } = await import('@/lib/auth/client');
@@ -431,7 +489,9 @@ export default function BodyContent() {
       body: JSON.stringify({
         payment_type: paymentType,
         provider: 'bog',
-        promo_code: promoNormalised || undefined,
+        // Drop codes that don't apply to the active page (e.g. an ignored code
+        // on the natal-unlock page) so the user is charged the plain price.
+        promo_code: effectivePromoVariant === 'none' ? undefined : (promoNormalised || undefined),
       }),
     });
 
@@ -447,24 +507,22 @@ export default function BodyContent() {
   } finally {
     setPromoBusy(false);
   }
-}, [promoBusy, promoVariant, promoNormalised]);
+}, [promoBusy, promoVariant, effectivePromoVariant, promoNormalised]);
 
   // For convenience inside JSX — recalculated each render via promoLangTick.
   const promoIsEn =
     typeof document !== 'undefined' && document.body.classList.contains('lang-en');
   const promoLabelText = promoIsEn ? 'Promo code' : 'ფასდაკლების კოდი';
   const promoStatusText =
-  promoVariant === 'discount' ? (promoIsEn ? '✓ −₾5 discount applied' : '✓ −₾5 ფასდაკლება')
-  : promoVariant === 'luka' ? (promoIsEn ? '✓ 80% discount applied' : '✓ 80% ფასდაკლება')
-  : promoVariant === 'skywalker' ? (promoIsEn ? '✦ 50% discount applied' : '✦ 50% ფასდაკლება')
-  : promoVariant === 'unlock' ? (promoIsEn ? '✦ Free unlock — no payment needed' : '✦ უფასო განბლოკვა — გადახდა არ საჭიროებს')
-  : promoVariant === 'invalid' ? (promoIsEn ? '✕ Invalid code' : '✕ არასწორი კოდი')
+  effectivePromoVariant === 'discount' ? (promoIsEn ? '✓ −₾5 discount applied' : '✓ −₾5 ფასდაკლება')
+  : effectivePromoVariant === 'luka' ? (promoIsEn ? '✓ 80% discount applied' : '✓ 80% ფასდაკლება')
+  : effectivePromoVariant === 'skywalker' ? (promoIsEn ? '✦ 50% discount applied' : '✦ 50% ფასდაკლება')
+  : effectivePromoVariant === 'unlock' ? (promoIsEn ? '✦ Free unlock — no payment needed' : '✦ უფასო განბლოკვა — გადახდა არ საჭიროებს')
   : '';
   const promoStatusColor =
-  promoVariant === 'discount' || promoVariant === 'luka' ? '#4caf50'
-  : promoVariant === 'skywalker' ? 'var(--gold)'
-  : promoVariant === 'unlock' ? 'var(--gold)'
-  : promoVariant === 'invalid' ? '#e57373'
+  effectivePromoVariant === 'discount' || effectivePromoVariant === 'luka' ? '#4caf50'
+  : effectivePromoVariant === 'skywalker' ? 'var(--gold)'
+  : effectivePromoVariant === 'unlock' ? 'var(--gold)'
   : 'var(--txd)';
 
   void promoLangTick;
@@ -474,7 +532,7 @@ export default function BodyContent() {
       : inviteGenPhase === 'success'
         ? (promoIsEn ? '✓ Copied!' : '✓ დაკოპირდა!')
         : invitePurchaseMode
-          ? (promoIsEn ? 'Get the slot — ₾5' : 'სლოტის შეძენა — ₾5')
+          ? (promoIsEn ? 'Get the slot' : 'სლოტის შეძენა')
           : inviteKind === 'couple'
             ? (promoIsEn ? 'Create link (Couple)' : 'ბმულის შექმნა (მეწყვილე)')
             : inviteKind === 'friend'
@@ -553,7 +611,7 @@ export default function BodyContent() {
 <div className="invite-actions" id="inviteActions">
   <button className="invite-btn-secondary" onClick={() => { setInviteKind(null); setInviteGenPhase('idle'); proto().closeInviteModal?.(); }}>დახურვა</button>
   <button
-    className="invite-btn-primary"
+    className={`invite-btn-primary${invitePurchaseMode ? ' is-purchase' : ''}`}
     id="inviteGenBtn"
     disabled={(!invitePurchaseMode && inviteKind === null) || inviteGenPhase === 'loading' || inviteGenPhase === 'success'}
     onClick={() => {
@@ -787,7 +845,7 @@ export default function BodyContent() {
 
   {/* ── Natal Unlock Page (Invited users) ── */}
   <div id="payNatalUnlock" style={{display:'none'}}>
-    <div className="pay-sigil"><svg><use href="#gl-sparkle"/></svg></div>
+    <div className="pay-sigil pay-sigil--anim"><svg><use href="#gl-sparkle"/></svg></div>
     <div className="pay-badge">
       <span className="lg-ka">ნატალური რუკის განბლოკვა</span>
       <span className="lg-en">Natal chart unlock</span>
@@ -800,10 +858,14 @@ export default function BodyContent() {
       <span className="lg-ka">ყველა 8 სექცია — მახასიათებლები, ურთიერთობები, საქმე, ჩრდილი, სულიერი, პოტენციალი.</span>
       <span className="lg-en">All 8 sections — Traits, Relationships, Career, Shadow, Spiritual, Potential.</span>
     </div>
-    <div className="pay-price"><span className="pay-price-amount">₾5</span></div>
-    <div className="pay-note">
-      <span className="lg-ka">ერთჯერადი გადახდა</span>
-      <span className="lg-en">One-time payment</span>
+    <div className="pay-price">
+      <span className="pay-price-old" id="payNatalOldPrice" style={{display:'none'}}>₾5</span>
+      <span className="pay-price-amount" id="payNatalAmount">₾5</span>
+      <span className="pay-discount-badge" id="payNatalDiscountBadge" style={{display:'none'}}>-50%</span>
+    </div>
+    <div className="pay-badge pay-badge--under-price">
+      <span className="lg-ka">PREMIUM — ერთჯერადი გადახდა</span>
+      <span className="lg-en">PREMIUM — one-time payment</span>
     </div>
 
     <div className="pay-benefits">
@@ -815,12 +877,25 @@ export default function BodyContent() {
         <h4><span className="lg-ka">სინასტრია უკვე ჩართულია</span><span className="lg-en">Synastry already included</span></h4>
         <p><span className="lg-ka">შენი სინასტრიის წაკითხვა უკვე ხელმისაწვდომია მოწვევის გზით</span><span className="lg-en">Your synastry reading is already available through the invite</span></p>
       </div></div>
+      <div className="pay-benefit"><div className="pay-benefit-icon">✧</div><div className="pay-benefit-text">
+        <h4><span className="lg-ka">ვარსკვლავური ბარათები სრულად</span><span className="lg-en">Full star cards</span></h4>
+        <p><span className="lg-ka">ყველა პლანეტა, სახლი და ასპექტი დეტალურად</span><span className="lg-en">Every planet, house and aspect in detail</span></p>
+      </div></div>
+      <div className="pay-benefit"><div className="pay-benefit-icon">∞</div><div className="pay-benefit-text">
+        <h4><span className="lg-ka">სამუდამო წვდომა</span><span className="lg-en">Lifetime access</span></h4>
+        <p><span className="lg-ka">ერთხელ გადახდა — სამუდამოდ შენი</span><span className="lg-en">Pay once — yours forever</span></p>
+      </div></div>
     </div>
   </div>
 
   {/* ── Synastry Slot Purchase Page ── */}
   <div id="paySynastrySlot" style={{display:'none'}}>
-    <div className="pay-sigil"><svg><use href="#gl-conjunction"/></svg></div>
+    <div className="pay-sigil pay-sigil--anim">
+      <svg viewBox="0 0 40 24" style={{width:'38px',height:'24px'}} aria-hidden="true">
+        <use href="#gl-venus" x="0" width="24" height="24"/>
+        <use href="#gl-mars" x="16" width="24" height="24"/>
+      </svg>
+    </div>
     <div className="pay-badge">
       <span className="lg-ka">დამატებითი სინასტრია</span>
       <span className="lg-en">Additional synastry</span>
@@ -833,7 +908,11 @@ export default function BodyContent() {
       <span className="lg-ka">მოიწვიე კიდევ ერთი ადამიანი — მეწყვილე ან მეგობარი — სინასტრიის ანალიზისთვის.</span>
       <span className="lg-en">Invite one more person — partner or friend — for a synastry analysis.</span>
     </div>
-    <div className="pay-price"><span className="pay-price-amount">₾5</span></div>
+    <div className="pay-price">
+      <span className="pay-price-old" id="paySlotOldPrice" style={{display:'none'}}>₾5</span>
+      <span className="pay-price-amount" id="paySlotAmount">₾5</span>
+      <span className="pay-discount-badge" id="paySlotDiscountBadge" style={{display:'none'}}>-50%</span>
+    </div>
     <div className="pay-note">
       <span className="lg-ka">ერთჯერადი გადახდა / სლოტზე</span>
       <span className="lg-en">One-time payment per slot</span>

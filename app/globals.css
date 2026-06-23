@@ -160,6 +160,8 @@ body[data-public-view] .pn{color:#a6d9e4;max-width:180px;white-space:nowrap;over
 .invite-btn-primary{flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--gold),#e4c76b);color:#0a0a0f;font-family:var(--fb);font-size:.8rem;font-weight:500;cursor:pointer;transition:opacity .2s}
 .invite-btn-primary:hover{opacity:.9}
 .invite-btn-primary:disabled{opacity:.4;cursor:default}
+.invite-btn-primary.is-purchase{background:linear-gradient(135deg,#2d8f4e,#4caf50,#45a849);color:#fff;box-shadow:0 4px 18px rgba(76,175,80,.22)}
+.invite-btn-primary.is-purchase:hover{opacity:1;box-shadow:0 6px 24px rgba(76,175,80,.3)}
 .invite-btn-secondary{flex:1;padding:11px;border-radius:10px;border:1px solid rgba(201,168,76,.15);background:none;color:var(--silver);font-family:var(--fb);font-size:.8rem;cursor:pointer;transition:all .2s}
 .invite-btn-secondary:hover{border-color:rgba(201,168,76,.3)}
 

@@ -44,13 +44,13 @@ export async function POST(req: NextRequest) {
       promoMetadata.discount_amount = 5;
       promoMetadata.original_amount = baseAmount;
     } else if (promoCode === 'luka111') {
-      if (payment_type !== 'premium_upgrade') return jsonBadRequest('Promo code LUKA111 is only valid for premium upgrade');
+      // Percentage codes apply to every product, computed off its own base
+      // price (premium ₾15 → ₾3; natal unlock & synastry slot ₾5 → ₾1).
       amount = Number((baseAmount * 0.2).toFixed(2));
       promoMetadata.promo_code = 'LUKA111';
       promoMetadata.discount_percent = 80;
       promoMetadata.original_amount = baseAmount;
     } else if (promoCode === 'skywalker') {
-      if (payment_type !== 'premium_upgrade') return jsonBadRequest('Promo code SKYWALKER is only valid for premium upgrade');
       amount = Number((baseAmount * 0.5).toFixed(2));
       promoMetadata.promo_code = 'SKYWALKER';
       promoMetadata.discount_percent = 50;
