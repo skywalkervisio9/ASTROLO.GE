@@ -36,8 +36,13 @@ export async function POST() {
     if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
 
     const user = profile as User;
-    if (!hasFullReading(user)) {
-      return NextResponse.json({ error: 'Full reading not unlocked' }, { status: 403 });
+    // Call 1 (analysis_en) backs both the invited tier's partial reading and the
+    // full reading. Only pure free users have no Call 1.
+    const canGenerateCall1 = hasFullReading(user)
+      || user.account_type === 'invited'
+      || user.account_type === 'invited+';
+    if (!canGenerateCall1) {
+      return NextResponse.json({ error: 'Reading not unlocked' }, { status: 403 });
     }
 
     // Idempotent: return cached if analysis already exists

@@ -27,10 +27,11 @@ export async function GET() {
         .filter(Boolean)
     )) as string[];
 
+    // Admin client bypasses RLS for cross-user lookups (partner names + readings).
+    const admin = createAdminSupabase();
+
     const partnerMap = new Map<string, string>();
     if (partnerIds.length > 0) {
-      // Use admin client to bypass RLS — user can only see own profile
-      const admin = createAdminSupabase();
       const { data: partners } = await admin
         .from('users')
         .select('id, full_name')
@@ -40,10 +41,27 @@ export async function GET() {
       }
     }
 
+    // Self-heal stale status: a connection whose synastry_readings row already has
+    // reading_ka is "reading_generated" regardless of the connection's own status —
+    // the status flip in runSynastryGeneration can be missed on some paths, which
+    // otherwise leaves the settings slot stuck showing "Generating…".
+    const connIds = (conns ?? []).map((c) => c.id);
+    const readyConnIds = new Set<string>();
+    if (connIds.length > 0) {
+      const { data: readings } = await admin
+        .from('synastry_readings')
+        .select('connection_id, reading_ka')
+        .in('connection_id', connIds);
+      for (const r of readings ?? []) {
+        if (r.reading_ka) readyConnIds.add(r.connection_id as string);
+      }
+    }
+
     const enriched = (conns ?? []).map((c) => {
       const partnerId = c.inviter_id === authUser.id ? c.invitee_id : c.inviter_id;
       return {
         ...c,
+        status: readyConnIds.has(c.id) ? 'reading_generated' : c.status,
         partner_name: partnerId ? (partnerMap.get(partnerId) ?? null) : null,
       };
     });

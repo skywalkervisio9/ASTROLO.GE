@@ -121,10 +121,15 @@ export default function LoadingRouteClient() {
       // ?mode=fake-full is the dev CALL1 PREMIUM path (real Call 1 + stub Call 2).
       const urlParams = new URLSearchParams(window.location.search);
       const isGenerateFull = urlParams.get('mode') === 'generate-full';
+      // DOB correction: rebuild chart_data (wiped by the birth-data reset) THEN
+      // re-run the tier's AI reading — full (Call 1 + Call 2) or invited (Call 1).
+      const isRegenerateFull = urlParams.get('mode') === 'regenerate-full';
+      const isRegenerateCall1 = urlParams.get('mode') === 'regenerate-call1';
+      const isRegenerate = isRegenerateFull || isRegenerateCall1;
       const isFakeFull = urlParams.get('mode') === 'fake-full';
       const inviteFromUrl = urlParams.get('invite');
       const hasInvite = Boolean(inviteFromUrl);
-      const isFree = !isGenerateFull && !isFakeFull && !hasInvite;
+      const isFree = !isGenerateFull && !isRegenerate && !isFakeFull && !hasInvite;
 
       // Fetch user's language preference for loading screen
       let userLang: string = 'ka';
@@ -145,6 +150,7 @@ export default function LoadingRouteClient() {
         const duration = isFree ? 20000
           : isFakeFull ? 60000
           : hasInvite ? 30000
+          : isRegenerateCall1 ? 120000   // DOB correction, invited tier — Call 1 only
           : 360000;
         if (fn) fn(userLang, duration);
       });
@@ -207,20 +213,74 @@ export default function LoadingRouteClient() {
         }
       }
 
-      if (isGenerateFull) {
+      if (isRegenerate) {
+        // Rebuild chart_data from the corrected birth data. The reset endpoint
+        // deleted the old chart_data + queued the new payload (onboarding token),
+        // so chart/generate re-hits the astrologer API instead of reusing cache.
+        let reqBody: GenerateChartRequest | null = null;
+        const pendingRes = await fetch('/api/onboarding/pending', { credentials: 'include' });
+        if (pendingRes.ok) {
+          const pending = await pendingRes.json() as { payload: GenerateChartRequest | null };
+          reqBody = pending.payload;
+        }
+        if (!reqBody) {
+          const profRes = await fetch('/api/user/profile', { credentials: 'include' });
+          if (profRes.ok) {
+            const { profile } = await profRes.json() as { profile: Record<string, unknown> };
+            const p = profile as Record<string, unknown>;
+            reqBody = {
+              name: (p.full_name as string | null) ?? (user.user_metadata?.full_name || user.user_metadata?.name || 'User'),
+              birth_day: p.birth_day as number,
+              birth_month: p.birth_month as number,
+              birth_year: p.birth_year as number,
+              birth_hour: (p.birth_hour as number | null) ?? null,
+              birth_minute: (p.birth_minute as number | null) ?? null,
+              birth_city: p.birth_city as string,
+              birth_lat: p.birth_lat as number,
+              birth_lng: p.birth_lng as number,
+              birth_timezone: p.birth_timezone as string,
+              gender: p.gender as Gender,
+            } as GenerateChartRequest;
+          }
+        }
+        if (reqBody) {
+          try {
+            const init = await withCsrfHeaders({
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify(reqBody),
+            });
+            const r = await fetch('/api/chart/generate', init);
+            if (!r.ok) {
+              const message = await r.text();
+              setErrorText(`Reading regeneration failed (${r.status}): ${message.slice(0, 200) || 'no body'}`);
+              setCanReturnToBirth(false);
+              return;
+            }
+          } catch {
+            setErrorText('Network issue while rebuilding chart. Please retry.');
+            return;
+          }
+        }
+      }
+
+      if (isGenerateFull || isRegenerate) {
         try {
-          // Step 1: Call 1 — chart analysis (idempotent, quick ~20-30s)
+          // Step 1: Call 1 — chart analysis. Required for invited (completes their
+          // partial reading) and as the prerequisite for the full reading.
           const init1 = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
           const res1 = await fetch('/api/reading/generate-call1', init1);
           if (!res1.ok) {
             const message = await res1.text();
             const trimmed = message.length > 240 ? message.slice(0, 240) + '…' : message;
-            setErrorText(`Full reading generation failed (${res1.status}): ${trimmed || 'no body'}`);
+            setErrorText(`Reading generation failed (${res1.status}): ${trimmed || 'no body'}`);
             console.error('[loading] generate-call1 failed', res1.status, message);
-          } else {
-            // Step 2: fire generate-full without awaiting — it can run up to 300s on the
-            // server and write to DB even if the HTTP connection drops before it responds.
-            // Completion is detected entirely by the polling loop below.
+          } else if (isGenerateFull || isRegenerateFull) {
+            // Step 2 (full tiers only): fire generate-full without awaiting — it can run
+            // up to 300s on the server and write to DB even if the HTTP connection drops
+            // before it responds. Completion is detected by the polling loop below.
+            // (Invited regen stops after Call 1 — analysis_en is their completion signal.)
             withCsrfHeaders({ method: 'POST', credentials: 'include' }).then((init2) => {
               fetch('/api/reading/generate-full', init2).catch((err) =>
                 console.error('[loading] generate-full network error (expected on long runs):', err)

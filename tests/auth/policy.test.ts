@@ -21,6 +21,7 @@ const baseUser: User = {
   account_type: 'free',
   natal_chart_unlocked: false,
   invite_slots_purchased: 0,
+  dob_corrections_used: 0,
   language: 'ka',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),

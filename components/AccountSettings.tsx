@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { withCsrfHeaders } from '@/lib/auth/client';
 import { createClient } from '@/lib/supabase/client';
+import { dobCorrectionState } from '@/types/user';
 import type { User, AccountType } from '@/types/user';
+import DobCorrectionModal from './DobCorrectionModal';
 
 /* ── Tier display config ── */
 const TIER_META: Record<AccountType, { label: string; labelEn: string; cls: string }> = {
@@ -60,6 +62,7 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
   const [nameSaving, setNameSaving] = useState(false);
   const [activeLang, setActiveLang] = useState<'ka' | 'en'>(user.language);
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [dobModalOpen, setDobModalOpen] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const isLangEn = activeLang === 'en';
@@ -120,6 +123,13 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
   const dob = user.birth_day && user.birth_month && user.birth_year
     ? `${String(user.birth_day).padStart(2, '0')}.${String(user.birth_month).padStart(2, '0')}.${user.birth_year}`
     : null;
+
+  // DOB correction gating: locked for full-reading users once a synastry
+  // connection is accepted / generated, or after their single correction.
+  const synastryStarted = connections.some(
+    (c) => c.status === 'accepted' || c.status === 'reading_generated',
+  );
+  const dobState = dobCorrectionState(user, synastryStarted);
 
   // Slots: premium gets 1 free + purchased, others just purchased
   const totalSlots = user.account_type === 'premium'
@@ -189,6 +199,7 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
   };
 
   return (
+    <>
     <div className="stg-overlay" onClick={onClose}>
       <div className="stg-panel" onClick={(e) => e.stopPropagation()}>
 
@@ -349,11 +360,44 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
                   (window as unknown as { showPaymentPage?: (type: string) => void }).showPaymentPage?.('natal-unlock');
                   onClose();
                 }}>
-                  {isLangEn ? 'Unlock' : 'განბლოკვა'} <span className="stg-upgrade-price">₾5</span>
+                  {isLangEn ? 'Premium' : 'პრემიუმი'} <span className="stg-upgrade-price">₾5</span>
                 </button>
               </div>
             )}
           </div>
+
+          {/* DOB correction */}
+          {dob && (
+            <div className="stg-section">
+              <div className="stg-section-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                {isLangEn ? 'Birth data' : 'დაბადების მონაცემები'}
+              </div>
+              <div className="stg-row">
+                <div className="stg-row-text">
+                  <div className="stg-row-title">{isLangEn ? 'Date of birth correction' : 'დაბადების თარიღის შესწორება'}</div>
+                  <div className="stg-row-desc">
+                    {dobState.allowed
+                      ? (dobState.limited
+                          ? (isLangEn ? 'Fix your exact birth data once and re-generate your full reading.' : 'შეასწორე ზუსტი მონაცემები ერთხელ და თავიდან ააგე სრული ანალიზი.')
+                          : (isLangEn ? 'Correct your birth data and rebuild the chart anytime.' : 'შეასწორე მონაცემები და თავიდან ააგე რუკა ნებისმიერ დროს.'))
+                      : dobState.reason === 'synastry_started'
+                        ? (isLangEn ? 'Locked — synastry generation has already started.' : 'დაბლოკილია — სინასტრიის გენერაცია უკვე დაიწყო.')
+                        : (isLangEn ? 'Your one correction has already been used.' : 'კორექციის უფლება უკვე გამოყენებულია.')}
+                  </div>
+                </div>
+                {dobState.allowed ? (
+                  <button className="stg-dob-btn" onClick={() => setDobModalOpen(true)}>
+                    {isLangEn ? 'Correct' : 'შესწორება'}
+                  </button>
+                ) : (
+                  <span className="stg-dob-locked" aria-hidden="true">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Synastry slots — visual list */}
           {(totalSlots > 0 || connections.length > 0) && (
@@ -405,11 +449,11 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
                   </div>
                 ))}
               </div>
-              {/* Buy extra slot CTA — premium and invited+ (legacy 'invited + natal_unlocked'
-                  kept for rows from before the invited+ tier-promotion shipped). */}
+              {/* Buy extra slot CTA — everyone who can hold a synastry slot
+                  (premium, invited, invited+). Plain free users never reach here. */}
               {(user.account_type === 'premium'
-                || user.account_type === 'invited+'
-                || (user.account_type === 'invited' && user.natal_chart_unlocked)) && (
+                || user.account_type === 'invited'
+                || user.account_type === 'invited+') && (
                 <button className="stg-slot-buy" onClick={() => {
                   const w = window as unknown as Record<string, unknown>;
                   const showPay = w.showPaymentPage as ((type: string) => void) | undefined;
@@ -476,5 +520,9 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
         </div>
       </div>
     </div>
+    {dobModalOpen && (
+      <DobCorrectionModal user={user} isEn={isLangEn} onClose={() => setDobModalOpen(false)} />
+    )}
+    </>
   );
 }

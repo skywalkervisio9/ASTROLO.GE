@@ -30,6 +30,8 @@ export interface User {
   account_type: AccountType;
   natal_chart_unlocked: boolean;
   invite_slots_purchased: number;
+  /** Number of DOB corrections a full-reading user has used. Free users ignore this. */
+  dob_corrections_used: number;
   language: Language;
   created_at: string;
   updated_at: string;
@@ -95,6 +97,23 @@ export function hasFullReading(user: User): boolean {
 /** Alias kept for call-sites that check per section — all sections share same gate now. */
 export function canAccessSection(user: User, _sectionKey: string): boolean {
   return hasFullReading(user);
+}
+
+export type DobCorrectionState =
+  | { allowed: true; limited: boolean }
+  | { allowed: false; reason: 'used' | 'synastry_started' };
+
+/**
+ * Whether the user may correct their birth data and re-generate.
+ * - Free / invited-not-unlocked: always allowed, unlimited (astrologer API only).
+ * - Full-reading (premium / invited+): exactly one correction, and only before
+ *   any synastry generation has started.
+ */
+export function dobCorrectionState(user: User, synastryStarted: boolean): DobCorrectionState {
+  if (!hasFullReading(user)) return { allowed: true, limited: false };
+  if (synastryStarted) return { allowed: false, reason: 'synastry_started' };
+  if (user.dob_corrections_used >= 1) return { allowed: false, reason: 'used' };
+  return { allowed: true, limited: true };
 }
 
 /** Slots remaining for UI / limits. Premium & invited+ may generate many invite links (each pending synastry). */
