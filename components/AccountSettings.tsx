@@ -48,11 +48,14 @@ function slotStatusClass(conn: Connection) {
 interface Props {
   user: User;
   open: boolean;
+  /** When opened from the share button on a private reading, pulse the
+   *  public/private toggle to nudge the user toward making it public. */
+  highlightPrivacy?: boolean;
   onClose: () => void;
   onUpgrade?: () => void;
 }
 
-export default function AccountSettings({ user, open, onClose, onUpgrade }: Props) {
+export default function AccountSettings({ user, open, highlightPrivacy, onClose, onUpgrade }: Props) {
   const [isPublic, setIsPublic] = useState(true);
   const [visibilitySaving, setVisibilitySaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -63,7 +66,9 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
   const [activeLang, setActiveLang] = useState<'ka' | 'en'>(user.language);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [dobModalOpen, setDobModalOpen] = useState(false);
+  const [pulsePrivacy, setPulsePrivacy] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const privacyToggleRef = useRef<HTMLButtonElement>(null);
 
   const isLangEn = activeLang === 'en';
 
@@ -115,6 +120,20 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
       nameInputRef.current.select();
     }
   }, [editingName]);
+
+  // Opened from the share button on a private reading: scroll the privacy
+  // toggle into view and pulse it twice to draw the eye.
+  useEffect(() => {
+    if (!open || !highlightPrivacy) return;
+    // Wait for the panel slide-in (.35s) before scrolling/pulsing.
+    const scrollTimer = setTimeout(() => {
+      privacyToggleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPulsePrivacy(true);
+    }, 380);
+    // ai-pulse-style: 1s per cycle × 2 cycles = 2000ms.
+    const clearTimer = setTimeout(() => setPulsePrivacy(false), 380 + 2000);
+    return () => { clearTimeout(scrollTimer); clearTimeout(clearTimer); };
+  }, [open, highlightPrivacy]);
 
   if (!open) return null;
 
@@ -287,7 +306,8 @@ export default function AccountSettings({ user, open, onClose, onUpgrade }: Prop
                 </div>
               </div>
               <button
-                className={`stg-toggle ${isPublic ? 'on' : ''}`}
+                ref={privacyToggleRef}
+                className={`stg-toggle ${isPublic ? 'on' : ''} ${pulsePrivacy ? 'stg-toggle-pulse' : ''}`}
                 onClick={toggleVisibility}
                 disabled={visibilitySaving}
                 aria-label="Toggle privacy"

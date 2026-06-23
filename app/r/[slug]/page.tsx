@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const tagline = meta.tagline_ka || meta.tagline_en || 'ასტროლოგიური ანალიზი';
   const name = meta.owner_full_name?.trim() || '';
-  const title = name ? `${name} — ASTROLO.GE` : 'ASTROLO.GE';
+  const title = name ? `ASTROLO.GE — ${name}` : 'ASTROLO.GE';
 
   return {
     title,

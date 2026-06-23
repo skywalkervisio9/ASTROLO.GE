@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isConnectionMember } from '@/lib/auth/policy';
-import { canAccessSection, type User } from '@/types/user';
+import { canAccessSection, dobCorrectionState, type User } from '@/types/user';
 
 const baseUser: User = {
   id: 'u1',
@@ -44,4 +44,29 @@ test('canAccessSection: premium account grants full access', () => {
   const premium = { ...baseUser, account_type: 'premium' as const };
   assert.equal(canAccessSection(premium, 'overview'), true);
   assert.equal(canAccessSection(premium, 'potential'), true);
+});
+
+test('dobCorrectionState: a generated synastry locks DOB for every tier', () => {
+  // Invited user (no natal unlock) — locked because they already have a synastry.
+  const invited = { ...baseUser, account_type: 'invited' as const };
+  assert.deepEqual(dobCorrectionState(invited, true), { allowed: false, reason: 'synastry_started' });
+
+  // Same lock applies to premium and invited+.
+  const premium = { ...baseUser, account_type: 'premium' as const };
+  assert.deepEqual(dobCorrectionState(premium, true), { allowed: false, reason: 'synastry_started' });
+  const invitedPlus = { ...baseUser, account_type: 'invited+' as const, natal_chart_unlocked: true };
+  assert.deepEqual(dobCorrectionState(invitedPlus, true), { allowed: false, reason: 'synastry_started' });
+});
+
+test('dobCorrectionState: without a synastry, tier rules still apply', () => {
+  // Free / invited without synastry: unlimited corrections.
+  assert.deepEqual(dobCorrectionState(baseUser, false), { allowed: true, limited: false });
+  const invited = { ...baseUser, account_type: 'invited' as const };
+  assert.deepEqual(dobCorrectionState(invited, false), { allowed: true, limited: false });
+
+  // Premium: one correction, then locked as 'used'.
+  const premium = { ...baseUser, account_type: 'premium' as const };
+  assert.deepEqual(dobCorrectionState(premium, false), { allowed: true, limited: true });
+  const premiumUsed = { ...premium, dob_corrections_used: 1 };
+  assert.deepEqual(dobCorrectionState(premiumUsed, false), { allowed: false, reason: 'used' });
 });

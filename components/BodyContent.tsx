@@ -72,7 +72,7 @@ type ProtoGlobals = {
   setLang?: (l: string, b: HTMLElement) => void;
   setZodiacMode?: (mode: 'icon' | 'name', b: HTMLElement) => void;
   shareReading?: () => void;
-  shareToSocial?: (platform: string) => void;
+  shareToSocial?: (platform: string, btn?: HTMLElement) => void;
   go?: (id: string) => void;
   toggleExp?: (btn: HTMLElement) => void;
   showAuthPage?: (id: string) => void;
@@ -571,7 +571,7 @@ export default function BodyContent() {
 <button className="sb-share-main" onClick={() => { proto().shareReading?.(); }} style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '10px', background: 'rgba(201,168,76,.04)', border: '1px solid rgba(201,168,76,.1)', borderRadius: '10px', color: 'var(--gold)', fontFamily: 'var(--fb)', fontSize: '.74rem', cursor: 'pointer', transition: 'all .35s', marginBottom: '8px'}}><svg style={{width: '13px', height: '13px', fill: 'var(--gold)'}}><use href="#gl-share"/></svg> რუკის გაზიარება</button>
 <div className="sb-share-inline">
 <button className="sb-share-icon" onClick={() => { proto().shareToSocial?.("fb"); }} title="Facebook">{IconFacebook}</button>
-<button className="sb-share-icon" onClick={() => { proto().shareToSocial?.("ig"); }} title="Instagram">{IconInstagram}</button>
+<button className="sb-share-icon" onClick={(e) => { proto().shareToSocial?.("ig", e.currentTarget); }} title="Instagram">{IconInstagram}</button>
 <button className="sb-share-icon" onClick={() => { window.print(); }} title="Print"><svg><use href="#gl-print"/></svg></button>
 </div></div>
 

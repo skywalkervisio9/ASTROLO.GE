@@ -105,13 +105,15 @@ export type DobCorrectionState =
 
 /**
  * Whether the user may correct their birth data and re-generate.
- * - Free / invited-not-unlocked: always allowed, unlimited (astrologer API only).
- * - Full-reading (premium / invited+): exactly one correction, and only before
- *   any synastry generation has started.
+ * - Once any synastry has been generated, the DOB is frozen for *every* tier —
+ *   changing it would invalidate the existing synastry. This is what locks
+ *   invited users, whose account exists because of that synastry.
+ * - Free / invited-not-unlocked (no synastry): always allowed, unlimited.
+ * - Full-reading (premium / invited+): exactly one correction.
  */
 export function dobCorrectionState(user: User, synastryStarted: boolean): DobCorrectionState {
-  if (!hasFullReading(user)) return { allowed: true, limited: false };
   if (synastryStarted) return { allowed: false, reason: 'synastry_started' };
+  if (!hasFullReading(user)) return { allowed: true, limited: false };
   if (user.dob_corrections_used >= 1) return { allowed: false, reason: 'used' };
   return { allowed: true, limited: true };
 }

@@ -17,12 +17,16 @@ type ProtoGlobals = {
 export default function SettingsBridge() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [highlightPrivacy, setHighlightPrivacy] = useState(false);
 
   // Always expose openSettings on window — even before user loads.
-  // The gear button calls this via onClick in BodyContent.
+  // The gear button calls this via onClick in BodyContent. The share button
+  // calls it with { highlightPrivacy: true } when the reading is private, so
+  // the privacy toggle gets pulsed to nudge the user to make it public.
   useEffect(() => {
-    const fn = () => {
+    const fn = (opts?: { highlightPrivacy?: boolean }) => {
       (window as unknown as ProtoGlobals).closeSidebar?.();
+      setHighlightPrivacy(!!opts?.highlightPrivacy);
       setOpen(true);
     };
     (window as unknown as Record<string, unknown>).openSettings = fn;
@@ -48,6 +52,7 @@ export default function SettingsBridge() {
     <AccountSettings
       user={user}
       open={open}
+      highlightPrivacy={highlightPrivacy}
       onClose={() => setOpen(false)}
       onUpgrade={() => {
         (window as unknown as ProtoGlobals).showPaymentPage?.('premium');

@@ -963,19 +963,64 @@ function applyTranslations(l) {
 }
 
 // ═══ SHARE ═══
-function shareReading() {
-  const url = window.location.href;
+function _shareTitle() {
+  // Owner's name personalises the share, matching the /r/[slug] link-preview
+  // card ("ASTROLO.GE — {name}"). Falls back to a generic title when the
+  // name isn't known (e.g. guest view or profile not yet hydrated).
+  const u = _currentUser || {};
+  const name = ((u.full_name || '').trim()) || (u.email ? u.email.split('@')[0] : '');
+  if (name) return 'ASTROLO.GE — ' + name;
   const view = document.body.getAttribute('data-view');
-  const title = view === 'synastry' ? 'ASTROLO.GE — სინასტრია' : 'ASTROLO.GE — ჩემი ნატალური რუკა';
+  return view === 'synastry' ? 'ASTROLO.GE — სინასტრია' : 'ASTROLO.GE — ჩემი ნატალური რუკა';
+}
+function _doShareReading() {
+  const url = window.location.href;
+  const title = _shareTitle();
   if (navigator.share) { navigator.share({ title, url }).catch(() => {}); }
   else { navigator.clipboard?.writeText(url); }
 }
-function shareToSocial(platform) {
-  const url = encodeURIComponent(window.location.href);
-  const text = encodeURIComponent('ASTROLO.GE');
+function shareReading() {
+  // A private reading isn't viewable by anyone with the link, so sharing one
+  // is a dead end. Instead, send the owner to Settings and pulse the
+  // public/private toggle so they can flip it before sharing.
+  fetch('/api/reading/visibility', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : { isPublic: true }; })
+    .then(function(d) {
+      if (d && d.isPublic === false && typeof window.openSettings === 'function') {
+        window.openSettings({ highlightPrivacy: true });
+        return;
+      }
+      _doShareReading();
+    })
+    .catch(function() { _doShareReading(); });
+}
+function _flashShareIcon(btn) {
+  // Brief ✓ confirmation, mirroring copyInviteLink's feedback.
+  if (!btn || btn._copied) return;
+  btn._copied = true;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span style="font-size:13px;line-height:1;color:var(--gold)">✓</span>';
+  setTimeout(function() { btn.innerHTML = orig; btn._copied = false; }, 1500);
+}
+function shareToSocial(platform, btn) {
+  const rawUrl = window.location.href;
+  const url = encodeURIComponent(rawUrl);
+  const title = _shareTitle();
+  const text = encodeURIComponent(title);
+  if (platform === 'ig') {
+    // Instagram has no web link-share endpoint (unlike Facebook/Telegram).
+    // On devices with a native share sheet, let the user pick Instagram;
+    // otherwise copy the link so they can paste it into a story/bio/DM.
+    if (navigator.share) {
+      navigator.share({ title: title, url: rawUrl }).catch(function() {});
+    } else {
+      navigator.clipboard?.writeText(rawUrl);
+      _flashShareIcon(btn);
+    }
+    return;
+  }
   const urls = {
     fb: 'https://www.facebook.com/sharer/sharer.php?u=' + url,
-    ig: 'https://www.instagram.com/',
     tg: 'https://t.me/share/url?url=' + url + '&text=' + text
   };
   window.open(urls[platform], '_blank', 'width=600,height=400');
