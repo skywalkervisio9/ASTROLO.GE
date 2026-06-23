@@ -1586,3 +1586,40 @@ body.lang-en .lg-en{display:revert}
   .legal-close{top:14px;right:16px;width:34px;height:34px}
   .legal-doc h1{font-size:1.6rem}
 }
+
+/* ═══ PRINT / SAVE-AS-PDF ═══
+   The screen UI is a dark theme; print engines drop background colours, which
+   left the old output blank (light text on white) with the sidebar still open.
+   Here we (1) swap to a light palette by redefining the colour variables,
+   (2) force every reveal-on-scroll section visible, and (3) hide all chrome. */
+@media print {
+  :root{
+    --bg:#fff;--sf:#fff;--sf2:#f6f3ea;--sf3:#efeade;
+    --tx:#1a1a22;--txd:#55555f;--silver:#26262e;
+    --gold:#8a6d2b;--gold-bright:#8a6d2b;--gd:#8a6d2b
+  }
+  @page{margin:16mm 14mm}
+  html,body{background:#fff !important;color:#1a1a22 !important;overflow:visible !important}
+  /* Keep the colours we deliberately set (light section bg, gold headings). */
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;
+    animation:none !important;transition:none !important;box-shadow:none !important;
+    text-shadow:none !important;filter:none !important;backdrop-filter:none !important}
+
+  /* Hide all chrome / interactive UI. */
+  .tb,.pbar,.nb,.account-dd,.stars,#stars,#shootingStar,.scroll-top,
+  .dev-panel,.dev-toggle,.invite-modal,.stg-overlay,.legal-overlay,
+  .hero-glow,.footer-social,.footer-links{display:none !important}
+
+  /* Reveal-on-scroll sections never fired their observer in print → force on. */
+  section,.analysis-section{opacity:1 !important;transform:none !important;
+    margin-bottom:24px !important;break-inside:avoid;page-break-inside:avoid}
+  .sh{break-after:avoid;page-break-after:avoid}
+
+  /* Reading cards: flat, readable, never split across a page. */
+  .c,.al,.ai-body{background:var(--sf2) !important;border-color:#e3dcc8 !important;
+    break-inside:avoid;page-break-inside:avoid}
+  .c{background:#fff !important}
+  .sh h2{color:#8a6d2b !important}
+  .pt td,.pt td[class*="pl-"],.al-p,.ai-body p,.st,.pt .retro{color:#26262e !important}
+  .ai-body .open,.ai-body{max-height:none !important;overflow:visible !important}
+}

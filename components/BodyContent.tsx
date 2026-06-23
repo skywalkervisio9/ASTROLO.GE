@@ -572,7 +572,7 @@ export default function BodyContent() {
 <div className="sb-share-inline">
 <button className="sb-share-icon" onClick={() => { proto().shareToSocial?.("fb"); }} title="Facebook">{IconFacebook}</button>
 <button className="sb-share-icon" onClick={(e) => { proto().shareToSocial?.("ig", e.currentTarget); }} title="Instagram">{IconInstagram}</button>
-<button className="sb-share-icon" onClick={() => { window.print(); }} title="Print"><svg><use href="#gl-print"/></svg></button>
+<button className="sb-share-icon" onClick={() => { proto().closeSidebar?.(); setTimeout(() => window.print(), 80); }} title="Print"><svg><use href="#gl-print"/></svg></button>
 </div></div>
 
 <div className="sb-footer"><button className="sb-logout" onClick={signOutAndGoAuth}>გასვლა</button></div>
