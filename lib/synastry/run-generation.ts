@@ -14,18 +14,36 @@ export type SynastryGenResult =
   | { ok: true; status: 'complete' | 'already_complete' }
   | { ok: false; error: string; httpStatus: number };
 
-function deepNameNormalize(value: unknown, from: string, to: string): unknown {
-  if (!from || from === to) return value;
-  if (typeof value === 'string') return value.split(from).join(to);
-  if (Array.isArray(value)) return value.map((v) => deepNameNormalize(v, from, to));
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Replace `from` with `to` only where `from` stands alone as a word — never
+// when it sits inside a larger word. A naive split/join rewrites substrings:
+// when the model spells a Latin name in Georgian (e.g. "ანა") and we normalize
+// it back to "Ana", "ანა" also appears inside unrelated Georgian words
+// ("ამოცანაა" → "ამოცAnaა"). \p{L}/\p{N} cover Latin + Georgian letters and
+// digits on both sides, so only free-standing occurrences are replaced.
+function buildNameBoundaryRegExp(from: string): RegExp {
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(from)}(?![\\p{L}\\p{N}])`, 'gu');
+}
+
+function deepReplace(value: unknown, re: RegExp, to: string): unknown {
+  if (typeof value === 'string') return value.replace(re, () => to);
+  if (Array.isArray(value)) return value.map((v) => deepReplace(v, re, to));
   if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = deepNameNormalize(v, from, to);
+      out[k] = deepReplace(v, re, to);
     }
     return out;
   }
   return value;
+}
+
+function deepNameNormalize(value: unknown, from: string, to: string): unknown {
+  if (!from || from === to) return value;
+  return deepReplace(value, buildNameBoundaryRegExp(from), to);
 }
 
 function enforcePersonNames(
