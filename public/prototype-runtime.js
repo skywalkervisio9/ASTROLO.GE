@@ -2598,7 +2598,7 @@ var _sectionPickerSections = {
   ka: { characteristics: 'მახასიათებლები', relationships: 'ურთიერთობები', work: 'საქმე', shadow: 'ჩრდილი', spiritual: 'სამშვინველი', potential: 'სრულყოფილება' },
   en: { characteristics: 'Characteristics', relationships: 'Relationships', work: 'Work', shadow: 'Shadow', spiritual: 'Spiritual', potential: 'Potential' }
 };
-var _sectionPickerIcons = { characteristics: 'gl-diamond', relationships: 'gl-venus', work: 'gl-mars', shadow: 'gl-moon', spiritual: 'gl-sparkle', potential: 'gl-diamond' };
+var _sectionPickerIcons = { characteristics: 'gl-facet', relationships: 'gl-venus', work: 'gl-laurel', shadow: 'gl-moon', spiritual: 'gl-lotus', potential: 'gl-radiant' };
 var _selectedFreePick = 'shadow'; // default
 
 function startLoading(lang, durationMs) {
@@ -2906,9 +2906,9 @@ document.addEventListener('mousemove', e => {
 
 const SECTION_KEYS = ['overview','mission','characteristics','relationships','work','shadow','spiritual','potential'];
 const SECTION_ICONS_MAP = {
-  overview: 'gl-sparkle', mission: 'gl-node', characteristics: 'gl-diamond',
-  relationships: 'gl-venus', work: 'gl-mars', shadow: 'gl-moon',
-  spiritual: 'gl-sparkle', potential: 'gl-diamond'
+  overview: 'gl-sparkle', mission: 'gl-northstar', characteristics: 'gl-facet',
+  relationships: 'gl-venus', work: 'gl-laurel', shadow: 'gl-moon',
+  spiritual: 'gl-lotus', potential: 'gl-radiant'
 };
 const SECTION_NAV_LABELS = {
   ka: {
@@ -3665,6 +3665,11 @@ window.hydrateReading = hydrateReading;
   var _cObs = new IntersectionObserver(function(entries) {
     entries.forEach(function(en) { en.target.classList.toggle('c-active', en.isIntersecting); });
   }, BAND);
+  // Section headers: bloom the section icon while the header crosses center,
+  // mirroring the desktop .sh:hover glow (see .sh-active in globals.css).
+  var _shObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(en) { en.target.classList.toggle('sh-active', en.isIntersecting); });
+  }, BAND);
   function attachObservers() {
     document.querySelectorAll('.c:not([data-c-obs]),.card:not([data-c-obs])').forEach(function(el) {
       el.setAttribute('data-c-obs', '1');
@@ -3673,6 +3678,10 @@ window.hydrateReading = hydrateReading;
     document.querySelectorAll('.h:not([data-h-obs])').forEach(function(el) {
       el.setAttribute('data-h-obs', '1');
       _hObs.observe(el);
+    });
+    document.querySelectorAll('.sh:not([data-sh-obs])').forEach(function(el) {
+      el.setAttribute('data-sh-obs', '1');
+      _shObs.observe(el);
     });
   }
   // Coalesce bursts of mutations (React commits, language re-hydrate) into one

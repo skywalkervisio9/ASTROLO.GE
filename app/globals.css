@@ -223,8 +223,23 @@ body.free-tier .nbtn.locked{opacity:.5}
 section{margin-bottom:80px;opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease;scroll-margin-top:125px}
 section.vis{opacity:1;transform:translateY(0)}
 .sh{text-align:center;margin-bottom:32px}
-.sh .section-icon{width:44px;height:44px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
-.sh .section-icon svg{width:24px;height:24px;color:var(--gold)}
+.sh .section-icon{width:48px;height:48px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
+.sh .section-icon svg{width:30px;height:30px;color:var(--gold)}
+/* Desktop: slightly larger section icons. Mobile keeps the 30px size above. */
+@media (min-width:768px){
+  .sh .section-icon,.section-head .section-icon{width:56px;height:56px}
+  .sh .section-icon svg,.section-head .section-icon svg{width:37px;height:37px}
+}
+/* Subtle interactive bloom: section icons glow + lift on hover (desktop) and
+   when scrolled to the viewport center band (mobile, via .sh-active toggled by
+   the IntersectionObserver in prototype-runtime.js). */
+.sh .section-icon svg,.section-head .section-icon svg{transition:filter .55s var(--ease),transform .55s var(--ease)}
+.sh:hover .section-icon svg,.sh.sh-active .section-icon svg,
+.section-head:hover .section-icon svg{filter:drop-shadow(0 0 11px rgba(228,199,107,.6));transform:scale(1.08)}
+@media(prefers-reduced-motion:reduce){
+  .sh .section-icon svg,.section-head .section-icon svg{transition:filter .55s var(--ease)}
+  .sh:hover .section-icon svg,.sh.sh-active .section-icon svg,.section-head:hover .section-icon svg{transform:none}
+}
 .sh h2{font-family:var(--fd);font-weight:400;font-size:clamp(1.3rem,3vw,1.7rem);color:var(--gold);letter-spacing:.06em;margin-bottom:4px}
 .sh .st{font-size:.82rem;color:var(--silver);letter-spacing:.06em;text-align:center;max-width:520px;margin:4px auto 0;line-height:1.7}
 
@@ -802,8 +817,8 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
 .analysis-section{margin-bottom:80px;opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease}
 .analysis-section.vis{opacity:1;transform:translateY(0)}
 .section-head{text-align:center;margin-bottom:32px;position:relative}
-.section-head .section-icon{width:44px;height:44px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
-.section-head .section-icon svg{width:24px;height:24px}
+.section-head .section-icon{width:48px;height:48px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
+.section-head .section-icon svg{width:30px;height:30px}
 .section-head h2{font-family:var(--fd);font-weight:400;font-size:clamp(1.3rem,3vw,1.7rem);color:var(--gold);letter-spacing:.06em;margin-bottom:4px}
 .section-head .st{font-size:.82rem;color:var(--silver);letter-spacing:.06em;text-align:center;max-width:520px;margin:4px auto 0;line-height:1.7}
 
@@ -931,7 +946,10 @@ body[data-view="auth"] #page-signup .field{margin-bottom:8px}
 .auth-sigil-svg .as-svg{width:100%;height:100%;display:block;transition:transform .55s var(--ease),filter .55s var(--ease)}
 .auth-sigil:has(.auth-sigil-login):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
 .auth-sigil:has(.auth-sigil-login):hover .auth-sigil-svg{filter:drop-shadow(0 0 24px rgba(228,199,107,.65))}
-.auth-sigil:has(.auth-sigil-login):hover .as-svg{transform:scale(1.12);filter:blur(.35px)}
+/* Login star spins one slow turn on hover (and eases back out), mirroring the
+   signup asterisk, while keeping the existing bloom + scale. */
+.auth-sigil-login .as-svg{transform:rotate(0);transition:transform 5s cubic-bezier(.4,0,.2,1),filter .55s var(--ease)}
+.auth-sigil:has(.auth-sigil-login):hover .as-svg{transform:rotate(360deg) scale(1.12);filter:blur(.35px)}
 .auth-sigil:has(.auth-sigil-signup):hover{border-color:var(--gold);box-shadow:0 0 28px rgba(228,199,107,.18)}
 .auth-sigil:has(.auth-sigil-signup):hover .auth-sigil-svg{filter:drop-shadow(0 0 22px rgba(228,199,107,.65))}
 /* Hover spin: transition between rotate(0) and rotate(720deg) so the asterisk
