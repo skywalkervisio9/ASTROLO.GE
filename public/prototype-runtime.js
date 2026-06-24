@@ -1092,6 +1092,12 @@ window.addEventListener('scroll', () => {
   }
   document.getElementById('scrollTop').classList.toggle('show', window.scrollY > 600);
 
+  // Dismiss any open tap/hover popup (planet table cell, element tag, zodiac
+  // sign, aspect) once the user starts scrolling — the popup is anchored to a
+  // fixed viewport position and would otherwise float detached from its cell.
+  // closePopup() fades it out over 250ms, so it's gone within ~half a second.
+  if (activePopup) closePopup();
+
 });
 
 // ═══ OBSERVERS ═══
@@ -3365,7 +3371,21 @@ function _buildSectionContent(sectionKey, section) {
       var thLabels = _hydrateLang === 'ka'
         ? ['პლანეტა','ნიშანი','გრადუსი','სახლი','სტიქია']
         : ['Planet','Sign','Degree','House','Element'];
-      html += '<div class="c"><table class="pt"><thead><tr>';
+      html += '<div class="c">';
+      // Mobile-only nudge: the table cells are tappable for popups, but that
+      // affordance isn't obvious on touch. Styled as a neutral "UI tip" chip
+      // (info glyph + grey) so it reads as interface guidance, not chart data.
+      // Shown via CSS only ≤720px.
+      var _ptHintText = _hydrateLang === 'ka'
+        ? 'დააჭირე სიმბოლოებს მნიშვნელობის გასაგებად'
+        : 'Tap the symbols to see what they mean';
+      html += '<div class="pt-hint"><span class="pt-hint-chip">' +
+        '<svg class="pt-hint-ico" viewBox="0 0 24 24" aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/>' +
+        '<line x1="12" y1="11" x2="12" y2="16.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+        '<circle cx="12" cy="7.4" r="1.15" fill="currentColor"/></svg>' +
+        '<span>' + _ptHintText + '</span></span></div>';
+      html += '<table class="pt"><thead><tr>';
       thLabels.forEach(function(th) { html += '<th>' + th + '</th>'; });
       html += '</tr></thead><tbody>';
       section.planetTable.forEach(function(row) { html += _buildPlanetRow(row); });
@@ -3623,47 +3643,53 @@ function hydrateReading(reading, user) {
 
 window.hydrateReading = hydrateReading;
 
-// ═══ HINT-BOX STAR SCROLL ROTATION (MOBILE ONLY) ═══
-// Rotate the sparkle SVG in each .h box whenever the box crosses the viewport middle.
-// Reuses the same 90° transform defined on .h:hover — see globals.css `.h.h-active .ht svg`.
-// Mobile-only, like the .c-active card observer below: on desktop, .h-active would
-// share the hover end-state and pin the star at 90°, making :hover look broken until
-// the box scrolled out of the center band. Desktop relies on :hover alone.
+// ═══ MOBILE: SCROLL-ACTIVATE CARDS + ROTATE HINT STARS ═══
+// On mobile, hover doesn't work — so as the page scrolls we mark whichever
+// card (.c/.card) and hint box (.h) is crossing the viewport center band as
+// "active", mirroring the desktop :hover styles via .c-active / .h-active in
+// globals.css (the latter reuses the same 90° sparkle-rotation as .h:hover).
+//
+// Cards/hints in BOTH readings are rendered by React (natal cards portal in
+// after `reading:hydrated`; the whole synastry view mounts after
+// `synastry-ready`), so a one-shot attach on those events races the render and
+// misses most nodes. Instead we observe DOM mutations and attach the
+// IntersectionObserver to any not-yet-tracked .c/.card/.h as they appear.
+// Desktop is skipped: there .h-active would pin the star at 90° and fight :hover.
 (function() {
   if (typeof IntersectionObserver === 'undefined') return;
   if (typeof matchMedia === 'undefined' || !matchMedia('(max-width: 720px)').matches) return;
+  var BAND = { rootMargin: '-45% 0px -45% 0px' }; // ~10% band around viewport vertical center
   var _hObs = new IntersectionObserver(function(entries) {
     entries.forEach(function(en) { en.target.classList.toggle('h-active', en.isIntersecting); });
-  }, { rootMargin: '-45% 0px -45% 0px' }); // ~10% band around viewport vertical center
-  function attachHintObservers() {
+  }, BAND);
+  var _cObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(en) { en.target.classList.toggle('c-active', en.isIntersecting); });
+  }, BAND);
+  function attachObservers() {
+    document.querySelectorAll('.c:not([data-c-obs]),.card:not([data-c-obs])').forEach(function(el) {
+      el.setAttribute('data-c-obs', '1');
+      _cObs.observe(el);
+    });
     document.querySelectorAll('.h:not([data-h-obs])').forEach(function(el) {
       el.setAttribute('data-h-obs', '1');
       _hObs.observe(el);
     });
   }
-  window.addEventListener('reading:hydrated', function() { setTimeout(attachHintObservers, 150); });
-  document.addEventListener('DOMContentLoaded', attachHintObservers);
-})();
-
-// ═══ MOBILE: SCROLL-ACTIVATE CARDS ═══
-// On mobile, hover doesn't work — instead, mark a card "active" (mirrors :hover
-// styles via .c.c-active / .card.c-active in globals.css) when it crosses the
-// viewport vertical center band. Pattern mirrors the .h-active observer above.
-(function() {
-  if (typeof IntersectionObserver === 'undefined') return;
-  if (typeof matchMedia === 'undefined' || !matchMedia('(max-width: 720px)').matches) return;
-  var _cObs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(en) { en.target.classList.toggle('c-active', en.isIntersecting); });
-  }, { rootMargin: '-45% 0px -45% 0px' }); // ~10% band around viewport vertical center
-  function attachCardObservers() {
-    document.querySelectorAll('.c:not([data-c-obs]),.card:not([data-c-obs])').forEach(function(el) {
-      el.setAttribute('data-c-obs', '1');
-      _cObs.observe(el);
-    });
+  // Coalesce bursts of mutations (React commits, language re-hydrate) into one
+  // attach pass on the next frame.
+  var _pending = false;
+  function scheduleAttach() {
+    if (_pending) return;
+    _pending = true;
+    requestAnimationFrame(function() { _pending = false; attachObservers(); });
   }
-  window.addEventListener('reading:hydrated', function() { setTimeout(attachCardObservers, 150); });
-  document.addEventListener('DOMContentLoaded', attachCardObservers);
-  attachCardObservers();
+  var _mo = new MutationObserver(scheduleAttach);
+  function start() {
+    attachObservers();
+    _mo.observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.body) start();
+  else document.addEventListener('DOMContentLoaded', start);
 })();
 
 // ═══ INIT ═══

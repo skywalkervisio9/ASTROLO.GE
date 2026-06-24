@@ -629,7 +629,7 @@ export default function BodyContent() {
 </div>
 
 
-<button className="scroll-top" id="scrollTop" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); }}><svg style={{width: '16px', height: '16px', fill: 'var(--gold)'}}><use href="#gl-arrow-up"/></svg></button>
+<button className="scroll-top" id="scrollTop" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); }}><svg style={{width: '16px', height: '16px', fill: 'none', stroke: 'var(--gold)'}}><use href="#gl-arrow-up"/></svg></button>
 
 
 <nav className="tb">

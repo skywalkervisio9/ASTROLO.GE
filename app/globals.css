@@ -380,6 +380,15 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 .pt td:nth-child(4),.pt th:nth-child(4){width:17%;text-align:center;padding-right:64px}
 .pt td:nth-child(5),.pt th:nth-child(5){width:18%;text-align:left;padding-left:20px}
 .pt-name{margin-left:5px;font-size:.75rem;color:var(--silver);vertical-align:middle}
+/* "Tap the symbols" hint — desktop relies on hover, so show only on touch/mobile */
+.pt-hint{display:none}
+@media(max-width:720px){
+  /* Technical UI tip — neutral grey info-chip, deliberately distinct from the
+     gold astrological labels so it reads as interface guidance, not chart data. */
+  .pt-hint{display:flex;justify-content:center;margin:0 0 14px}
+  .pt-hint-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:5px 11px;font-size:.56rem;letter-spacing:.05em;line-height:1.35;color:var(--txd);background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:100px}
+  .pt-hint-ico{width:12px;height:12px;flex-shrink:0;opacity:.8}
+}
 .pb2{display:inline-flex;align-items:center;gap:4px;font-size:.74rem;color:var(--gd);background:rgba(201,168,76,.05);padding:3px 9px;border-radius:6px;margin-right:4px;margin-bottom:4px}
 .pb2 .gi{vertical-align:middle;width:1em;height:1em;flex-shrink:0}
 /* Aspect list in overview section */
@@ -520,7 +529,7 @@ body.free-tier .lock-wrap.locked + section{display:none}
 .scroll-top{position:fixed;bottom:20px;right:20px;z-index:150;width:42px;height:42px;border-radius:50%;border:1px solid rgba(201,168,76,.1);background:rgba(10,10,15,.9);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transform:translateY(10px);pointer-events:none;transition:all .4s var(--ease)}
 .scroll-top.show{opacity:1;transform:translateY(0);pointer-events:all}
 .scroll-top:hover{border-color:rgba(201,168,76,.3);background:rgba(201,168,76,.06);box-shadow:0 0 20px rgba(201,168,76,.1)}
-.scroll-top svg{width:16px;height:16px;fill:var(--gold);transition:transform .3s}
+.scroll-top svg{width:16px;height:16px;fill:none;color:var(--gold);stroke:var(--gold);transition:transform .3s}
 .scroll-top:hover svg{transform:translateY(-2px)}
 
 /* ═══ FOOTER (from synastry) ═══ */
@@ -536,7 +545,7 @@ body.free-tier .lock-wrap.locked + section{display:none}
 
 .sec-div{text-align:center;padding:12px 0}.sec-div-line{width:1px;height:50px;margin:0 auto;background:linear-gradient(to bottom,transparent,var(--gd),transparent)}
 
-@media(max-width:720px){.hero{min-height:unset;padding-top:80px;padding-bottom:24px}.sigil{width:min(560px,calc(100vw - 4px));height:min(560px,calc(100vw - 4px))}.hero-glow{width:min(560px,calc(100vw - 4px));height:min(560px,calc(100vw - 4px))}.mini-chart .mc-label{display:none}.g2{grid-template-columns:1fr}.pn{display:none}.tbl{margin-left:-12px}.lt{font-size:1.5rem;letter-spacing:.03em}.lt-ge{display:none}.lm{width:24px;height:24px}.lm svg{width:12px;height:12px}.nb .ct{justify-content:flex-start;flex-wrap:nowrap}.account-dd{width:100%;max-width:100%;border-radius:0}.invite-opts{flex-direction:column}.al-type{display:none}.c{padding:16px}.label-popup{left:0;transform:none;max-width:min(300px,calc(100vw - 48px))}.pb2{font-size:.62rem;padding:3px 6px;gap:3px}.pts-row{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none}.pts-row::-webkit-scrollbar{display:none}.al{gap:6px;font-size:.75rem}.pt{width:100%}.pt td,.pt th{padding:5px 4px;font-size:.65rem;white-space:nowrap;text-align:center}.pt td:nth-child(1),.pt th:nth-child(1){width:20%;text-align:center}.pt td:nth-child(2),.pt th:nth-child(2){width:20%;text-align:center}.pt td:nth-child(3),.pt th:nth-child(3){width:20%;text-align:center;font-variant-numeric:tabular-nums;padding-left:4px}.pt td:nth-child(4),.pt th:nth-child(4){width:20%;text-align:center;padding-right:4px}.pt td:nth-child(5),.pt th:nth-child(5){width:20%;text-align:center;display:table-cell}.pt .gi{width:1.3em;height:1.3em}.pt-name{display:none}.et{font-size:.6rem;padding:1px 5px}.cl{display:block}.cl-row{display:block;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}.cl-row:last-child{border-bottom:none}.cl-t{white-space:normal;border-right:none;border-bottom:none;padding:0 0 4px;text-align:left;display:block;line-height:1.4}.cl-t:has(.cl-t-main){max-width:none}.cl-b{padding:0;border-bottom:none;display:block;line-height:1.7}.cl-b-full{padding-left:0}}
+@media(max-width:720px){.hero{min-height:unset;padding-top:80px;padding-bottom:24px}.sigil{width:min(560px,calc(100vw - 4px));height:min(560px,calc(100vw - 4px))}.hero-glow{width:min(560px,calc(100vw - 4px));height:min(560px,calc(100vw - 4px))}.mini-chart .mc-label{display:none}.g2{grid-template-columns:1fr}.pn{display:none}.tbl{margin-left:-12px}.lt{font-size:1.5rem;letter-spacing:.03em}.lt-ge{display:none}.lm{width:24px;height:24px}.lm svg{width:12px;height:12px}.nb .ct{justify-content:flex-start;flex-wrap:nowrap}.account-dd{width:100%;max-width:100%;border-radius:0}.invite-opts{flex-direction:column}.al-type{display:none}.c{padding:16px}.label-popup{left:0;transform:none;max-width:min(300px,calc(100vw - 48px))}.pb2{font-size:.62rem;padding:3px 6px;gap:3px}.pts-row{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none}.pts-row::-webkit-scrollbar{display:none}.al{gap:6px;font-size:.75rem}.pt{width:100%}.pt td,.pt th{padding:5px 4px;font-size:.65rem;white-space:nowrap;text-align:center}.pt th{font-size:.6rem;letter-spacing:0;padding-left:2px;padding-right:2px}.pt td:nth-child(1),.pt th:nth-child(1){width:20%;text-align:center}.pt td:nth-child(2),.pt th:nth-child(2){width:16%;text-align:center}.pt td:nth-child(3),.pt th:nth-child(3){width:24%;text-align:center;font-variant-numeric:tabular-nums;padding-left:4px}.pt td:nth-child(4),.pt th:nth-child(4){width:14%;text-align:center;padding-right:4px}.pt td:nth-child(5),.pt th:nth-child(5){width:26%;text-align:center;display:table-cell;padding-right:10px}.pt .gi{width:1.3em;height:1.3em}.pt-name{display:none}.et{font-size:.6rem;padding:1px 5px}.cl{display:block}.cl-row{display:block;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}.cl-row:last-child{border-bottom:none}.cl-t{white-space:normal;border-right:none;border-bottom:none;padding:0 0 4px;text-align:left;display:block;line-height:1.4}.cl-t:has(.cl-t-main){max-width:none}.cl-b{padding:0;border-bottom:none;display:block;line-height:1.7}.cl-b-full{padding-left:0}}
 ::selection{background:rgba(201,168,76,.2);color:var(--tx)}
 
 
@@ -689,7 +698,14 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
 .bb:hover{border-color:rgba(201,168,76,.25);color:var(--gold);transform:translateY(-1px)}
 .bb.active{border-color:var(--gd);color:var(--gold);background:rgba(201,168,76,.06)}
 .ndv{color:var(--txd);font-size:.5rem;opacity:.3}
-@media (max-width:560px){.bnav{display:flex;flex-wrap:wrap;justify-content:center}.bnav-l,.bnav-r{justify-content:center}}
+@media (max-width:560px){
+  /* Stack: active "Synastry" centered on top, the two chart buttons below
+     it (← my chart on the left, partner's chart → on the right). */
+  .bnav{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"active active" "left right";gap:10px}
+  .bnav>.bb.active{grid-area:active;justify-self:center}
+  .bnav-l{grid-area:left;justify-content:flex-start}
+  .bnav-r{grid-area:right;justify-content:flex-end}
+}
 
 /* Synastry Hero */
 .chero{text-align:center;padding:56px 0 32px;position:relative}
@@ -767,9 +783,13 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
 .cat-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold),rgba(201,168,76,.55));box-shadow:0 0 8px rgba(201,168,76,.18);transition:width 1.4s cubic-bezier(.22,.61,.36,1)}
 .cat-desc{font-size:.72rem;color:var(--txd);line-height:1.7}
 
-/* Section Nav (sticky) */
-.snav{display:flex;gap:6px;justify-content:center;flex-wrap:nowrap;margin:0 calc(-24px - clamp(0px, (100vw - 880px)/2 - 16px, 80px)) 50px;padding:14px calc(24px + clamp(0px, (100vw - 880px)/2 - 16px, 80px));border-top:1px solid rgba(201,168,76,.04);border-bottom:1px solid rgba(201,168,76,.04);position:sticky;top:56px;z-index:100;background:rgba(10,10,15,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
-.snav::-webkit-scrollbar{display:none}
+/* Section Nav (sticky) — mirrors the natal reading's .nb / .nb .ct:
+   .snav is the full-bleed sticky bar; .snav-track is the inset scroll
+   container, so the bar background spans edge-to-edge while pills scroll
+   within (and clip at) the content margins. */
+.snav{margin:0 calc(-24px - clamp(0px, (100vw - 880px)/2 - 16px, 80px)) 50px;padding:14px calc(24px + clamp(0px, (100vw - 880px)/2 - 16px, 80px));border-top:1px solid rgba(201,168,76,.04);border-bottom:1px solid rgba(201,168,76,.04);position:sticky;top:56px;z-index:100;background:rgba(10,10,15,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.snav-track{display:flex;gap:6px;justify-content:center;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.snav-track::-webkit-scrollbar{display:none}
 .snb{background:none;border:1px solid rgba(201,168,76,.08);color:var(--txd);font-family:var(--fb);font-size:.64rem;letter-spacing:.06em;padding:7px 13px;border-radius:100px;cursor:pointer;transition:all .35s var(--ease);white-space:nowrap;position:relative;overflow:hidden;flex-shrink:0;min-height:34px;display:inline-flex;align-items:center;justify-content:center}
 .snb::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(201,168,76,.08),transparent);opacity:0;transition:opacity .3s;pointer-events:none}
 .snb:hover::before,.snb.active::before{opacity:1}
@@ -853,12 +873,12 @@ body.mode-couple .friend-only{display:none}
   .bridge{flex-direction:row;padding:8px 0}
   .bridge-line{width:50px;height:1px;background:linear-gradient(90deg,transparent,var(--gd),transparent)}
   .cats,.grid-2{grid-template-columns:1fr}
-  .snav{gap:4px;padding:10px 12px}
-  .snb{padding:5px 9px;font-size:.58rem;letter-spacing:.03em}
+  /* Like the natal nav on mobile (.nb .ct): pills align from the left and
+     scroll, clipping at the bar's 24px inset rather than the screen edge. */
+  .snav-track{justify-content:flex-start}
 }
 @media(max-width:480px){
   .cats{grid-template-columns:1fr 1fr}
-  .snb{padding:4px 8px;font-size:.54rem;flex:0 0 auto}
 }
 
 

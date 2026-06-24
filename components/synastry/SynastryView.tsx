@@ -231,7 +231,7 @@ export default function SynastryView({
 
   const [activeSection, setActiveSection] = useState(0);
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
-  const navRef = useRef<HTMLElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
   const isProgrammaticNavScroll = useRef(false);
   const userOverrideUntil = useRef(0);
 
@@ -436,19 +436,25 @@ export default function SynastryView({
           ))}
         </div>
 
-        {/* Section Navigation — uses .snav/.snb (same as natal synastry shared nav) */}
-        <nav className="snav" ref={navRef} role="tablist">
-          {sections.map((s, i) => (
-            <button
-              key={s.key}
-              role="tab"
-              aria-selected={activeSection === i}
-              className={`snb${activeSection === i ? ' active' : ''}`}
-              onClick={() => scrollToSection(i)}
-            >
-              {navLabels[s.key] || s.key}
-            </button>
-          ))}
+        {/* Section Navigation — mirrors the natal reading's nav structure:
+            a full-bleed sticky bar (.snav, like .nb) wrapping an inset
+            horizontal scroll track (.snav-track, like .nb .ct). The inner
+            track is what scrolls, so pills clip at the content margin, not the
+            screen edge. */}
+        <nav className="snav" role="tablist">
+          <div className="snav-track" ref={navRef}>
+            {sections.map((s, i) => (
+              <button
+                key={s.key}
+                role="tab"
+                aria-selected={activeSection === i}
+                className={`snb${activeSection === i ? ' active' : ''}`}
+                onClick={() => scrollToSection(i)}
+              >
+                {navLabels[s.key] || s.key}
+              </button>
+            ))}
+          </div>
         </nav>
 
         {/* Sections — each uses .sh / .c / .b / .ce / .tb2 / .h / .ht just like natal */}
