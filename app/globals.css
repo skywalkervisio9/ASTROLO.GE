@@ -11,6 +11,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-weight:300;
    when the synastry view is actually active — otherwise the natal reading
    loses its background stars. */
 body.hide-global-stars[data-view="synastry"] #stars{display:none}
+/* While a full-screen loader is up — the synastry cosmic loader or the
+   /loading overlay — the top scroll-progress bar (.pbar) isn't tracking a
+   scrollable reading, so it reads as a stray gold line across the loader.
+   Hide it for both. */
+body.hide-global-stars[data-view="synastry"] .pbar,
+body:has(#loadingScreen.active) .pbar{display:none}
 .star{position:absolute;width:2px;height:2px;background:rgba(255,255,255,.5);border-radius:50%;animation:tw var(--d,3s) ease-in-out infinite alternate}
 @keyframes tw{0%{opacity:.1}100%{opacity:.6}}
 .ct{position:relative;z-index:2;max-width:880px;margin:0 auto;padding:0 24px}
