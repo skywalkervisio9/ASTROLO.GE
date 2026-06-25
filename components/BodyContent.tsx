@@ -668,11 +668,11 @@ export default function BodyContent() {
 
 <footer className="footer"><div className="ct">
 <div className="footer-social">
-<a href="#" className="social-link" title="Instagram">{IconInstagram}</a>
-<a href="#" className="social-link" title="Facebook">{IconFacebook}</a>
-<a href="#" className="social-link" title="TikTok">{IconTikTok}</a>
+<a href="#" className="social-link" title="Instagram-ზე გაზიარება" aria-label="Instagram-ზე გაზიარება" onClick={(e) => { e.preventDefault(); proto().shareToSocial?.("ig", e.currentTarget); }}>{IconInstagram}</a>
+<a href="#" className="social-link" title="Facebook-ზე გაზიარება" aria-label="Facebook-ზე გაზიარება" onClick={(e) => { e.preventDefault(); proto().shareToSocial?.("fb", e.currentTarget); }}>{IconFacebook}</a>
+<a href="#" className="social-link" title="TikTok-ზე გაზიარება" aria-label="TikTok-ზე გაზიარება" onClick={(e) => { e.preventDefault(); proto().shareToSocial?.("tt", e.currentTarget); }}>{IconTikTok}</a>
 </div>
-<div className="footer-links"><a href="#">ჩვენს შესახებ</a><a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>კონფიდენციალობა</a><a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>პირობები</a><a href="mailto:contact@astrolo.ge">კონტაქტი</a></div>
+<div className="footer-links"><a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('about'); }}>ჩვენს შესახებ</a><a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>კონფიდენციალობა</a><a href="#" onClick={(e) => { e.preventDefault(); setLegalDoc('terms'); }}>პირობები</a><a href="mailto:contact@astrolo.ge">კონტაქტი</a></div>
 <div className="footer-copy">© 2026 ASTROLO.GE</div>
 </div></footer>
 </div>

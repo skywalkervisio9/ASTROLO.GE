@@ -375,16 +375,18 @@ export default function SynastryCosmicState({ mode, language, progressLabel, err
             <span className="sycos-orb sycos-orb-a" />
             <span className="sycos-orb sycos-orb-b" />
           </div>
+          {/* Two luminous rings (gold + rose, echoing the orbiting orbs)
+              gently overlap with a pulsing spark where they meet — a
+              "two charts becoming one" union mark, the heart of synastry. */}
           <div className="sycos-glyph">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <use href="#gl-conjunction" />
-            </svg>
+            <span className="sycos-union sycos-union-a" />
+            <span className="sycos-union sycos-union-b" />
+            <span className="sycos-union-spark" />
           </div>
         </div>
       </div>
 
       <div className="sycos-content">
-        <div className="sycos-eyebrow">{copy.eyebrow}</div>
         <h1 className="sycos-title">{copy.title}</h1>
         <p className="sycos-sub">{copy.sub}</p>
 

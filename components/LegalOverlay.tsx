@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Full-screen overlay that renders the two legal documents as in-app panels:
+ * Full-screen overlay that renders the in-app document panels:
  *   - 'terms'   → combined Terms of Use & Privacy ("პირობები და კონფიდენციალობა")
  *   - 'payment' → Payment Terms ("გადახდის პირობები")
+ *   - 'about'   → About us ("ჩვენს შესახებ")
  *
  * Both language versions are present in the DOM; CSS toggles them off the
  * `body.lang-en` class (see .lg-ka / .lg-en rules in globals.css), so switching
@@ -11,7 +12,7 @@
  */
 import { useEffect } from "react";
 
-export type LegalDoc = "terms" | "payment" | null;
+export type LegalDoc = "terms" | "payment" | "about" | null;
 
 const CONTACT = "contact@astrolo.ge";
 const UPDATED_KA = "ბოლო განახლება: 28.05.2026";
@@ -58,6 +59,7 @@ export default function LegalOverlay({
         </button>
         {doc === "terms" && <TermsDoc />}
         {doc === "payment" && <PaymentDoc />}
+        {doc === "about" && <AboutDoc />}
       </div>
     </div>
   );
@@ -509,6 +511,103 @@ function PaymentDoc() {
         <p>
           For any payment-related question, contact us at{" "}
           <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── About us ────────────────────────────────────────────────────────────── */
+function AboutDoc() {
+  return (
+    <div className="legal-doc">
+      {/* Brand wordmark — language-independent, centered above both versions */}
+      <div className="about-brand">
+        <span className="tbl" aria-label="ASTROLO.GE">
+          <span className="lm">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <use href="#gl-brand-sparkle" />
+            </svg>
+          </span>
+          <span className="lt">
+            ASTROLO
+            <span className="lt-ge">
+              <span className="lt-dot">.</span>GE
+            </span>
+          </span>
+        </span>
+      </div>
+
+      {/* ───── ქართული ───── */}
+      <div className="lg-ka">
+        <div className="legal-eyebrow">✦ ჩვენ შესახებ</div>
+        <h1>ჩვენს შესახებ</h1>
+
+        <p>
+          ASTROLO.GE არის ქართული ასტროლოგიური პლატფორმა, რომელიც ზუსტ
+          ასტრონომიულ გათვლებსა და თანამედროვე ტექნოლოგიას აერთიანებს, რათა
+          მიიღო ღრმა და პერსონალური ვარსკვლავური წაკითხვა — შენი დაბადების
+          ზუსტ მონაცემებზე დაყრდნობით.
+        </p>
+
+        <h2>ჩვენი მისია</h2>
+        <p>
+          გვჯერა, რომ ასტროლოგია თვითშემეცნების ლამაზი ენაა. ჩვენი მიზანია,
+          ეს ენა ხელმისაწვდომი და გასაგები გავხადოთ ქართულად — სიღრმის
+          დაკარგვის გარეშე. თითოეული წაკითხვა იქმნება ინდივიდუალურად, შენი
+          ნატალური რუკის უნიკალური სურათის მიხედვით.
+        </p>
+
+        <h2>როგორ მუშაობს</h2>
+        <p>
+          შენი დაბადების თარიღის, დროისა და ადგილის საფუძველზე ვითვლით ზუსტ
+          ნატალურ რუკას — პლანეტების მდებარეობას, ასპექტებსა და სახლებს.
+          შემდეგ ეს გათვლები გადააქცევა ცოცხალ, წასაკითხ ტექსტად, რომელიც
+          შენზეა მორგებული. შეგიძლია გამოიკვლიო თავსებადობაც (სინასტრია)
+          საყვარელ ადამიანებთან.
+        </p>
+
+        <h2>დაგვიკავშირდი</h2>
+        <p>
+          კითხვის, წინადადების ან თანამშრომლობის შემთხვევაში მოგვწერე:{" "}
+          <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. სიამოვნებით
+          მოგისმენთ.
+        </p>
+      </div>
+
+      {/* ───── English ───── */}
+      <div className="lg-en">
+        <div className="legal-eyebrow">✦ About</div>
+        <h1>About us</h1>
+
+        <p>
+          ASTROLO.GE is a Georgian astrology platform that combines precise
+          astronomical calculation with modern technology to give you a deep,
+          personal star reading — grounded in your exact birth details.
+        </p>
+
+        <h2>Our mission</h2>
+        <p>
+          We believe astrology is a beautiful language for self-reflection. Our
+          goal is to make that language accessible and clear in Georgian —
+          without losing its depth. Every reading is created individually, based
+          on the unique picture of your natal chart.
+        </p>
+
+        <h2>How it works</h2>
+        <p>
+          From your birth date, time, and place we compute a precise natal chart
+          — the positions of the planets, their aspects, and the houses. We then
+          turn those calculations into living, readable text tailored to you. You
+          can also explore compatibility (synastry) with the people you care
+          about.
+        </p>
+
+        <h2>Get in touch</h2>
+        <p>
+          For questions, suggestions, or collaboration, write to us at{" "}
+          <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. We'd love to hear from
+          you.
         </p>
       </div>
     </div>
