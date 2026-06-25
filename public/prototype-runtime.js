@@ -3283,7 +3283,7 @@ function _aspectGlyph(type) {
   var ids = { conjunction: 'gl-conjunction', trine: 'gl-trine', square: 'gl-square', sextile: 'gl-sextile', opposition: 'gl-opposition' };
   var id = ids[type];
   if (!id) return '';
-  return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-1px"><use href="#' + id + '"/></svg>';
+  return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-2px"><use href="#' + id + '"/></svg>';
 }
 
 function _buildAspect(asp) {
