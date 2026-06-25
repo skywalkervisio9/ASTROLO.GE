@@ -5,7 +5,12 @@ html{scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:var(--gd) var(-
 body{background:var(--bg);color:var(--tx);font-family:var(--fb);font-weight:300;line-height:var(--lh);overflow-x:clip}
 
 .stars{position:fixed;inset:0;pointer-events:none;z-index:0}
-body.hide-global-stars #stars{display:none}
+/* The synastry cosmic loader sets .hide-global-stars to suppress the page
+   starfield while its themed sycos-starfield shows. Its wrapper is always
+   mounted (just CSS-hidden on the natal view), so scope the suppression to
+   when the synastry view is actually active — otherwise the natal reading
+   loses its background stars. */
+body.hide-global-stars[data-view="synastry"] #stars{display:none}
 .star{position:absolute;width:2px;height:2px;background:rgba(255,255,255,.5);border-radius:50%;animation:tw var(--d,3s) ease-in-out infinite alternate}
 @keyframes tw{0%{opacity:.1}100%{opacity:.6}}
 .ct{position:relative;z-index:2;max-width:880px;margin:0 auto;padding:0 24px}
