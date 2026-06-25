@@ -1073,44 +1073,54 @@ function openAspInterp(row) {
   const c = document.getElementById('stars');
   if (!c) return;
   // Three parallax depth layers. The scroll transform is set on each LAYER (see
-  // .star-layer in globals.css), so a --sy change per frame restyles 3 nodes
-  // instead of ~60 individual stars. Stars inherit their layer's --depth (the
-  // .star.tr::after trail calc still reads it) and only run their own twinkle.
+  // .star-layer in globals.css), so the parallax restyles 3 nodes per frame, not
+  // every star. Stars inherit their layer's --depth (the .star.tr::after trail
+  // calc reads it) and only run their own twinkle.
+  //
+  // SEAMLESS WRAP: each layer holds one viewport-tall tile of stars (tops in
+  // [0%,100%)) plus an identical CLONE one tile (100%) below. The parallax loop
+  // drifts the layer and wraps the offset modulo the tile height, so the field
+  // scrolls forever without ever emptying — when the offset wraps -tile→0 the
+  // clone sits exactly where the original was, so the seam is invisible. The
+  // clone shares the original's left/twinkle/size so its phase matches too.
   const DEPTHS = [0.07, 0.12, 0.17];
-  const layers = DEPTHS.map(function(depth) {
+  const PER_TILE = 16; // stars per tile per layer (≈ what's visible at once)
+  DEPTHS.forEach(function(depth) {
     const layer = document.createElement('div');
     layer.className = 'star-layer';
     layer.style.setProperty('--depth', depth.toFixed(3));
+    for (let i = 0; i < PER_TILE; i++) {
+      const left = Math.random() * 100;
+      const top = Math.random() * 100;           // within one tile
+      const d = (2 + Math.random() * 4);
+      const delay = Math.random() * 5;
+      const tr = Math.random() < 0.25;           // ~25% sprout a motion-trail
+      const tiny = Math.random() > 0.75;
+      for (let k = 0; k < 2; k++) {              // original + clone one tile down
+        const s = document.createElement('div');
+        s.className = tr ? 'star tr' : 'star';
+        s.style.left = left + '%';
+        s.style.top = (top + k * 100) + '%';
+        s.style.setProperty('--d', d + 's');
+        s.style.animationDelay = delay + 's';
+        if (tiny) { s.style.width = '1px'; s.style.height = '1px'; }
+        layer.appendChild(s);
+      }
+    }
     c.appendChild(layer);
-    return layer;
   });
-  for (let i = 0; i < 60; i++) {
-    const s = document.createElement('div');
-    s.className = 'star';
-    s.style.left = Math.random() * 100 + '%';
-    // Spread across an over-scanned band (-40%..140%) so the scroll-parallax
-    // drift never empties the top/bottom of the viewport.
-    s.style.top = (Math.random() * 180 - 40) + '%';
-    s.style.setProperty('--d', (2 + Math.random() * 4) + 's');
-    s.style.animationDelay = Math.random() * 5 + 's';
-    // ~25% of stars sprout a motion-trail streak on fast scrolls (see
-    // .star.tr::after). Tagging a subset keeps the feedback subtle and light.
-    if (Math.random() < 0.25) s.classList.add('tr');
-    if (Math.random() > .75) { s.style.width = '1px'; s.style.height = '1px'; }
-    layers[i % layers.length].appendChild(s);
-  }
 })();
 
-// ═══ STARFIELD SCROLL PARALLAX + TRAIL ═══
-// Drift the starfield on scroll (parallax) and add a brief motion-trail
-// "feedback" streak on faster scrolls — the 1-D analogue of the loading
-// screen's mousemove trails. Per frame we write just three container vars:
-//   --sy    scroll offset   (× per-star --depth → parallax drift)
+// ═══ STARFIELD SCROLL PARALLAX (seamless wrap) + TRAIL ═══
+// Drift each depth layer on scroll and add a brief motion-trail "feedback"
+// streak on faster scrolls. Per frame we write one --wy per layer (the wrapped
+// parallax offset) plus two container vars for the trail:
+//   --wy    per-layer offset = -((curY × depth) mod tile)  → endless drift
 //   --mmag  smoothed scroll speed 0..1 (drives trail length + opacity)
 //   --mdir  scroll direction ±1 (flips the streak to trail behind motion)
-// The compositor does the rest (see .star / .star.tr::after in globals.css).
-// The rAF loop only runs while scrolling + a short decay, then stops, so it
-// costs nothing at rest. Fully disabled under reduced-motion.
+// The compositor does the rest (see .star-layer / .star.tr::after in
+// globals.css). The rAF loop only runs while scrolling + a short decay, then
+// stops, so it costs nothing at rest. Fully disabled under reduced-motion.
 (function() {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   // Touch devices only: skip scroll-parallax entirely. Mobile browsers coalesce
@@ -1118,18 +1128,34 @@ function openAspInterp(row) {
   // show/hide resizes the viewport — so scrollY arrives in large discrete steps
   // and the fixed starfield snaps to each one ("jumps") instead of drifting.
   // Scroll-linked transforms on position:fixed can't be made smooth on touch,
-  // so we leave --sy/--mmag at their defaults: the starfield stays put and just
+  // so we leave --wy/--mmag at their defaults: the starfield stays put and just
   // twinkles. Desktop (fine-pointer) keeps the parallax + motion-trail.
   if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return;
   const c = document.getElementById('stars');
   if (!c) return;
-  // curY is a *smoothed* scroll position that eases toward the real scrollY
-  // each frame. Writing --sy = -scrollY directly made the stars teleport by
-  // (wheel-notch × depth) on every mouse-wheel step ("jumping"); easing turns
-  // those discrete jumps into continuous drift. The loop keeps running after
-  // scroll stops until curY has caught up, then settles and stops.
+  const layers = Array.prototype.map.call(c.querySelectorAll('.star-layer'), function(el) {
+    return { el: el, depth: parseFloat(el.style.getPropertyValue('--depth')) || 0 };
+  });
+  if (!layers.length) return;
+
+  // tile = one viewport-tall star tile (100% of the layer). The offset wraps
+  // modulo this, so the field tiles seamlessly. Kept in sync with innerHeight.
+  let tile = window.innerHeight || 800;
+  window.addEventListener('resize', function() { tile = window.innerHeight || 800; }, { passive: true });
+
+  function applyWrap() {
+    for (let i = 0; i < layers.length; i++) {
+      // ((x % tile) + tile) % tile keeps it in [0,tile) regardless of sign.
+      const off = ((curY * layers[i].depth) % tile + tile) % tile;
+      layers[i].el.style.setProperty('--wy', (-off).toFixed(2) + 'px');
+    }
+  }
+
+  // curY is a *smoothed* scroll position that eases toward the real scrollY each
+  // frame. Easing turns discrete mouse-wheel steps into continuous drift. The
+  // loop keeps running after scroll stops until curY has caught up, then stops.
   let curY = window.scrollY, mmag = 0, dir = 1, running = false, idle = 0;
-  c.style.setProperty('--sy', (-curY) + 'px');
+  applyWrap();
 
   function frame() {
     const targetY = window.scrollY;
@@ -1139,11 +1165,12 @@ function openAspInterp(row) {
     curY += (targetY - curY) * 0.16;
     const rawV = curY - prevY;
     if (Math.abs(rawV) > 0.5) dir = rawV > 0 ? 1 : -1;
-    // Normalise smoothed speed (~40px/frame ≈ full strength), then ease with a
-    // fast attack / slow decay so the streak appears at once and lingers.
+    // Trail magnitude tracks real scroll speed (rawV), not the wrapped offset,
+    // so a wrap never spikes the streak. Fast attack / slow decay so it appears
+    // at once and lingers briefly.
     const speed = Math.min(1, Math.abs(rawV) / 40);
     mmag += (speed - mmag) * (speed > mmag ? 0.4 : 0.08);
-    c.style.setProperty('--sy', (-curY).toFixed(2) + 'px');
+    applyWrap();
     c.style.setProperty('--mmag', mmag.toFixed(3));
     c.style.setProperty('--mdir', String(dir));
     // Settle only once we've caught up to the target *and* the trail decayed.
@@ -1151,7 +1178,7 @@ function openAspInterp(row) {
     if (idle > 6) {
       running = false;
       curY = targetY;
-      c.style.setProperty('--sy', (-targetY).toFixed(2) + 'px');
+      applyWrap();
       c.style.setProperty('--mmag', '0');
       return;
     }
