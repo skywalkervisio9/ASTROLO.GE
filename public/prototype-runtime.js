@@ -1007,10 +1007,11 @@ function shareToSocial(platform, btn) {
   const url = encodeURIComponent(rawUrl);
   const title = _shareTitle();
   const text = encodeURIComponent(title);
-  if (platform === 'ig') {
-    // Instagram has no web link-share endpoint (unlike Facebook/Telegram).
-    // On devices with a native share sheet, let the user pick Instagram;
-    // otherwise copy the link so they can paste it into a story/bio/DM.
+  if (platform === 'ig' || platform === 'tt') {
+    // Neither Instagram nor TikTok has a web link-share endpoint (unlike
+    // Facebook/Telegram). On devices with a native share sheet, let the user
+    // pick the app; otherwise copy the link so they can paste it into a
+    // story/bio/DM/profile.
     if (navigator.share) {
       navigator.share({ title: title, url: rawUrl }).catch(function() {});
     } else {
