@@ -1113,23 +1113,38 @@ function openAspInterp(row) {
   if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return;
   const c = document.getElementById('stars');
   if (!c) return;
-  let lastY = window.scrollY, mmag = 0, dir = 1, running = false, idle = 0;
-  c.style.setProperty('--sy', (-lastY) + 'px');
+  // curY is a *smoothed* scroll position that eases toward the real scrollY
+  // each frame. Writing --sy = -scrollY directly made the stars teleport by
+  // (wheel-notch × depth) on every mouse-wheel step ("jumping"); easing turns
+  // those discrete jumps into continuous drift. The loop keeps running after
+  // scroll stops until curY has caught up, then settles and stops.
+  let curY = window.scrollY, mmag = 0, dir = 1, running = false, idle = 0;
+  c.style.setProperty('--sy', (-curY) + 'px');
 
   function frame() {
-    const y = window.scrollY;
-    const rawV = y - lastY;
-    lastY = y;
+    const targetY = window.scrollY;
+    const prevY = curY;
+    // Ease toward the live scroll position. 0.16 ≈ ~150ms to converge: smooth
+    // enough to hide wheel notches, snappy enough to still feel attached.
+    curY += (targetY - curY) * 0.16;
+    const rawV = curY - prevY;
     if (Math.abs(rawV) > 0.5) dir = rawV > 0 ? 1 : -1;
-    // Normalise speed (~40px/frame ≈ full strength), then smooth with a fast
-    // attack / slow decay so the streak appears at once and lingers briefly.
+    // Normalise smoothed speed (~40px/frame ≈ full strength), then ease with a
+    // fast attack / slow decay so the streak appears at once and lingers.
     const speed = Math.min(1, Math.abs(rawV) / 40);
     mmag += (speed - mmag) * (speed > mmag ? 0.4 : 0.08);
-    c.style.setProperty('--sy', (-y) + 'px');
+    c.style.setProperty('--sy', (-curY).toFixed(2) + 'px');
     c.style.setProperty('--mmag', mmag.toFixed(3));
     c.style.setProperty('--mdir', String(dir));
-    if (mmag < 0.004 && Math.abs(rawV) < 0.5) idle++; else idle = 0;
-    if (idle > 6) { running = false; c.style.setProperty('--mmag', '0'); return; }
+    // Settle only once we've caught up to the target *and* the trail decayed.
+    if (Math.abs(targetY - curY) < 0.5 && mmag < 0.004) idle++; else idle = 0;
+    if (idle > 6) {
+      running = false;
+      curY = targetY;
+      c.style.setProperty('--sy', (-targetY).toFixed(2) + 'px');
+      c.style.setProperty('--mmag', '0');
+      return;
+    }
     requestAnimationFrame(frame);
   }
   function ensure() { if (!running) { running = true; requestAnimationFrame(frame); } }
