@@ -1573,9 +1573,22 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .sycos-orb-a{left:2%;background:radial-gradient(circle,rgba(228,199,107,.95) 0%,rgba(201,168,76,.45) 45%,rgba(201,168,76,.0) 75%);box-shadow:0 0 16px rgba(228,199,107,.55),0 0 32px rgba(201,168,76,.28)}
 .sycos-orb-b{right:2%;background:radial-gradient(circle,rgba(228,180,196,.95) 0%,rgba(196,122,138,.45) 45%,rgba(196,122,138,.0) 75%);box-shadow:0 0 16px rgba(228,180,196,.55),0 0 32px rgba(196,122,138,.28)}
 .sycos-orb::after{content:'';position:absolute;inset:35%;border-radius:50%;background:#fff;opacity:.85}
-.sycos-glyph{position:absolute;top:50%;left:50%;width:62px;height:62px;transform:translate(-50%,-50%) translateZ(34px);display:flex;align-items:center;justify-content:center;border-radius:50%;background:radial-gradient(circle,rgba(10,10,15,.95) 30%,rgba(10,10,15,0) 75%);animation:sycosGlyph 3.2s ease-in-out infinite;z-index:2}
-.sycos-glyph svg{width:30px;height:30px;color:var(--gold);fill:var(--gold)}
-@keyframes sycosGlyph{0%,100%{filter:drop-shadow(0 0 8px rgba(201,168,76,.45))}50%{filter:drop-shadow(0 0 20px rgba(201,168,76,.75))}}
+.sycos-glyph{position:absolute;top:50%;left:50%;width:62px;height:62px;transform:translate(-50%,-50%) translateZ(34px);display:flex;align-items:center;justify-content:center;border-radius:50%;background:radial-gradient(circle,rgba(10,10,15,.95) 30%,rgba(10,10,15,0) 75%);z-index:2}
+/* Two overlapping rings = the two charts; they breathe toward each other
+   while a spark pulses at their meeting point. Palette echoes orb-a (gold)
+   and orb-b (rose) so the centre reads as those two bodies uniting. */
+.sycos-union{position:absolute;top:50%;left:50%;width:32px;height:32px;border-radius:50%;border:1.5px solid;box-sizing:border-box}
+.sycos-union-a{border-color:rgba(228,199,107,.85);box-shadow:0 0 12px rgba(228,199,107,.4),inset 0 0 8px rgba(228,199,107,.22);animation:sycosUnionA 4.2s ease-in-out infinite}
+.sycos-union-b{border-color:rgba(228,180,196,.85);box-shadow:0 0 12px rgba(228,180,196,.4),inset 0 0 8px rgba(228,180,196,.22);animation:sycosUnionB 4.2s ease-in-out infinite}
+@keyframes sycosUnionA{0%,100%{transform:translate(calc(-50% - 11px),-50%)}50%{transform:translate(calc(-50% - 6px),-50%)}}
+@keyframes sycosUnionB{0%,100%{transform:translate(calc(-50% + 11px),-50%)}50%{transform:translate(calc(-50% + 6px),-50%)}}
+.sycos-union-spark{position:absolute;top:50%;left:50%;width:11px;height:11px;border-radius:50%;background:radial-gradient(circle,#fff 0%,rgba(228,199,107,.9) 35%,rgba(196,122,138,.55) 70%,transparent 100%);animation:sycosSpark 4.2s ease-in-out infinite}
+@keyframes sycosSpark{0%,100%{opacity:.45;transform:translate(-50%,-50%) scale(.65)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}}
+@media(prefers-reduced-motion:reduce){
+  .sycos-union-a{animation:none;transform:translate(calc(-50% - 8px),-50%)}
+  .sycos-union-b{animation:none;transform:translate(calc(-50% + 8px),-50%)}
+  .sycos-union-spark{animation:none;transform:translate(-50%,-50%)}
+}
 .sycos-content{position:relative;z-index:1;text-align:center;max-width:440px;margin:0 auto}
 .sycos-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gd);margin-bottom:14px;opacity:.7;animation:fadeUp .8s var(--ease) both}
 .sycos-eyebrow::before,.sycos-eyebrow::after{content:'';width:18px;height:1px;background:rgba(201,168,76,.3)}
@@ -1600,7 +1613,8 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
   .sycos-title{font-size:1.55rem}
   .sycos-orb{width:18px;height:18px;margin-top:-9px}
   .sycos-glyph{width:54px;height:54px}
-  .sycos-glyph svg{width:26px;height:26px}
+  .sycos-union{width:28px;height:28px}
+  .sycos-union-spark{width:9px;height:9px}
 }
 
 /* ═══ LEGAL OVERLAY (Terms & Privacy / Payment Terms) ═══ */
