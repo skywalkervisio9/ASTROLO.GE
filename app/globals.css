@@ -20,7 +20,11 @@ body:has(#loadingScreen.active) .pbar{display:none}
 /* Parallax is applied to the depth LAYER, not each star: a --sy change then
    restyles 3 layer nodes instead of every star. Stars inherit their layer's
    --depth (the trail calc below still reads it) and only run their own twinkle. */
-.star-layer{position:absolute;inset:0;transform:translate3d(0,calc(var(--sy,0px) * var(--depth,0)),0);will-change:transform}
+/* clamp the drift to the star band's over-scan headroom (-40vh..140vh → ±40vh):
+   on the very long reading the unbounded scrollY×depth drift pushed each layer's
+   stars entirely above the viewport, emptying the field past the first sections.
+   Now layers parallax near the top, then hold — keeping full coverage everywhere. */
+.star-layer{position:absolute;inset:0;transform:translate3d(0,clamp(-40vh,calc(var(--sy,0px) * var(--depth,0)),0px),0);will-change:transform}
 .star{position:absolute;width:2px;height:2px;background:rgba(255,255,255,.5);border-radius:50%;animation:tw var(--d,3s) ease-in-out infinite alternate}
 @keyframes tw{0%{opacity:.1}100%{opacity:.6}}
 /* Scroll parallax: the container's --sy (set once per frame by the runtime)
