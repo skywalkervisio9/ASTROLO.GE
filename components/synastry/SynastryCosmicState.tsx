@@ -184,7 +184,7 @@ function useParallax() {
     if (!el) return;
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
-    let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0;
+    let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0, visible = false;
     // Position-history particle trails — mirrors individual /loading exactly.
     // Push every frame, render 8-20 ghosts (depending on group) at fixed
     // indices into the buffer so vars evolve smoothly per-frame and trail
@@ -226,9 +226,19 @@ function useParallax() {
       mmag += (target - mmag) * (target > mmag ? 0.32 : 0.05);
       el.style.setProperty('--mmag', mmag.toFixed(3));
       prevX = curX; prevY = curY;
-      raf = requestAnimationFrame(tick);
+      raf = visible ? requestAnimationFrame(tick) : 0;
     };
-    raf = requestAnimationFrame(tick);
+    // Only animate while the cosmic loader is actually on-screen. It stays
+    // mounted (collapsed to 0×0) behind the natal/synastry reading, where an
+    // unconditional rAF writing ~45 CSS vars/frame was a constant scroll-jank
+    // cost. Gate the loop on real visibility — behaviour is identical when the
+    // loader is shown (full-screen → intersecting → loop runs).
+    const io = new IntersectionObserver((ents) => {
+      visible = ents[0]?.isIntersecting ?? false;
+      if (visible) { if (!raf) raf = requestAnimationFrame(tick); }
+      else if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    }, { threshold: 0 });
+    io.observe(el);
 
     const onMouse = (e: MouseEvent) => {
       // Negated so cursor right → stars follow right (paired with --px's own
@@ -271,6 +281,7 @@ function useParallax() {
     }
 
     return () => {
+      io.disconnect();
       cancelAnimationFrame(raf);
       window.removeEventListener('mousemove', onMouse);
       window.removeEventListener('deviceorientation', onOrient, true);

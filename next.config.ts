@@ -18,6 +18,21 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: PROJECT_ROOT,
   },
+  // prototype-runtime.js is served from /public at a fixed, unhashed URL and
+  // carries all the runtime/animation logic. Without explicit caching, browsers
+  // hold an old copy across deploys — so a perf fix shipped in this file silently
+  // doesn't reach users (new hashed CSS + stale JS = jank). Force a revalidation
+  // on every load: 304 when unchanged (cheap), fresh bytes the moment we redeploy.
+  async headers() {
+    return [
+      {
+        source: '/prototype-runtime.js',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
