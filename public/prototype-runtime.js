@@ -1103,6 +1103,14 @@ function openAspInterp(row) {
 // costs nothing at rest. Fully disabled under reduced-motion.
 (function() {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // Touch devices only: skip scroll-parallax entirely. Mobile browsers coalesce
+  // scroll events and throttle rAF during momentum scrolling, and the URL-bar
+  // show/hide resizes the viewport — so scrollY arrives in large discrete steps
+  // and the fixed starfield snaps to each one ("jumps") instead of drifting.
+  // Scroll-linked transforms on position:fixed can't be made smooth on touch,
+  // so we leave --sy/--mmag at their defaults: the starfield stays put and just
+  // twinkles. Desktop (fine-pointer) keeps the parallax + motion-trail.
+  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return;
   const c = document.getElementById('stars');
   if (!c) return;
   let lastY = window.scrollY, mmag = 0, dir = 1, running = false, idle = 0;
@@ -1939,7 +1947,7 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
   const canvas = document.getElementById('shootingStar');
   const ctx = canvas.getContext('2d');
   let w, h, particles = [], mouse = { x: -100, y: -100, px: -100, py: -100 };
-  let raf;
+  let raf = 0, lastActivity = 0;
   function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
   resize(); window.addEventListener('resize', resize);
   document.addEventListener('mousemove', e => {
@@ -1949,6 +1957,7 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const count = Math.min(Math.floor(dist / 3), 8);
     for (let i = 0; i < count; i++) { const t = i / count; spawn(mouse.px + dx * t, mouse.py + dy * t, dx, dy); }
+    kick();
   });
   document.addEventListener('touchmove', e => {
     const touch = e.touches[0];
@@ -1958,6 +1967,7 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const count = Math.min(Math.floor(dist / 4), 6);
     for (let i = 0; i < count; i++) { const t = i / count; spawn(mouse.px + dx * t, mouse.py + dy * t, dx, dy); }
+    kick();
   }, { passive: true });
   function spawn(x, y, vx, vy) {
     const angle = Math.atan2(vy, vx) + (Math.random() - .5) * 1.2;
@@ -1993,10 +2003,24 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
       if (s > 1) { ctx.beginPath(); ctx.arc(p.x, p.y, s * 3, 0, Math.PI * 2); ctx.fillStyle = 'rgba(' + p.r + ',' + p.g + ',' + p.b + ',' + (alpha * .12) + ')'; ctx.fill(); }
       ctx.beginPath(); ctx.arc(p.x, p.y, s, 0, Math.PI * 2); ctx.fillStyle = 'rgba(' + p.r + ',' + p.g + ',' + p.b + ',' + alpha + ')'; ctx.fill();
     }
-    raf = requestAnimationFrame(animate);
+    // Self-stop when there's nothing to draw and no recent input. The progress
+    // bar emits on scroll and the cursor emits on move — both call kick() to
+    // restart — so a stopped loop costs nothing (no full-screen clearRect at
+    // rest), which is the win on the long full reading.
+    if (particles.length > 0 || performance.now() - lastActivity < 400) {
+      raf = requestAnimationFrame(animate);
+    } else {
+      raf = 0;
+    }
   }
-  animate();
-  document.addEventListener('visibilitychange', () => { if (document.hidden) cancelAnimationFrame(raf); else raf = requestAnimationFrame(animate); });
+  function kick() { lastActivity = performance.now(); if (!raf) raf = requestAnimationFrame(animate); }
+  // Scroll drives emitFromBar() (sparks off the progress-bar tip), so wake the
+  // loop on scroll too — not just pointer movement.
+  window.addEventListener('scroll', kick, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+    else kick();
+  });
 })();
 
 

@@ -32,7 +32,11 @@ body:has(#loadingScreen.active) .pbar{display:none}
 .ct{position:relative;z-index:2;max-width:880px;margin:0 auto;padding:0 24px}
 
 /* ═══ TOP BAR (from synastry) ═══ */
-.tb{position:fixed;top:0;left:0;right:0;z-index:200;background:rgba(10,10,15,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid rgba(201,168,76,.06);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
+/* Opaque (no backdrop-filter): the scroll-parallax starfield drifts behind
+   this fixed bar, and a per-frame blur re-sample of a moving backdrop is the
+   main desktop scroll-jank cost. .96 alpha over the near-black bg reads the
+   same without the blur. */
+.tb{position:fixed;top:0;left:0;right:0;z-index:200;background:rgba(10,10,15,.96);border-bottom:1px solid rgba(201,168,76,.06);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
 .tbl{display:flex;align-items:flex-end;gap:10px;cursor:pointer;text-decoration:none}
 .tbr{display:flex;align-items:center;gap:16px}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -229,7 +233,8 @@ body[data-public-view] .pn{color:#a6d9e4;max-width:180px;white-space:nowrap;over
 .hero-chips .chip-label svg{width:12px;height:12px;vertical-align:middle}
 
 /* ═══ NAV ═══ */
-.nb{position:sticky;top:56px;z-index:100;background:rgba(10,10,15,.88);backdrop-filter:blur(24px);border-bottom:1px solid rgba(201,168,76,.06);padding:14px 24px;margin-bottom:50px}
+/* Opaque (no backdrop-filter) — see .tb: avoids re-blurring the moving starfield every scroll frame. */
+.nb{position:sticky;top:56px;z-index:100;background:rgba(10,10,15,.96);border-bottom:1px solid rgba(201,168,76,.06);padding:14px 24px;margin-bottom:50px}
 .nb .ct{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;justify-content:center;flex-wrap:nowrap;padding:0 8px}
 .nb .ct::-webkit-scrollbar{display:none}
 .nbtn{background:none;border:1px solid rgba(201,168,76,.08);color:var(--txd);font-family:var(--fb);font-size:.64rem;letter-spacing:.06em;padding:7px 13px;border-radius:100px;cursor:pointer;transition:all .35s var(--ease);white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;position:relative;overflow:hidden;min-height:34px;flex-shrink:0}
@@ -826,7 +831,7 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
    .snav is the full-bleed sticky bar; .snav-track is the inset scroll
    container, so the bar background spans edge-to-edge while pills scroll
    within (and clip at) the content margins. */
-.snav{margin:0 calc(-24px - clamp(0px, (100vw - 880px)/2 - 16px, 80px)) 50px;padding:14px calc(24px + clamp(0px, (100vw - 880px)/2 - 16px, 80px));border-top:1px solid rgba(201,168,76,.04);border-bottom:1px solid rgba(201,168,76,.04);position:sticky;top:56px;z-index:100;background:rgba(10,10,15,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.snav{margin:0 calc(-24px - clamp(0px, (100vw - 880px)/2 - 16px, 80px)) 50px;padding:14px calc(24px + clamp(0px, (100vw - 880px)/2 - 16px, 80px));border-top:1px solid rgba(201,168,76,.04);border-bottom:1px solid rgba(201,168,76,.04);position:sticky;top:56px;z-index:100;background:rgba(10,10,15,.96)}
 .snav-track{display:flex;gap:6px;justify-content:center;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
 .snav-track::-webkit-scrollbar{display:none}
 .snb{background:none;border:1px solid rgba(201,168,76,.08);color:var(--txd);font-family:var(--fb);font-size:.64rem;letter-spacing:.06em;padding:7px 13px;border-radius:100px;cursor:pointer;transition:all .35s var(--ease);white-space:nowrap;position:relative;overflow:hidden;flex-shrink:0;min-height:34px;display:inline-flex;align-items:center;justify-content:center}
