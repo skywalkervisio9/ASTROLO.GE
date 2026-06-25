@@ -387,7 +387,6 @@ export default function SynastryCosmicState({ mode, language, progressLabel, err
       </div>
 
       <div className="sycos-content">
-        <div className="sycos-eyebrow">{copy.eyebrow}</div>
         <h1 className="sycos-title">{copy.title}</h1>
         <p className="sycos-sub">{copy.sub}</p>
 
