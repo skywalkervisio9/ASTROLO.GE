@@ -1083,29 +1083,49 @@ function openAspInterp(row) {
     // transform in globals.css). Kept subtle so the field stays coherent.
     s.style.setProperty('--depth', (0.06 + Math.random() * 0.12).toFixed(3));
     s.style.animationDelay = Math.random() * 5 + 's';
+    // ~45% of stars sprout a motion-trail streak on fast scrolls (see
+    // .star.tr::after). Tagging a subset keeps the feedback subtle and light.
+    if (Math.random() < 0.45) s.classList.add('tr');
     if (Math.random() > .75) { s.style.width = '1px'; s.style.height = '1px'; }
     c.appendChild(s);
   }
 })();
 
-// ═══ STARFIELD SCROLL PARALLAX ═══
-// Drift the page starfield as the reading scrolls. Only ONE CSS var (--sy on
-// the container) changes per frame; each star multiplies it by its own
-// --depth in CSS, so the compositor moves the field with no per-element JS,
-// no layout and no paint. rAF-throttled; disabled under reduced-motion.
+// ═══ STARFIELD SCROLL PARALLAX + TRAIL ═══
+// Drift the starfield on scroll (parallax) and add a brief motion-trail
+// "feedback" streak on faster scrolls — the 1-D analogue of the loading
+// screen's mousemove trails. Per frame we write just three container vars:
+//   --sy    scroll offset   (× per-star --depth → parallax drift)
+//   --mmag  smoothed scroll speed 0..1 (drives trail length + opacity)
+//   --mdir  scroll direction ±1 (flips the streak to trail behind motion)
+// The compositor does the rest (see .star / .star.tr::after in globals.css).
+// The rAF loop only runs while scrolling + a short decay, then stops, so it
+// costs nothing at rest. Fully disabled under reduced-motion.
 (function() {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const c = document.getElementById('stars');
   if (!c) return;
-  let ticking = false;
-  function apply() {
-    ticking = false;
-    c.style.setProperty('--sy', (-window.scrollY) + 'px');
+  let lastY = window.scrollY, mmag = 0, dir = 1, running = false, idle = 0;
+  c.style.setProperty('--sy', (-lastY) + 'px');
+
+  function frame() {
+    const y = window.scrollY;
+    const rawV = y - lastY;
+    lastY = y;
+    if (Math.abs(rawV) > 0.5) dir = rawV > 0 ? 1 : -1;
+    // Normalise speed (~40px/frame ≈ full strength), then smooth with a fast
+    // attack / slow decay so the streak appears at once and lingers briefly.
+    const speed = Math.min(1, Math.abs(rawV) / 40);
+    mmag += (speed - mmag) * (speed > mmag ? 0.4 : 0.08);
+    c.style.setProperty('--sy', (-y) + 'px');
+    c.style.setProperty('--mmag', mmag.toFixed(3));
+    c.style.setProperty('--mdir', String(dir));
+    if (mmag < 0.004 && Math.abs(rawV) < 0.5) idle++; else idle = 0;
+    if (idle > 6) { running = false; c.style.setProperty('--mmag', '0'); return; }
+    requestAnimationFrame(frame);
   }
-  window.addEventListener('scroll', function() {
-    if (!ticking) { ticking = true; requestAnimationFrame(apply); }
-  }, { passive: true });
-  apply();
+  function ensure() { if (!running) { running = true; requestAnimationFrame(frame); } }
+  window.addEventListener('scroll', ensure, { passive: true });
 })();
 
 // ═══ SCROLL PROGRESS ═══
