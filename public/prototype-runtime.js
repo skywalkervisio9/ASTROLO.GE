@@ -1071,7 +1071,20 @@ function openAspInterp(row) {
 // ═══ STARS ═══
 (function() {
   const c = document.getElementById('stars');
-  for (let i = 0; i < 100; i++) {
+  if (!c) return;
+  // Three parallax depth layers. The scroll transform is set on each LAYER (see
+  // .star-layer in globals.css), so a --sy change per frame restyles 3 nodes
+  // instead of ~60 individual stars. Stars inherit their layer's --depth (the
+  // .star.tr::after trail calc still reads it) and only run their own twinkle.
+  const DEPTHS = [0.07, 0.12, 0.17];
+  const layers = DEPTHS.map(function(depth) {
+    const layer = document.createElement('div');
+    layer.className = 'star-layer';
+    layer.style.setProperty('--depth', depth.toFixed(3));
+    c.appendChild(layer);
+    return layer;
+  });
+  for (let i = 0; i < 60; i++) {
     const s = document.createElement('div');
     s.className = 'star';
     s.style.left = Math.random() * 100 + '%';
@@ -1079,15 +1092,12 @@ function openAspInterp(row) {
     // drift never empties the top/bottom of the viewport.
     s.style.top = (Math.random() * 180 - 40) + '%';
     s.style.setProperty('--d', (2 + Math.random() * 4) + 's');
-    // Per-star parallax depth: deeper stars drift more on scroll (see .star
-    // transform in globals.css). Kept subtle so the field stays coherent.
-    s.style.setProperty('--depth', (0.06 + Math.random() * 0.12).toFixed(3));
     s.style.animationDelay = Math.random() * 5 + 's';
-    // ~45% of stars sprout a motion-trail streak on fast scrolls (see
+    // ~25% of stars sprout a motion-trail streak on fast scrolls (see
     // .star.tr::after). Tagging a subset keeps the feedback subtle and light.
-    if (Math.random() < 0.45) s.classList.add('tr');
+    if (Math.random() < 0.25) s.classList.add('tr');
     if (Math.random() > .75) { s.style.width = '1px'; s.style.height = '1px'; }
-    c.appendChild(s);
+    layers[i % layers.length].appendChild(s);
   }
 })();
 
