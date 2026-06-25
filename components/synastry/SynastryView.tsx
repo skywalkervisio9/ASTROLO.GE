@@ -235,6 +235,14 @@ export default function SynastryView({
   const isProgrammaticNavScroll = useRef(false);
   const userOverrideUntil = useRef(0);
 
+  // The synastry reading shares the natal page's twinkling starfield. The
+  // cosmic loader hides it (via .hide-global-stars) while it's on screen and
+  // clears it on unmount — but clear it here too so the reading always shows
+  // the background stars, even if the loader path didn't run for this session.
+  useEffect(() => {
+    document.body.classList.remove('hide-global-stars');
+  }, []);
+
   // Scroll-aware active-section tracking (mirrors the nbtn behaviour in natal)
   useEffect(() => {
     const observer = new IntersectionObserver(
