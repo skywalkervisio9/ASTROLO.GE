@@ -27,7 +27,7 @@ body:has(#loadingScreen.active) .pbar{display:none}
    (--mdir), so it trails behind the parallax drift — the 1-D cousin of the
    loading screen's mousemove trails. Composite-only (scaleY + opacity);
    collapses to nothing at rest. */
-.star.tr::after{content:'';position:absolute;left:50%;top:50%;width:1px;height:15px;border-radius:1px;background:linear-gradient(180deg,rgba(255,255,255,.6),transparent);transform:translate(-50%,0) scaleY(calc(var(--mmag,0) * var(--mdir,1) * (.45 + var(--depth,0) * 3)));transform-origin:top center;opacity:calc(var(--mmag,0) * .5);pointer-events:none}
+.star.tr::after{content:'';position:absolute;left:50%;top:50%;width:1px;height:15px;border-radius:1px;background:linear-gradient(180deg,rgba(255,255,255,.6),transparent);transform:translate(-50%,0) scaleY(calc(var(--mmag,0) * var(--mdir,1) * (.12 + var(--depth,0) * 8)));transform-origin:top center;opacity:calc(var(--mmag,0) * (.3 + var(--depth,0) * 1.6));pointer-events:none}
 @media(prefers-reduced-motion:reduce){.star{transform:none}.star.tr::after{display:none}}
 .ct{position:relative;z-index:2;max-width:880px;margin:0 auto;padding:0 24px}
 
