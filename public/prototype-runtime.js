@@ -1075,12 +1075,37 @@ function openAspInterp(row) {
     const s = document.createElement('div');
     s.className = 'star';
     s.style.left = Math.random() * 100 + '%';
-    s.style.top = Math.random() * 100 + '%';
+    // Spread across an over-scanned band (-40%..140%) so the scroll-parallax
+    // drift never empties the top/bottom of the viewport.
+    s.style.top = (Math.random() * 180 - 40) + '%';
     s.style.setProperty('--d', (2 + Math.random() * 4) + 's');
+    // Per-star parallax depth: deeper stars drift more on scroll (see .star
+    // transform in globals.css). Kept subtle so the field stays coherent.
+    s.style.setProperty('--depth', (0.06 + Math.random() * 0.12).toFixed(3));
     s.style.animationDelay = Math.random() * 5 + 's';
     if (Math.random() > .75) { s.style.width = '1px'; s.style.height = '1px'; }
     c.appendChild(s);
   }
+})();
+
+// ═══ STARFIELD SCROLL PARALLAX ═══
+// Drift the page starfield as the reading scrolls. Only ONE CSS var (--sy on
+// the container) changes per frame; each star multiplies it by its own
+// --depth in CSS, so the compositor moves the field with no per-element JS,
+// no layout and no paint. rAF-throttled; disabled under reduced-motion.
+(function() {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.getElementById('stars');
+  if (!c) return;
+  let ticking = false;
+  function apply() {
+    ticking = false;
+    c.style.setProperty('--sy', (-window.scrollY) + 'px');
+  }
+  window.addEventListener('scroll', function() {
+    if (!ticking) { ticking = true; requestAnimationFrame(apply); }
+  }, { passive: true });
+  apply();
 })();
 
 // ═══ SCROLL PROGRESS ═══

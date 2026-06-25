@@ -17,8 +17,12 @@ body.hide-global-stars[data-view="synastry"] #stars{display:none}
    Hide it for both. */
 body.hide-global-stars[data-view="synastry"] .pbar,
 body:has(#loadingScreen.active) .pbar{display:none}
-.star{position:absolute;width:2px;height:2px;background:rgba(255,255,255,.5);border-radius:50%;animation:tw var(--d,3s) ease-in-out infinite alternate}
+.star{position:absolute;width:2px;height:2px;background:rgba(255,255,255,.5);border-radius:50%;animation:tw var(--d,3s) ease-in-out infinite alternate;transform:translate3d(0,calc(var(--sy,0px) * var(--depth,0)),0)}
 @keyframes tw{0%{opacity:.1}100%{opacity:.6}}
+/* Scroll parallax: the container's --sy (set once per frame by the runtime)
+   is multiplied by each star's own --depth, so the compositor drifts the
+   field with no per-element JS. Held still under reduced-motion. */
+@media(prefers-reduced-motion:reduce){.star{transform:none}}
 .ct{position:relative;z-index:2;max-width:880px;margin:0 auto;padding:0 24px}
 
 /* ═══ TOP BAR (from synastry) ═══ */
