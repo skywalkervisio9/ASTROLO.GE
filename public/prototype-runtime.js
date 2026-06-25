@@ -1095,7 +1095,9 @@ function openAspInterp(row) {
       const d = (2 + Math.random() * 4);
       const delay = Math.random() * 5;
       const tr = Math.random() < 0.25;           // ~25% sprout a motion-trail
-      const tiny = Math.random() > 0.75;
+      // Size variety: ~15% a little bigger (3px), ~25% tiny (1px), rest 2px.
+      const roll = Math.random();
+      const size = roll < 0.15 ? 3 : roll > 0.75 ? 1 : 2;
       for (let k = 0; k < 2; k++) {              // original + clone one tile down
         const s = document.createElement('div');
         s.className = tr ? 'star tr' : 'star';
@@ -1103,7 +1105,7 @@ function openAspInterp(row) {
         s.style.top = (top + k * 100) + '%';
         s.style.setProperty('--d', d + 's');
         s.style.animationDelay = delay + 's';
-        if (tiny) { s.style.width = '1px'; s.style.height = '1px'; }
+        if (size !== 2) { s.style.width = size + 'px'; s.style.height = size + 'px'; }
         layer.appendChild(s);
       }
     }
