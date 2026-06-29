@@ -365,6 +365,11 @@ body.zodiac-names .zm-name{display:inline}
 .tip{position:relative;cursor:help}.tip::after{content:attr(data-tip);position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:var(--sf2);color:var(--silver);padding:5px 10px;border-radius:6px;font-size:.68rem;font-family:var(--fb);font-weight:400;font-style:normal;letter-spacing:.02em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .25s;border:1px solid rgba(201,168,76,.12);z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.4)}
 .tip:hover::after{opacity:1}
 .tip--el::after{left:0;transform:none}
+/* Wrapping tooltip for multi-line descriptions (e.g. the aspects-section badge) */
+.tipw::after{white-space:normal;width:max-content;max-width:250px;line-height:1.55;text-align:left}
+/* Hoverable badge wrapper (sits OUTSIDE .b so its overflow:hidden can't clip the tip) + info glyph */
+.b-tip{display:inline-block}
+.b-i{width:11px;height:11px;margin-left:4px;opacity:.65;flex-shrink:0;vertical-align:middle}
 .tip--er::after{left:auto;right:0;transform:none}
 .pt.tip::after{color:var(--gold)}
 .retro.tip::after{color:var(--gold)}

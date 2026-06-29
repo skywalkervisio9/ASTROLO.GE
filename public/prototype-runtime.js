@@ -3640,7 +3640,11 @@ function _buildSectionContent(sectionKey, section) {
     }
     // Aspects
     if (section.aspects && section.aspects.length) {
-      html += '<div class="c"><div class="b">' + (_hydrateLang === 'ka' ? 'მთავარი ასპექტები' : 'Major Aspects') + '</div>';
+      var _aspDesc = _hydrateLang === 'ka'
+        ? 'ასპექტები — კუთხეები პლანეტებს შორის, რომლებიც აჩვენებენ, როგორ ურთიერთქმედებენ მათი ენერგიები: ჰარმონიულად (ტრინი, სექსტილი), დაძაბულად (კვადრატი, ოპოზიცია) თუ შერწყმულად (კონიუნქცია). დააჭირე სიმბოლოს მნიშვნელობისთვის.'
+        : 'Aspects are the angles between planets, showing how their energies interact — in harmony (trine, sextile), in tension (square, opposition), or fused (conjunction). Tap a symbol for its meaning.';
+      var _aspInfoIco = '<svg class="b-i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="12" y1="11" x2="12" y2="16.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="7.6" r="1.2" fill="currentColor"/></svg>';
+      html += '<div class="c"><span class="b-tip tip tipw" data-tip="' + _esc(_aspDesc) + '"><span class="b">' + (_hydrateLang === 'ka' ? 'მთავარი ასპექტები' : 'Major Aspects') + _aspInfoIco + '</span></span>';
       html += '<h3>' + (_hydrateLang === 'ka' ? 'პლანეტარული საუბრები' : 'Planetary Conversations') + '</h3>';
       section.aspects.forEach(function(asp) { html += _buildAspect(asp); });
       var interps = section.aspects.filter(function(a) { return a.interpretation; });
