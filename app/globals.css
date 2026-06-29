@@ -397,7 +397,22 @@ body.zodiac-names .zm-name{display:inline}
 .pt td.pl-neptune{color:#6b7baa}.pt td.pl-neptune:hover{text-shadow:0 0 10px rgba(107,123,170,.5)}
 .pt td.pl-pluto{color:#9a6b6b}.pt td.pl-pluto:hover{text-shadow:0 0 10px rgba(154,107,107,.5)}
 .el-popup.planet-pop{border-color:rgba(201,168,76,.15)}
-.el-popup.planet-pop .el-popup-title{color:var(--gold)}
+.el-popup.planet-pop .el-popup-title{color:var(--tx)}
+/* Popup uses the same SVG glyph as the planet table (no Unicode mismatch); name white, glyph gold */
+.el-popup.planet-pop .el-popup-title .pl-pop-gi{display:inline-block;width:1.05em;height:1.05em;vertical-align:-2px;margin-right:6px;color:var(--gold)}
+/* Zodiac sign popups: colour the edge by the sign's element (matches the glyph tint) */
+.el-popup.sign-pop.sf{border-color:rgba(212,100,74,.2)}
+.el-popup.sign-pop.se{border-color:rgba(107,154,107,.2)}
+.el-popup.sign-pop.sa{border-color:rgba(107,143,181,.2)}
+.el-popup.sign-pop.sw{border-color:rgba(123,107,170,.2)}
+/* Aspect-type popups (natal aspect list + synastry aspect tags): only the EDGE
+   carries the nature color — the name stays white, the glyph stays gold.
+   Conjunction (magnetic) reads as gold, not purple. */
+.el-popup.harmony-pop{border-color:rgba(107,154,107,.2)}
+.el-popup.tension-pop{border-color:rgba(212,100,74,.2)}
+.el-popup.magnetic-pop{border-color:rgba(201,168,76,.2)}
+.el-popup.harmony-pop .el-popup-title,.el-popup.tension-pop .el-popup-title,.el-popup.magnetic-pop .el-popup-title{color:var(--tx)}
+.el-popup.harmony-pop .el-popup-title svg,.el-popup.tension-pop .el-popup-title svg,.el-popup.magnetic-pop .el-popup-title svg{color:var(--gold);margin-right:5px}
 
 /* Hint */
 .h{background:linear-gradient(135deg,rgba(201,168,76,.05),rgba(201,168,76,.02));border:1px solid rgba(201,168,76,.1);border-radius:12px;padding:18px 22px;margin-top:14px}
@@ -459,7 +474,10 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 .al.al-hi .al-star{color:var(--gold);font-size:.85rem;margin-left:2px;flex-shrink:0}
 .al-star{color:var(--txd);font-size:.8rem}
 /* Aspect symbol */
-.asy{color:var(--gold);font-size:1.05rem;min-width:20px;text-align:center;flex-shrink:0}
+.asy{color:var(--gold);font-size:1.05rem;min-width:20px;text-align:center;flex-shrink:0;margin-right:6px}
+/* Clickable aspect symbol → opens aspect-type popup (like planet/sign glyphs) */
+.asy.asy-btn{cursor:pointer;padding:2px 3px;margin:-2px 6px -2px -3px;border-radius:6px;transition:background .15s}
+.asy.asy-btn:hover{background:rgba(201,168,76,.10)}
 /* Planet names */
 .al-p{color:var(--silver)}
 .al-p .gi{vertical-align:middle;width:1em;height:1em}

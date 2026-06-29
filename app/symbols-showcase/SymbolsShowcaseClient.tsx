@@ -601,8 +601,279 @@ const oppositionVariants: Variant[] = [
   },
 ];
 
+// ═══════════════════════════════════════════════════════════════
+// PLANET GLYPHS — table & popup share these. "current" cards mirror
+// the real GlyphDefs #gl-* symbol (viewBox 24) so the comparison is
+// honest; variants are authored at the showcase scale (viewBox 48).
+// ═══════════════════════════════════════════════════════════════
+const SB = 2.3; // bold stroke
+const sunRays = Array.from({ length: 8 }).map((_, i) => {
+  const a = (i * 45 * Math.PI) / 180;
+  return (
+    <line
+      key={i}
+      x1={(24 + Math.cos(a) * 14).toFixed(2)}
+      y1={(24 + Math.sin(a) * 14).toFixed(2)}
+      x2={(24 + Math.cos(a) * 18).toFixed(2)}
+      y2={(24 + Math.sin(a) * 18).toFixed(2)}
+    />
+  );
+});
+
+const planetGroups: Group[] = [
+  {
+    category: "PLANET GLYPHS",
+    key: "sun",
+    context: "Planet table + popup (☉ Sun)",
+    currentLabel: "#gl-sun",
+    currentNote: "Thin ring + small dot",
+    current: (
+      <svg viewBox="0 0 24 24" style={{ width: 30, height: 30 }}>
+        <circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" strokeWidth={1.5} />
+        <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+      </svg>
+    ),
+    variants: [
+      { id: "sun-A", label: "Classic", description: "Even ring with a centred dot — clean astronomical Sun", svg: (
+        <svg viewBox={VB}><circle cx="24" cy="24" r="12" fill="none" stroke="currentColor" strokeWidth={S} /><circle cx="24" cy="24" r="2.6" fill="currentColor" /></svg>
+      ) },
+      { id: "sun-B", label: "Bold / Filled", description: "Thicker ring + large solid core — high-contrast & notable", svg: (
+        <svg viewBox={VB}><circle cx="24" cy="24" r="12" fill="none" stroke="currentColor" strokeWidth={SB} /><circle cx="24" cy="24" r="4.6" fill="currentColor" /></svg>
+      ) },
+      { id: "sun-C", label: "Radiant", description: "Ring + core with eight short rays — luminous", svg: (
+        <svg viewBox={VB}><g stroke="currentColor" strokeWidth={1.3} strokeLinecap="round" opacity=".7">{sunRays}</g><circle cx="24" cy="24" r="8" fill="none" stroke="currentColor" strokeWidth={S} /><circle cx="24" cy="24" r="2.4" fill="currentColor" /></svg>
+      ) },
+    ],
+  },
+  {
+    category: "PLANET GLYPHS",
+    key: "moon",
+    context: "Planet table + popup (☽ Moon)",
+    currentLabel: "#gl-moon",
+    currentNote: "Open crescent outline",
+    current: (
+      <svg viewBox="0 0 24 24" style={{ width: 30, height: 30 }}>
+        <path d="M16 4a8 8 0 1 0 0 16 6 6 0 0 1 0-16z" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+      </svg>
+    ),
+    variants: [
+      { id: "moon-A", label: "Crescent", description: "Refined open crescent — even stroke", svg: (
+        <svg viewBox={VB}><path d="M31 9a15 15 0 1 0 0 30 11 11 0 0 1 0-30z" fill="none" stroke="currentColor" strokeWidth={S} strokeLinejoin="round" /></svg>
+      ) },
+      { id: "moon-B", label: "Solid", description: "Filled silhouette — bold, like the reference moon", svg: (
+        <svg viewBox={VB}><path d="M31 9a15 15 0 1 0 0 30 11 11 0 0 1 0-30z" fill="currentColor" opacity=".9" /></svg>
+      ) },
+      { id: "moon-C", label: "Crescent + Star", description: "Crescent with a single attendant star", svg: (
+        <svg viewBox={VB}><path d="M33 10a14 14 0 1 0 0 28 10 10 0 0 1 0-28z" fill="none" stroke="currentColor" strokeWidth={S} strokeLinejoin="round" /><path d="M13 13l1.3 3.4 3.4 1.3-3.4 1.3-1.3 3.4-1.3-3.4-3.4-1.3 3.4-1.3z" fill="currentColor" opacity=".85" /></svg>
+      ) },
+    ],
+  },
+  {
+    category: "PLANET GLYPHS",
+    key: "mercury",
+    context: "Planet table + popup (☿ Mercury)",
+    currentLabel: "#gl-mercury",
+    currentNote: "Horns + ring + cross",
+    current: (
+      <svg viewBox="0 0 24 24" style={{ width: 30, height: 30 }}>
+        <circle cx="12" cy="10" r="5" fill="none" stroke="currentColor" strokeWidth={1.4} />
+        <line x1="12" y1="15" x2="12" y2="22" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+        <line x1="9" y1="19" x2="15" y2="19" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+        <path d="M7 5a6 6 0 0110 0" fill="none" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" />
+      </svg>
+    ),
+    variants: [
+      { id: "mer-A", label: "Classic", description: "Crescent horns, ring, cross — clean astronomical ☿", svg: (
+        <svg viewBox={VB}><path d="M17 11a7 7 0 0 0 14 0" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><circle cx="24" cy="23" r="7" fill="none" stroke="currentColor" strokeWidth={S} /><line x1="24" y1="30" x2="24" y2="42" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="18.5" y1="37" x2="29.5" y2="37" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /></svg>
+      ) },
+      { id: "mer-B", label: "Bold / Filled", description: "Heavier strokes + filled disc — notable", svg: (
+        <svg viewBox={VB}><path d="M17 11a7 7 0 0 0 14 0" fill="none" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /><circle cx="24" cy="23" r="7" fill="currentColor" opacity=".88" /><line x1="24" y1="30" x2="24" y2="42" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /><line x1="18" y1="37" x2="30" y2="37" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /></svg>
+      ) },
+      { id: "mer-C", label: "Ring + Dot", description: "Open ring with a centred dot — lighter, distinct", svg: (
+        <svg viewBox={VB}><path d="M17 11a7 7 0 0 0 14 0" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><circle cx="24" cy="23" r="7" fill="none" stroke="currentColor" strokeWidth={S} /><circle cx="24" cy="23" r="2.2" fill="currentColor" /><line x1="24" y1="30" x2="24" y2="42" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="18.5" y1="37" x2="29.5" y2="37" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /></svg>
+      ) },
+    ],
+  },
+  {
+    category: "PLANET GLYPHS",
+    key: "venus",
+    context: "Planet table + popup (♀ Venus)",
+    currentLabel: "#gl-venus",
+    currentNote: "Ring + cross",
+    current: (
+      <svg viewBox="0 0 24 24" style={{ width: 30, height: 30 }}>
+        <circle cx="12" cy="9" r="5" fill="none" stroke="currentColor" strokeWidth={1.5} />
+        <line x1="12" y1="14" x2="12" y2="22" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+        <line x1="9" y1="19" x2="15" y2="19" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+      </svg>
+    ),
+    variants: [
+      { id: "ven-A", label: "Classic", description: "Even stroke, balanced cross — traditional ♀", svg: (
+        <svg viewBox={VB}><circle cx="24" cy="18" r="9" fill="none" stroke="currentColor" strokeWidth={S} /><line x1="24" y1="27" x2="24" y2="42" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="18" y1="36" x2="30" y2="36" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /></svg>
+      ) },
+      { id: "ven-B", label: "Bold / Filled", description: "Solid disc + crisp cross — high contrast", svg: (
+        <svg viewBox={VB}><circle cx="24" cy="18" r="9" fill="currentColor" opacity=".88" /><line x1="24" y1="27" x2="24" y2="42" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /><line x1="18" y1="36" x2="30" y2="36" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /></svg>
+      ) },
+      { id: "ven-C", label: "Ring + Dot", description: "Ring with a soft inner dot — decorative", svg: (
+        <svg viewBox={VB}><circle cx="24" cy="18" r="9" fill="none" stroke="currentColor" strokeWidth={S} /><circle cx="24" cy="18" r="3" fill="currentColor" opacity=".7" /><line x1="24" y1="27" x2="24" y2="42" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="18" y1="36" x2="30" y2="36" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /></svg>
+      ) },
+    ],
+  },
+  {
+    category: "PLANET GLYPHS",
+    key: "mars",
+    context: "Planet table + popup (♂ Mars)",
+    currentLabel: "#gl-mars",
+    currentNote: "Ring + arrow",
+    current: (
+      <svg viewBox="0 0 24 24" style={{ width: 30, height: 30 }}>
+        <circle cx="10" cy="14" r="5.5" fill="none" stroke="currentColor" strokeWidth={1.5} />
+        <line x1="14" y1="10" x2="20" y2="4" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" />
+        <polyline points="15,4 20,4 20,9" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    variants: [
+      { id: "mar-A", label: "Classic", description: "Even stroke, balanced arrow — traditional ♂", svg: (
+        <svg viewBox={VB}><circle cx="20" cy="28" r="10" fill="none" stroke="currentColor" strokeWidth={S} /><line x1="28" y1="20" x2="40" y2="8" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><polyline points="30,8 40,8 40,18" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" /></svg>
+      ) },
+      { id: "mar-B", label: "Bold / Filled", description: "Solid disc + crisp arrow — high contrast", svg: (
+        <svg viewBox={VB}><circle cx="20" cy="28" r="10" fill="currentColor" opacity=".88" /><line x1="28" y1="20" x2="40" y2="8" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /><polyline points="30,8 40,8 40,18" fill="none" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" strokeLinejoin="round" /></svg>
+      ) },
+      { id: "mar-C", label: "Ring + Dot", description: "Ring with a soft inner dot — decorative", svg: (
+        <svg viewBox={VB}><circle cx="20" cy="28" r="10" fill="none" stroke="currentColor" strokeWidth={S} /><circle cx="20" cy="28" r="3" fill="currentColor" opacity=".7" /><line x1="28" y1="20" x2="40" y2="8" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><polyline points="30,8 40,8 40,18" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" /></svg>
+      ) },
+    ],
+  },
+  {
+    category: "PLANET GLYPHS",
+    key: "jupiter",
+    context: "Planet table + popup (♃ Jupiter)",
+    currentLabel: "#gl-jupiter",
+    currentNote: "Stylised '4' + bar",
+    current: (
+      <svg viewBox="0 0 24 24" style={{ width: 30, height: 30 }}>
+        <path d="M14 4v16M10 12h10M6 4c4 0 6 3 6 8s-2 8-6 8" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    variants: [
+      { id: "jup-A", label: "Classic", description: "Refined current form — even stroke", svg: (
+        <svg viewBox={VB}><path d="M28 8v32M20 24h20M12 8c8 0 12 6 12 16s-4 16-12 16" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" /></svg>
+      ) },
+      { id: "jup-B", label: "Bold", description: "Heavier stroke — more notable in the table", svg: (
+        <svg viewBox={VB}><path d="M28 8v32M20 24h20M12 8c8 0 12 6 12 16s-4 16-12 16" fill="none" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" strokeLinejoin="round" /></svg>
+      ) },
+      { id: "jup-C", label: "Open '4'", description: "Cross-bar with an open hook — airy alternate", svg: (
+        <svg viewBox={VB}><path d="M14 14c0-5 4-8 9-8M14 14h16M30 6v34" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" /></svg>
+      ) },
+    ],
+  },
+  {
+    category: "PLANET GLYPHS",
+    key: "saturn",
+    context: "Planet table + popup (♄ Saturn)",
+    currentLabel: "#gl-saturn",
+    currentNote: "Scythe + cross",
+    current: (
+      <svg viewBox="0 0 24 24" style={{ width: 30, height: 30 }}>
+        <path d="M8 2l-3 3M5 5l2 2M9 9c-3 3-3 7 0 10s7 3 10 0" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+        <line x1="9" y1="9" x2="9" y2="20" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+        <line x1="6" y1="14" x2="12" y2="14" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+      </svg>
+    ),
+    variants: [
+      { id: "sat-A", label: "Classic", description: "Cross-topped stem with a sweeping tail — traditional ♄", svg: (
+        <svg viewBox={VB}><path d="M16 8v24c0 6 5 9 10 7s8-7 4-12" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" /><line x1="16" y1="14" x2="16" y2="14" stroke="currentColor" strokeWidth={S} /><line x1="10" y1="13" x2="22" y2="13" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="16" y1="6" x2="16" y2="20" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /></svg>
+      ) },
+      { id: "sat-B", label: "Bold", description: "Heavier stroke — more notable", svg: (
+        <svg viewBox={VB}><path d="M16 8v24c0 6 5 9 10 7s8-7 4-12" fill="none" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" strokeLinejoin="round" /><line x1="10" y1="13" x2="22" y2="13" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /><line x1="16" y1="6" x2="16" y2="20" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /></svg>
+      ) },
+      { id: "sat-C", label: "Rounded 'h'", description: "Softer h-curve tail — gentler alternate", svg: (
+        <svg viewBox={VB}><path d="M14 10v18c0 8 12 9 14 1" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" /><line x1="8" y1="14" x2="20" y2="14" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="14" y1="7" x2="14" y2="21" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /></svg>
+      ) },
+    ],
+  },
+  {
+    category: "PLANET GLYPHS",
+    key: "uranus",
+    context: "Planet table + popup (♅ Uranus)",
+    currentLabel: "#gl-uranus",
+    currentNote: "Astrological (ring + mast + dot)",
+    current: (
+      <svg viewBox="0 0 24 24" style={{ width: 30, height: 30 }}>
+        <circle cx="12" cy="17" r="4" fill="none" stroke="currentColor" strokeWidth={1.4} />
+        <line x1="12" y1="13" x2="12" y2="2" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+        <line x1="8" y1="7" x2="16" y2="7" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+        <circle cx="12" cy="2" r="1.2" fill="currentColor" />
+      </svg>
+    ),
+    variants: [
+      { id: "ura-A", label: "Astrological", description: "Ring, vertical mast, cross-bar, top dot — refined current", svg: (
+        <svg viewBox={VB}><circle cx="24" cy="34" r="8" fill="none" stroke="currentColor" strokeWidth={S} /><line x1="24" y1="26" x2="24" y2="6" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="16" y1="14" x2="32" y2="14" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><circle cx="24" cy="6" r="2.4" fill="currentColor" /></svg>
+      ) },
+      { id: "ura-B", label: "H-style (⛢)", description: "Two masts + hanging disc — the astronomical form", svg: (
+        <svg viewBox={VB}><line x1="14" y1="8" x2="14" y2="30" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="34" y1="8" x2="34" y2="30" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="14" y1="18" x2="34" y2="18" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><circle cx="24" cy="36" r="5" fill="none" stroke="currentColor" strokeWidth={S} /><line x1="24" y1="18" x2="24" y2="31" stroke="currentColor" strokeWidth={S} /></svg>
+      ) },
+      { id: "ura-C", label: "Bold", description: "Heavier astrological form — high contrast", svg: (
+        <svg viewBox={VB}><circle cx="24" cy="34" r="8" fill="none" stroke="currentColor" strokeWidth={SB} /><line x1="24" y1="26" x2="24" y2="6" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /><line x1="15" y1="14" x2="33" y2="14" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /><circle cx="24" cy="6" r="3" fill="currentColor" /></svg>
+      ) },
+    ],
+  },
+  {
+    category: "PLANET GLYPHS",
+    key: "neptune",
+    context: "Planet table + popup (♆ Neptune)",
+    currentLabel: "#gl-neptune",
+    currentNote: "Trident + cross",
+    current: (
+      <svg viewBox="0 0 24 24" style={{ width: 30, height: 30 }}>
+        <line x1="12" y1="2" x2="12" y2="22" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+        <line x1="8" y1="18" x2="16" y2="18" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+        <path d="M5 10l3.5-4L12 10l3.5-4L19 10" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    variants: [
+      { id: "nep-A", label: "Classic", description: "Three-prong trident with cross-bar — traditional ♆", svg: (
+        <svg viewBox={VB}><path d="M10 20L17 12L24 20L31 12L38 20" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" /><line x1="24" y1="12" x2="24" y2="44" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="16" y1="36" x2="32" y2="36" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /></svg>
+      ) },
+      { id: "nep-B", label: "Bold", description: "Heavier trident — more notable", svg: (
+        <svg viewBox={VB}><path d="M10 20L17 12L24 20L31 12L38 20" fill="none" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" strokeLinejoin="round" /><line x1="24" y1="12" x2="24" y2="44" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /><line x1="16" y1="36" x2="32" y2="36" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /></svg>
+      ) },
+      { id: "nep-C", label: "Curved Prongs", description: "Rounded trident with a shaft dot — softer", svg: (
+        <svg viewBox={VB}><path d="M10 18c0-4 3-7 7-7M24 18c0-4-3-7-7-7M24 18c0-4 3-7 7-7M38 18c0-4-3-7-7-7M24 11v33" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="16" y1="37" x2="32" y2="37" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /></svg>
+      ) },
+    ],
+  },
+  {
+    category: "PLANET GLYPHS",
+    key: "pluto",
+    context: "Planet table + popup (♇ Pluto)",
+    currentLabel: "#gl-pluto",
+    currentNote: "Orb + ring + cross",
+    current: (
+      <svg viewBox="0 0 24 24" style={{ width: 30, height: 30 }}>
+        <circle cx="12" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth={1.4} />
+        <path d="M12 7m-2 0a2 2 0 104 0 2 2 0 10-4 0" fill="none" stroke="currentColor" strokeWidth={1.2} />
+        <line x1="12" y1="12" x2="12" y2="20" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+        <line x1="8" y1="17" x2="16" y2="17" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+      </svg>
+    ),
+    variants: [
+      { id: "plu-A", label: "Orb-in-crescent (♇)", description: "Disc cradled in an upturned crescent over a cross — standard ♇", svg: (
+        <svg viewBox={VB}><path d="M14 18a10 10 0 0 0 20 0" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><circle cx="24" cy="13" r="4.5" fill="none" stroke="currentColor" strokeWidth={S} /><line x1="24" y1="26" x2="24" y2="42" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /><line x1="18" y1="35" x2="30" y2="35" stroke="currentColor" strokeWidth={S} strokeLinecap="round" /></svg>
+      ) },
+      { id: "plu-B", label: "P-L monogram", description: "The 'PL' ligature (Percival Lowell) — like the reference sheet", svg: (
+        <svg viewBox={VB}><path d="M12 8v32M12 8h9a7 7 0 0 1 0 14h-9" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" /><path d="M26 18v22h12" fill="none" stroke="currentColor" strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" /></svg>
+      ) },
+      { id: "plu-C", label: "Bold orb-in-crescent", description: "Filled disc in crescent — high contrast", svg: (
+        <svg viewBox={VB}><path d="M14 18a10 10 0 0 0 20 0" fill="none" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /><circle cx="24" cy="13" r="4.5" fill="currentColor" opacity=".88" /><line x1="24" y1="26" x2="24" y2="42" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /><line x1="18" y1="35" x2="30" y2="35" stroke="currentColor" strokeWidth={SB} strokeLinecap="round" /></svg>
+      ) },
+    ],
+  },
+];
+
 // ─── Build all groups ──────────────────────────────────────────
 const groups: Group[] = [
+  ...planetGroups,
   {
     category: "AUTH STEPS",
     key: "login",
@@ -743,7 +1014,7 @@ export default function SymbolsShowcaseClient() {
         <p className="sx-eyebrow">Branch · symbols-upgrade</p>
         <h1>Symbols Upgrade — Showcase</h1>
         <p className="sx-sub">
-          Auth-step icons and synastry aspect glyphs, with proposed SVG variants alongside the current symbol.
+          Planet glyphs, auth-step icons and synastry aspect glyphs, with proposed SVG variants alongside the current symbol.
           Click a card to mark your choice — the picks panel below summarises your selections.
         </p>
       </header>

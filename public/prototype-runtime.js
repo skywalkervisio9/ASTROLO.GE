@@ -1045,7 +1045,10 @@ function toggleExp(btn) {
   btn.textContent = open ? collapseLabel : btn._origText;
 }
 
-function openAspInterp(row) {
+function openAspInterp(row, ev) {
+  // Clicking the aspect symbol opens its type popup (delegated handler), not the
+  // interpretation toggle — bail so the two interactions don't both fire.
+  if (ev && _closest(ev.target, '.asy-btn')) return;
   var key = row.getAttribute('data-asp-key');
   var parent = row.parentElement;
   var btn = parent.querySelector('.tb2');
@@ -1437,6 +1440,28 @@ const aspectData = {
   }
 };
 
+// Per-aspect-type explanations (natal aspect list). Keyed by the 5 major aspect
+// types; the popup title reuses _aspectGlyph + _aspTypeLabel, themed by nature
+// (harmony/tension/magnetic) via _aspNature below.
+const _aspTypeBody = {
+  ka: {
+    conjunction: 'ორი პლანეტა ერთ წერტილში ერწყმის — მათი ენერგია ერთ ძალად იქცევა. ინტენსიური, განუყოფელი შერწყმა, სადაც ერთი მეორეს აძლიერებს.',
+    trine: 'ჰარმონიული, თავისუფლად მოედინება ენერგია ორ პლანეტას შორის. ბუნებრივი ნიჭი, რომელიც ძალისხმევის გარეშე მუშაობს.',
+    sextile: 'ნაზი შესაძლებლობა და მხარდაჭერა. ნიჭი, რომელიც ცოტა ძალისხმევით აქტიურდება — კარი, რომელიც გელით, რომ გააღოთ.',
+    square: 'დაძაბულობა და ფრიქცია, რომელიც ქმედებისკენ გიბიძგებთ. შინაგანი კონფლიქტი, რომელიც ზრდის ძრავაა — არაკომფორტული, მაგრამ ნაყოფიერი.',
+    opposition: 'ორი საპირისპირო ძალის გადაზიდვა — ბალანსის ძიება. ხშირად სხვებში ან ურთიერთობებში ვლინდება, სანამ შიგნით არ შეერთდება.'
+  },
+  en: {
+    conjunction: 'Two planets merge at a single point — their energies fuse into one force. An intense, inseparable blend where each amplifies the other.',
+    trine: 'Harmonious, freely flowing energy between two planets. A natural gift that works without effort.',
+    sextile: 'A gentle opportunity and support. A talent that activates with a little effort — a door waiting for you to open it.',
+    square: 'Tension and friction that pushes you toward action. An inner conflict that is the engine of growth — uncomfortable but productive.',
+    opposition: 'A pull between two opposing forces, seeking balance. Often shows up in others or relationships until you integrate it within.'
+  }
+};
+// Aspect type → popup nature theme (matches .aspect-tag colors)
+const _aspNature = { conjunction: 'magnetic', trine: 'harmony', sextile: 'harmony', square: 'tension', opposition: 'tension' };
+
 // Planet popups (natal)
 const plData = {
   ka: {
@@ -1524,7 +1549,11 @@ document.addEventListener('click', e => {
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
     const d = plData[lang][key];
     if (!d) return;
-    _showPopup(plBtn, 'planet-pop', d.t, d.b);
+    // Use the SAME SVG glyph as the planet table (data has a legacy Unicode
+    // symbol prefix in `t` — strip it so the table and popup never mismatch).
+    var plName = d.t.replace(/^\S+\s+/, '');
+    var plGlyph = '<svg class="pl-pop-gi" viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-' + key + '"/></svg>';
+    _showPopup(plBtn, 'planet-pop', plGlyph + plName, d.b);
     return;
   }
 
@@ -1538,7 +1567,9 @@ document.addEventListener('click', e => {
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
     const d = _SIGN_DATA[lang][si];
     if (!d) return;
-    _showPopup(signTd, 'sign-pop', _signPopupSvg(si) + d.t, d.b);
+    // Edge colour follows the sign's element (fire/earth/air/water cycle from Aries)
+    var _signEl = ['sf', 'se', 'sa', 'sw'][si % 4];
+    _showPopup(signTd, 'sign-pop ' + _signEl, _signPopupSvg(si) + d.t, d.b);
     return;
   }
 
@@ -1573,6 +1604,21 @@ document.addEventListener('click', e => {
     return;
   }
 
+  // Aspect symbol popups in the natal aspect list (.asy-btn) — explains the
+  // aspect TYPE. Lives inside .al rows that may have their own interp onclick;
+  // openAspInterp bails when the click lands here (see its guard).
+  const asyBtn = _closest(e.target, '.asy-btn');
+  if (asyBtn) {
+    e.stopPropagation();
+    if (activeTag === asyBtn) { closePopup(); return; }
+    const type = asyBtn.getAttribute('data-asp-type'); if (!type) return;
+    const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+    const body = (_aspTypeBody[lang] || _aspTypeBody.ka)[type]; if (!body) return;
+    const label = (_aspTypeLabel[lang] || _aspTypeLabel.ka)[type] || type;
+    _showPopup(asyBtn, (_aspNature[type] || 'magnetic') + '-pop', _aspectGlyph(type) + ' ' + label, body);
+    return;
+  }
+
   // Close popup when clicking elsewhere
   if (activePopup && !_closest(e.target, '.el-popup') && !_closest(e.target, '.mc-sign-btn')) closePopup();
 });
@@ -1581,7 +1627,7 @@ document.addEventListener('click', e => {
 // role=button, onclick handlers). Taps on plain divs / page background never reach
 // the close-elsewhere handler above. `pointerdown` fires on any element, so use it
 // purely for outside-close. Triggers handle their own toggle via the click handler.
-const _POPUP_TRIGGER_SEL = '.et,.pl-btn,.sign-td,.house-td,.aspect-tag,.mc-sign-btn,.el-popup';
+const _POPUP_TRIGGER_SEL = '.et,.pl-btn,.sign-td,.house-td,.aspect-tag,.asy-btn,.mc-sign-btn,.el-popup';
 document.addEventListener('pointerdown', e => {
   if (!activePopup) return;
   if (_closest(e.target, _POPUP_TRIGGER_SEL)) return;
@@ -3091,6 +3137,56 @@ const SYMBOL_TO_GLYPH = {
 const SIGN_SYMBOLS = new Set(['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓']);
 const PLANET_SYMBOLS = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋']);
 
+// Zodiac sign in-text display data (icon/name toggle + tooltips). Mirrors
+// lib/utils/renderText.tsx so the hydrated reading matches the React renderer.
+const SIGN_NAMES_EN = {
+  aries: 'Aries', taurus: 'Taurus', gemini: 'Gemini', cancer: 'Cancer', leo: 'Leo', virgo: 'Virgo',
+  libra: 'Libra', scorpio: 'Scorpio', sagittarius: 'Sagittarius', capricorn: 'Capricorn', aquarius: 'Aquarius', pisces: 'Pisces'
+};
+const SIGN_NAMES_KA_INF = {
+  aries: { nom: 'ვერძი', gen: 'ვერძის', loc: 'ვერძში', dat: 'ვერძს', inst: 'ვერძით', adv: 'ვერძად', for: 'ვერძისთვის', with: 'ვერძთან', voc: 'ვერძო' },
+  taurus: { nom: 'კურო', gen: 'კუროს', loc: 'კუროში', dat: 'კუროს', inst: 'კუროთი', adv: 'კუროდ', for: 'კუროსთვის', with: 'კუროსთან', voc: 'კურო' },
+  gemini: { nom: 'ტყუპები', gen: 'ტყუპების', loc: 'ტყუპებში', dat: 'ტყუპებს', inst: 'ტყუპებით', adv: 'ტყუპებად', for: 'ტყუპებისთვის', with: 'ტყუპებთან', voc: 'ტყუპებო' },
+  cancer: { nom: 'კირჩხიბი', gen: 'კირჩხიბის', loc: 'კირჩხიბში', dat: 'კირჩხიბს', inst: 'კირჩხიბით', adv: 'კირჩხიბად', for: 'კირჩხიბისთვის', with: 'კირჩხიბთან', voc: 'კირჩხიბო' },
+  leo: { nom: 'ლომი', gen: 'ლომის', loc: 'ლომში', dat: 'ლომს', inst: 'ლომით', adv: 'ლომად', for: 'ლომისთვის', with: 'ლომთან', voc: 'ლომო' },
+  virgo: { nom: 'ქალწული', gen: 'ქალწულის', loc: 'ქალწულში', dat: 'ქალწულს', inst: 'ქალწულით', adv: 'ქალწულად', for: 'ქალწულისთვის', with: 'ქალწულთან', voc: 'ქალწულო' },
+  libra: { nom: 'სასწორი', gen: 'სასწორის', loc: 'სასწორში', dat: 'სასწორს', inst: 'სასწორით', adv: 'სასწორად', for: 'სასწორისთვის', with: 'სასწორთან', voc: 'სასწორო' },
+  scorpio: { nom: 'მორიელი', gen: 'მორიელის', loc: 'მორიელში', dat: 'მორიელს', inst: 'მორიელით', adv: 'მორიელად', for: 'მორიელისთვის', with: 'მორიელთან', voc: 'მორიელო' },
+  sagittarius: { nom: 'მშვილდოსანი', gen: 'მშვილდოსნის', loc: 'მშვილდოსანში', dat: 'მშვილდოსანს', inst: 'მშვილდოსნით', adv: 'მშვილდოსნად', for: 'მშვილდოსნისთვის', with: 'მშვილდოსანთან', voc: 'მშვილდოსანო' },
+  capricorn: { nom: 'თხის რქა', gen: 'თხის რქის', loc: 'თხის რქაში', dat: 'თხის რქას', inst: 'თხის რქით', adv: 'თხის რქად', for: 'თხის რქისთვის', with: 'თხის რქასთან', voc: 'თხის რქავ' },
+  aquarius: { nom: 'მერწყული', gen: 'მერწყულის', loc: 'მერწყულში', dat: 'მერწყულს', inst: 'მერწყულით', adv: 'მერწყულად', for: 'მერწყულისთვის', with: 'მერწყულთან', voc: 'მერწყულო' },
+  pisces: { nom: 'თევზები', gen: 'თევზების', loc: 'თევზებში', dat: 'თევზებს', inst: 'თევზებით', adv: 'თევზებად', for: 'თევზებისთვის', with: 'თევზებთან', voc: 'თევზებო' }
+};
+const SIGN_TIPS_KA = {
+  aries: 'ვერძი — ინიციატივა, სიმამაცე, ძალა', taurus: 'კურო — სტაბილურობა, სიამოვნება, გამძლეობა',
+  gemini: 'ტყუპები — ინტელექტი, ორმაგობა, ცნობისმოყვარეობა', cancer: 'კირჩხიბი — გრძნობა, მეხსიერება, ზრუნვა',
+  leo: 'ლომი — სხივოსნება, სიამაყე, შემოქმედება', virgo: 'ქალწული — სიზუსტე, სამსახური, გამჭრიახობა',
+  libra: 'სასწორი — ბალანსი, სილამაზე, პარტნიორობა', scorpio: 'მორიელი — სიღრმე, ტრანსფორმაცია, ინტენსიობა',
+  sagittarius: 'მშვილდოსანი — გაფართოება, ჭეშმარიტება, თავისუფლება', capricorn: 'თხის რქა — ამბიცია, სტრუქტურა, დაოსტატება',
+  aquarius: 'მერწყული — სიახლე, იდეალები, თემი', pisces: 'თევზები — თანაგრძნობა, გახსნა, ოცნება'
+};
+const SIGN_TIPS_EN = {
+  aries: 'Aries — initiative, courage, raw drive', taurus: 'Taurus — stability, sensuality, persistence',
+  gemini: 'Gemini — intellect, duality, curiosity', cancer: 'Cancer — feeling, memory, nurturing',
+  leo: 'Leo — radiance, pride, creative fire', virgo: 'Virgo — precision, service, discernment',
+  libra: 'Libra — balance, beauty, partnership', scorpio: 'Scorpio — depth, transformation, intensity',
+  sagittarius: 'Sagittarius — expansion, truth, freedom', capricorn: 'Capricorn — ambition, structure, mastery',
+  aquarius: 'Aquarius — innovation, ideals, community', pisces: 'Pisces — compassion, dissolution, the dream'
+};
+function _kaSignName(key, suffix) {
+  var f = SIGN_NAMES_KA_INF[key]; if (!f) return key;
+  var s = (suffix || '').replace(/^-/, '');
+  if (s === 'ის') return f.gen;
+  if (s === 'ში') return f.loc;
+  if (s === 'ს') return f.dat;
+  if (s === 'ით') return f.inst;
+  if (s === 'ად') return f.adv;
+  if (s === 'სთვის' || s === 'თვის') return f.for;
+  if (s === 'სთან' || s === 'თან') return f.with;
+  if (s === 'ო') return f.voc;
+  return f.nom;
+}
+
 // Collapse LLM <b>/<strong> in prose to ** before escape + markdown pass
 function _normalizeLlmHtmlEmphasisToMarkdown(s) {
   if (s == null || typeof s !== 'string') return s;
@@ -3204,6 +3300,22 @@ function _renderRichText(text) {
     var tipAttr = _elTips[el] ? ' data-tip="' + _elTips[el] + '"' : '';
     return '<span class="gel gel-' + el + ' tip"' + tipAttr + '><span class="gel-w">' + word + '</span>' + pctHtml + '</span>';
   });
+  // Zodiac sign symbols → toggleable icon/name token with tooltip + Georgian
+  // case inflection (mirrors renderText.tsx renderZodiacSignToken). Runs before
+  // the char-by-char pass below so signs become dual icon/name spans (which the
+  // zodiac switch can flip) instead of a bare, untoggleable glyph.
+  escaped = escaped.replace(
+    /([♈♉♊♋♌♍♎♏♐♑♒♓])(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო))?/g,
+    function(_m, sym, suffix) {
+      var key = SYMBOL_TO_GLYPH[sym];
+      var el = SIGN_ELEMENT[key] || '';
+      var tip = (_hydrateLang === 'ka' ? SIGN_TIPS_KA : SIGN_TIPS_EN)[key] || '';
+      var nameLabel = _hydrateLang === 'ka' ? _kaSignName(key, suffix) : (SIGN_NAMES_EN[key] || key);
+      var tipAttr = tip ? ' data-tip="' + tip + '"' : '';
+      return '<span class="zm-icon"><span class="gi gi-' + el + ' tip"' + tipAttr + ' style="cursor:help"><svg><use href="#gl-' + key + '"/></svg></span>' + (suffix ? '-' + suffix : '') + '</span>' +
+        '<span class="zm-name zs zs-' + el + ' tip"' + tipAttr + ' style="cursor:help">' + nameLabel + '</span>';
+    }
+  );
   // Now replace Unicode astro symbols with SVG glyphs
   var chars = Array.from(escaped);
   var result = '';
@@ -3280,7 +3392,7 @@ function _stripPrefix(title) {
   return idx !== -1 ? title.slice(idx + 2) : (title || '');
 }
 
-var _GLYPH_IDS = { sun:1, moon:1, venus:1, mars:1, mercury:1, jupiter:1, saturn:1, uranus:1, neptune:1, pluto:1, lilith:1, node:1, asc:1 };
+var _GLYPH_IDS = { sun:1, moon:1, venus:1, mars:1, mercury:1, jupiter:1, saturn:1, uranus:1, neptune:1, pluto:1, chiron:1, lilith:1, node:1, asc:1 };
 var _GLYPH_ALIAS = { 'north node':'node', 'south node':'node' };
 // Text acronyms rendered as styled text badges; symbol fallbacks rendered as glyphs
 var _GLYPH_ACRONYM = { ascendant:'ASC', midheaven:'MC', mc:'MC', ic:'IC', descendant:'DSC' };
@@ -3379,14 +3491,14 @@ function _buildAspect(asp) {
   var aspKey = (p1Name + '__' + p2Name).replace(/\s+/g, '').toLowerCase();
   // al-hi = has interpretation in expanded section (brighter bg + ★)
   var cls = 'al ' + (natureClass[aspectType] || '') + (hasInterp ? ' al-hi' : '');
-  var clickAttr = hasInterp ? ' data-asp-key="' + aspKey + '" onclick="openAspInterp(this)"' : '';
+  var clickAttr = hasInterp ? ' data-asp-key="' + aspKey + '" onclick="openAspInterp(this, event)"' : '';
   // Acronym glyphs (MC, IC, DSC, ASC) ARE the label — don't repeat. Symbol glyphs (⚷) keep the name.
   var g1 = _planetGlyph(p1Name);
   var g2 = _planetGlyph(p2Name);
   var isAcr1 = g1.indexOf('gi-acr') !== -1;
   var isAcr2 = g2.indexOf('gi-acr') !== -1;
   return '<div class="' + cls + '"' + clickAttr + '>' +
-    '<span class="asy">' + (_aspectGlyph(aspectType) || _esc(asp.aspectSymbol || '')) + '</span>' +
+    '<span class="asy asy-btn" data-asp-type="' + _esc(aspectType) + '">' + (_aspectGlyph(aspectType) || _esc(asp.aspectSymbol || '')) + '</span>' +
     '<span class="al-p">' + g1 + (isAcr1 ? '' : ' ' + _esc(p1)) + '</span>' +
     '<span class="al-p">' + g2 + (isAcr2 ? '' : ' ' + _esc(p2)) + '</span>' +
     '<span class="alb">' +

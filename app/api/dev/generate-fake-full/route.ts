@@ -33,7 +33,47 @@ import {
   type StoredPlanet,
   type StoredPoints,
   type StoredAspect,
+  type SingleLangInterp,
 } from '@/lib/chart/reading-helpers';
+
+/**
+ * Aspect interpretations for the fake reading. The cloned source reading already
+ * holds real, AI-written aspect prose in overview.aspects — reuse it, mapped onto
+ * THIS user's aspects positionally (the source chart differs, so an exact planet
+ * match isn't possible). Falls back to a clearly-marked placeholder so the
+ * aspect-interpretation UI always renders in dev, even if the source had none.
+ */
+function buildFakeAspectInterps(
+  fake: Record<string, unknown> | null,
+  storedAspects: StoredAspect[] | null,
+  lang: 'ka' | 'en',
+): SingleLangInterp[] {
+  if (!storedAspects || storedAspects.length === 0) return [];
+  const overview = (fake?.overview ?? {}) as Record<string, unknown>;
+  const src = Array.isArray(overview.aspects) ? (overview.aspects as Array<Record<string, unknown>>) : [];
+  const prose = src
+    .map((a) => ({
+      interpretation: typeof a?.interpretation === 'string' ? a.interpretation.trim() : '',
+      significance: a?.significance === 'high' ? ('high' as const) : ('normal' as const),
+    }))
+    .filter((p) => p.interpretation.length > 0);
+
+  const placeholder = (asp: string) =>
+    lang === 'ka'
+      ? `🔁 FAKE — ${asp}: სატესტო ინტერპრეტაცია ასპექტების ბლოკის გასამართად. რეალურ წაკითხვაში აქ AI-ის ანალიზი იქნება.`
+      : `🔁 FAKE — ${asp}: placeholder interpretation to exercise the aspect block. A real reading shows AI analysis here.`;
+
+  return storedAspects.map((a, i) => {
+    const p = prose.length > 0 ? prose[i % prose.length] : null;
+    return {
+      planet1: a.planet1,
+      planet2: a.planet2,
+      aspect: a.aspect,
+      interpretation: p ? p.interpretation : placeholder(a.aspect),
+      significance: p ? p.significance : ('normal' as const),
+    };
+  });
+}
 
 export const runtime = 'nodejs';
 export const maxDuration = 600;
@@ -126,8 +166,8 @@ export async function POST(req: NextRequest) {
     // Inject the current user's real chart_data into overview so the planet
     // table + aspects match this user even though card text is the clone's.
     const planetTable = buildPlanetTableForReading(storedPlanets, storedPoints);
-    const aspectsKa = mergeAspectsForReading(storedAspects, []);
-    const aspectsEn = mergeAspectsForReading(storedAspects, []);
+    const aspectsKa = mergeAspectsForReading(storedAspects, buildFakeAspectInterps(fakeKa, storedAspects, 'ka'));
+    const aspectsEn = mergeAspectsForReading(storedAspects, buildFakeAspectInterps(fakeEn, storedAspects, 'en'));
 
     const finalReadingKa = injectAndClean(fakeKa, planetTable, aspectsKa);
     const finalReadingEn = injectAndClean(fakeEn, planetTable, aspectsEn);
