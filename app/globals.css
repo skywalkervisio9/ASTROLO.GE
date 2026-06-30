@@ -486,6 +486,9 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 /* Planet names */
 .al-p{color:var(--silver)}
 .al-p .gi{vertical-align:middle;width:1em;height:1em}
+/* Clickable planet in an aspect row → opens its extended popup (like the planet table) */
+.al-p.pl-btn{cursor:pointer;border-radius:5px;padding:1px 4px;margin:-1px -2px;transition:background .15s,color .15s}
+.al-p.pl-btn:hover{color:var(--gold);background:rgba(201,168,76,.08)}
 /* Type label + orb — right side */
 .alb{color:var(--txd);font-size:.64rem;letter-spacing:.08em;margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:8px}
 .al-type{color:var(--txd);font-size:.62rem;letter-spacing:.06em;opacity:.7}
@@ -493,6 +496,8 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 /* Aspect interpretation entries — aspect row header + body block */
 .ai-entry{margin-bottom:10px}
 .ai-entry .al{margin-bottom:0;border-radius:7px 7px 0 0;pointer-events:none;cursor:default}
+/* …but the aspect symbol + planet glyphs inside stay clickable/hoverable (popups) */
+.ai-entry .al .asy-btn,.ai-entry .al .pl-btn{pointer-events:auto}
 .ai-body{background:var(--sf2);border-radius:0 0 7px 7px;padding:10px 12px 8px;border-left:2.5px solid transparent}
 .ai-entry.al-harm .ai-body{border-left-color:rgba(107,154,107,.55)}
 .ai-entry.al-tens .ai-body{border-left-color:rgba(212,100,74,.45)}

@@ -1046,9 +1046,10 @@ function toggleExp(btn) {
 }
 
 function openAspInterp(row, ev) {
-  // Clicking the aspect symbol opens its type popup (delegated handler), not the
-  // interpretation toggle — bail so the two interactions don't both fire.
-  if (ev && _closest(ev.target, '.asy-btn')) return;
+  // Clicking the aspect symbol (type popup) or a planet (planet popup) is handled
+  // by the delegated popup handler — bail so the interpretation toggle doesn't
+  // also fire.
+  if (ev && _closest(ev.target, '.asy-btn,.pl-btn')) return;
   var key = row.getAttribute('data-asp-key');
   var parent = row.parentElement;
   var btn = parent.querySelector('.tb2');
@@ -1474,7 +1475,10 @@ const plData = {
     saturn: { t: '♄ სატურნი', b: 'სტრუქტურა, დისციპლინა და კარმული გაკვეთილები. სატურნი აჩვენებს სად არის შენი უდიდესი გამოწვევა.' },
     uranus: { t: '♅ ურანი', b: 'თავისუფლება, გამოღვიძება და ინოვაცია. ურანი გვიჩვენებს, სად სცდები ჩვეულ ნორმებს, სად ეძებ ინდივიდუალობას და საიდან მოდის მოულოდნელი ცვლილება.' },
     neptune: { t: '♆ ნეპტუნი', b: 'ოცნება, ინსპირაცია და სულიერება. ნეპტუნი გვიჩვენებს, სად ეძებ ტრანსცენდენტულს, სად იბინდდება საზღვრები და საიდან მოდის შენი ხილვა.' },
-    pluto: { t: '♇ პლუტონი', b: 'ტრანსფორმაცია, სიღრმე და განახლება. პლუტონი გვიჩვენებს, სად ხდება ყველაზე ღრმა ცვლილება, სად ეთხოვება ძველს და სად იბადება ახალი ძალა.' }
+    pluto: { t: '♇ პლუტონი', b: 'ტრანსფორმაცია, სიღრმე და განახლება. პლუტონი გვიჩვენებს, სად ხდება ყველაზე ღრმა ცვლილება, სად ეთხოვება ძველს და სად იბადება ახალი ძალა.' },
+    chiron: { t: '⚷ ქირონი', b: 'ჭრილობა და განკურნება. ქირონი აჩვენებს ღრმა, ძველ ტკივილს, რომელსაც ვატარებთ — და ზუსტად იქ, სადაც ვისწავლით სხვების განკურნებას. „დაჭრილი მკურნალი."' },
+    node: { t: '☊ ჩრდილოეთის კვანძი', b: 'სულის ზრდის მიმართულება. ჩრდილოეთის კვანძი აჩვენებს, რა თვისებებისკენ უნდა გავიზარდოთ ამ ცხოვრებაში — შენი კომფორტის ზონის მიღმა.' },
+    lilith: { t: '⚸ ლილითი', b: 'შავი მთვარე ლილითი — ჩრდილი, პირველადი ინსტინქტი და ტაბუ. აჩვენებს, სად ვართ ყველაზე ნედლი, თავისუფალი და დაუმორჩილებელი.' }
   },
   en: {
     sun: { t: '☉ Sun', b: 'Identity, ego, and core life energy. The Sun reveals who you are at your essence.' },
@@ -1486,9 +1490,34 @@ const plData = {
     saturn: { t: '♄ Saturn', b: 'Structure, discipline, and karmic lessons. Saturn reveals where your greatest challenge — and mastery — lies.' },
     uranus: { t: '♅ Uranus', b: 'Freedom, innovation, and breakthrough. Uranus reveals where you rebel and where you seek originality.' },
     neptune: { t: '♆ Neptune', b: 'Dreams, spirituality, and transcendence. Neptune reveals where you seek the divine and where illusion lives.' },
-    pluto: { t: '♇ Pluto', b: 'Transformation, power, and rebirth. Pluto reveals where deep psychological death and renewal take place.' }
+    pluto: { t: '♇ Pluto', b: 'Transformation, power, and rebirth. Pluto reveals where deep psychological death and renewal take place.' },
+    chiron: { t: '⚷ Chiron', b: 'The wound and the healer. Chiron marks the deep, old hurt you carry — and the very place where you learn to heal others. The "wounded healer."' },
+    node: { t: '☊ North Node', b: 'The soul\'s growth direction. The North Node shows the qualities you\'re here to develop in this life — just beyond your comfort zone.' },
+    lilith: { t: '⚸ Lilith', b: 'Black Moon Lilith — shadow, raw instinct, and the taboo. It shows where you are most untamed, free, and unwilling to submit.' }
   }
 };
+
+// Short planet tips for hover tooltips in card-body prose (one-liners).
+const PLANET_TIPS_KA = {
+  sun: 'მზე — იდენტობა, ეგო, სასიცოცხლო ძალა', moon: 'მთვარე — ემოცია, ინსტინქტი, შინაგანი სამყარო',
+  mercury: 'მერკური — გონება, კომუნიკაცია, აზროვნება', venus: 'ვენერა — სიყვარული, ესთეტიკა, ღირებულებები',
+  mars: 'მარსი — მოქმედება, ვნება, ნება', jupiter: 'იუპიტერი — ზრდა, სიუხვე, ბედი',
+  saturn: 'სატურნი — სტრუქტურა, დისციპლინა, გაკვეთილები', uranus: 'ურანი — თავისუფლება, ინოვაცია, გამოღვიძება',
+  neptune: 'ნეპტუნი — ოცნება, ინტუიცია, სულიერება', pluto: 'პლუტონი — ტრანსფორმაცია, ძალა, განახლება',
+  lilith: 'ლილითი — ჩრდილი, პირველადი ინსტინქტი, ტაბუ', node: 'ჩრდილოეთის კვანძი — კარმული მიმართულება, ზრდის გზა',
+  chiron: 'ქირონი — ჭრილობა და განკურნება'
+};
+const PLANET_TIPS_EN = {
+  sun: 'Sun — identity, ego, vitality', moon: 'Moon — emotion, instinct, inner world',
+  mercury: 'Mercury — mind, communication, thought', venus: 'Venus — love, beauty, values',
+  mars: 'Mars — action, drive, will', jupiter: 'Jupiter — growth, abundance, fortune',
+  saturn: 'Saturn — structure, discipline, lessons', uranus: 'Uranus — freedom, innovation, awakening',
+  neptune: 'Neptune — dreams, intuition, spirituality', pluto: 'Pluto — transformation, power, rebirth',
+  lilith: 'Lilith — shadow, raw instinct, taboo', node: 'North Node — karmic direction, growth path',
+  chiron: 'Chiron — the wound and the healing'
+};
+// Bodies that have a click popup (plData) — used to gate .pl-btn triggers in aspect rows.
+const _PL_POPUP_KEYS = { sun:1, moon:1, mercury:1, venus:1, mars:1, jupiter:1, saturn:1, uranus:1, neptune:1, pluto:1, chiron:1, node:1, lilith:1 };
 
 let activePopup = null, activeTag = null;
 function closePopup() {
@@ -1652,7 +1681,7 @@ if (typeof window !== 'undefined' && window.matchMedia &&
     window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
   const HOVER_OPEN_DELAY = 1000;
   const HOVER_CLOSE_GRACE = 200;
-  const HOVER_TRIGGER_SEL = '.pl-btn,.sign-td,.house-td,.et';
+  const HOVER_TRIGGER_SEL = '.pl-btn,.sign-td,.house-td,.et,.asy-btn';
   let openTimer = null, openTarget = null;
   let closeTimer = null, hoverOpenedFor = null;
   const cancelOpen = () => {
@@ -3129,13 +3158,13 @@ Object.keys(PLANET_KA).forEach(function(k) { PLANET_KA_REV[PLANET_KA[k]] = k; })
 const SYMBOL_TO_GLYPH = {
   '☉': 'sun', '☽': 'moon', '☿': 'mercury', '♀': 'venus', '♂': 'mars',
   '♃': 'jupiter', '♄': 'saturn', '♅': 'uranus', '♆': 'neptune', '♇': 'pluto',
-  '⚸': 'lilith', '☊': 'node', '☋': 'node',
+  '⚸': 'lilith', '☊': 'node', '☋': 'node', '⚷': 'chiron',
   '♈': 'aries', '♉': 'taurus', '♊': 'gemini', '♋': 'cancer',
   '♌': 'leo', '♍': 'virgo', '♎': 'libra', '♏': 'scorpio',
   '♐': 'sagittarius', '♑': 'capricorn', '♒': 'aquarius', '♓': 'pisces'
 };
 const SIGN_SYMBOLS = new Set(['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓']);
-const PLANET_SYMBOLS = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋']);
+const PLANET_SYMBOLS = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋','⚷']);
 
 // Zodiac sign in-text display data (icon/name toggle + tooltips). Mirrors
 // lib/utils/renderText.tsx so the hydrated reading matches the React renderer.
@@ -3324,7 +3353,9 @@ function _renderRichText(text) {
     if (SYMBOL_TO_GLYPH[ch]) {
       var glyphName = SYMBOL_TO_GLYPH[ch];
       if (PLANET_SYMBOLS.has(ch)) {
-        result += '<span class="gi gi-pl"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+        var _ptip = (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[glyphName] || '';
+        var _ptipAttr = _ptip ? ' tip" data-tip="' + _ptip + '" style="cursor:help"' : '"';
+        result += '<span class="gi gi-pl' + _ptipAttr + '><svg><use href="#gl-' + glyphName + '"/></svg></span>';
       } else if (SIGN_SYMBOLS.has(ch)) {
         var el = SIGN_ELEMENT[glyphName] || '';
         result += '<span class="gi gi-' + el + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
@@ -3476,6 +3507,22 @@ function _aspectGlyph(type) {
   return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align:-2px"><use href="#' + id + '"/></svg>';
 }
 
+// Resolve a planet/point name (KA or EN) to its plData/glyph key (sun…pluto,
+// chiron, node, lilith). Mirrors _planetGlyph's resolution.
+function _planetKey(name) {
+  if (!name) return '';
+  var key = (PLANET_KA_REV[name] || name).toLowerCase().replace('north node', 'node').replace('south node', 'node');
+  return _GLYPH_ALIAS[key] || key;
+}
+// Wrap an aspect-row planet (glyph + name) as a .pl-btn popup trigger when it
+// has an extended plData entry; otherwise render it plain.
+function _aspPlanet(glyph, name, key) {
+  if (_PL_POPUP_KEYS[key]) {
+    return '<span class="al-p pl-btn" data-pl="' + key + '">' + glyph + name + '</span>';
+  }
+  return '<span class="al-p">' + glyph + name + '</span>';
+}
+
 function _buildAspect(asp) {
   if (!asp || typeof asp !== 'object') return '';
   // Aspect nature for color-coded left border
@@ -3499,8 +3546,8 @@ function _buildAspect(asp) {
   var isAcr2 = g2.indexOf('gi-acr') !== -1;
   return '<div class="' + cls + '"' + clickAttr + '>' +
     '<span class="asy asy-btn" data-asp-type="' + _esc(aspectType) + '">' + (_aspectGlyph(aspectType) || _esc(asp.aspectSymbol || '')) + '</span>' +
-    '<span class="al-p">' + g1 + (isAcr1 ? '' : ' ' + _esc(p1)) + '</span>' +
-    '<span class="al-p">' + g2 + (isAcr2 ? '' : ' ' + _esc(p2)) + '</span>' +
+    _aspPlanet(g1, isAcr1 ? '' : ' ' + _esc(p1), _planetKey(p1Name)) +
+    _aspPlanet(g2, isAcr2 ? '' : ' ' + _esc(p2), _planetKey(p2Name)) +
     '<span class="alb">' +
     '<span class="al-type">' + _esc(typeLbl) + '</span>' +
     '<span class="al-orb">' + _esc(orbStr) + '</span>' +
@@ -3668,9 +3715,9 @@ function _buildSectionContent(sectionKey, section) {
           var _typeLbl = (_aspTypeLabel[_hydrateLang] || _aspTypeLabel.ka)[_aType] || _aType;
           html += '<div class="ai-entry ' + _nc + '" data-asp-key="' + _aspKey + '">' +
             '<div class="al ' + _nc + '">' +
-              '<span class="asy">' + (_aspectGlyph(_aType) || _esc(a.aspectSymbol || '')) + '</span>' +
-              '<span class="al-p">' + _g1 + (_isAcr1 ? '' : ' ' + _esc(_p1)) + '</span>' +
-              '<span class="al-p">' + _g2 + (_isAcr2 ? '' : ' ' + _esc(_p2)) + '</span>' +
+              '<span class="asy asy-btn" data-asp-type="' + _esc(_aType) + '">' + (_aspectGlyph(_aType) || _esc(a.aspectSymbol || '')) + '</span>' +
+              _aspPlanet(_g1, _isAcr1 ? '' : ' ' + _esc(_p1), _planetKey(_p1Name)) +
+              _aspPlanet(_g2, _isAcr2 ? '' : ' ' + _esc(_p2), _planetKey(_p2Name)) +
               '<span class="alb">' +
                 '<span class="al-type">' + _esc(_typeLbl) + '</span>' +
                 '<span class="al-orb">' + _esc(_orbStr) + '</span>' +
