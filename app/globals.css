@@ -405,6 +405,8 @@ body.zodiac-names .zm-name{display:inline}
 .el-popup.planet-pop .el-popup-title{color:var(--tx)}
 /* Popup uses the same SVG glyph as the planet table (no Unicode mismatch); name white, glyph gold */
 .el-popup.planet-pop .el-popup-title .pl-pop-gi{display:inline-block;width:1.05em;height:1.05em;vertical-align:-2px;margin-right:6px;color:var(--gold)}
+/* Chart-point popup: acronym (ASC/MC/…) as the "glyph", gold, before the white name */
+.el-popup.planet-pop .el-popup-title .cp-pop-acr{color:var(--gold);font-weight:600;letter-spacing:.04em;margin-right:7px;font-family:'Outfit',sans-serif;font-size:.82em}
 /* Zodiac sign popups: colour the edge by the sign's element (matches the glyph tint) */
 .el-popup.sign-pop.sf{border-color:rgba(212,100,74,.2)}
 .el-popup.sign-pop.se{border-color:rgba(107,154,107,.2)}
@@ -486,9 +488,9 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 /* Planet names */
 .al-p{color:var(--silver)}
 .al-p .gi{vertical-align:middle;width:1em;height:1em}
-/* Clickable planet in an aspect row → opens its extended popup (like the planet table) */
-.al-p.pl-btn{cursor:pointer;border-radius:5px;padding:1px 4px;margin:-1px -2px;transition:background .15s,color .15s}
-.al-p.pl-btn:hover{color:var(--gold);background:rgba(201,168,76,.08)}
+/* Clickable planet / chart-point in an aspect row → opens its extended popup */
+.al-p.pl-btn,.al-p.cp-btn{cursor:pointer;border-radius:5px;padding:1px 4px;margin:-1px -2px;transition:background .15s,color .15s}
+.al-p.pl-btn:hover,.al-p.cp-btn:hover{color:var(--gold);background:rgba(201,168,76,.08)}
 /* Type label + orb — right side */
 .alb{color:var(--txd);font-size:.64rem;letter-spacing:.08em;margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:8px}
 .al-type{color:var(--txd);font-size:.62rem;letter-spacing:.06em;opacity:.7}
@@ -496,8 +498,8 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 /* Aspect interpretation entries — aspect row header + body block */
 .ai-entry{margin-bottom:10px}
 .ai-entry .al{margin-bottom:0;border-radius:7px 7px 0 0;pointer-events:none;cursor:default}
-/* …but the aspect symbol + planet glyphs inside stay clickable/hoverable (popups) */
-.ai-entry .al .asy-btn,.ai-entry .al .pl-btn{pointer-events:auto}
+/* …but the aspect symbol + planet/point glyphs inside stay clickable/hoverable (popups) */
+.ai-entry .al .asy-btn,.ai-entry .al .pl-btn,.ai-entry .al .cp-btn{pointer-events:auto}
 .ai-body{background:var(--sf2);border-radius:0 0 7px 7px;padding:10px 12px 8px;border-left:2.5px solid transparent}
 .ai-entry.al-harm .ai-body{border-left-color:rgba(107,154,107,.55)}
 .ai-entry.al-tens .ai-body{border-left-color:rgba(212,100,74,.45)}

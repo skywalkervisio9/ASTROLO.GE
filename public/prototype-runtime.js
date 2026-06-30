@@ -1049,7 +1049,7 @@ function openAspInterp(row, ev) {
   // Clicking the aspect symbol (type popup) or a planet (planet popup) is handled
   // by the delegated popup handler — bail so the interpretation toggle doesn't
   // also fire.
-  if (ev && _closest(ev.target, '.asy-btn,.pl-btn')) return;
+  if (ev && _closest(ev.target, '.asy-btn,.pl-btn,.cp-btn')) return;
   var key = row.getAttribute('data-asp-key');
   var parent = row.parentElement;
   var btn = parent.querySelector('.tb2');
@@ -1519,6 +1519,28 @@ const PLANET_TIPS_EN = {
 // Bodies that have a click popup (plData) — used to gate .pl-btn triggers in aspect rows.
 const _PL_POPUP_KEYS = { sun:1, moon:1, mercury:1, venus:1, mars:1, jupiter:1, saturn:1, uranus:1, neptune:1, pluto:1, chiron:1, node:1, lilith:1 };
 
+// Chart-point (angle) popups — ASC / DSC / MC / IC. Rendered with the acronym as
+// the "glyph" (no SVG); shown via the .cp-btn handler in aspect rows/interps.
+const cpData = {
+  ka: {
+    asc: { acr: 'ASC', t: 'ასცენდენტი', b: 'აღმავალი ნიშანი — შენი გარეგანი ნიღაბი და პირველი შთაბეჭდილება. ასცენდენტი აჩვენებს, როგორ ხვდები სამყაროს, შენს სტილსა და ფიზიკურ მანერას.' },
+    dsc: { acr: 'DSC', t: 'დესცენდენტი', b: 'ასცენდენტის საპირისპირო წერტილი — პარტნიორობა და „სხვა". დესცენდენტი აჩვენებს, რას ეძებ მჭიდრო ურთიერთობებში და რას აპროექციებ პარტნიორზე.' },
+    mc:  { acr: 'MC',  t: 'ცის შუაწერტილი', b: 'ცის უმაღლესი წერტილი — კარიერა, საჯარო როლი და რეპუტაცია. MC აჩვენებს, რითი ხარ ცნობილი და რა მიმართულებით მიდიხარ ცხოვრებაში.' },
+    ic:  { acr: 'IC',  t: 'ცის ფსკერი', b: 'ცის ყველაზე დაბალი წერტილი — ფესვები, სახლი და შინაგანი სამყარო. IC აჩვენებს შენს საფუძველს, ოჯახსა და პირად, დაცულ თავს.' }
+  },
+  en: {
+    asc: { acr: 'ASC', t: 'Ascendant', b: 'The rising sign — your outer mask and first impression. The Ascendant shows how you meet the world, your style, and physical manner.' },
+    dsc: { acr: 'DSC', t: 'Descendant', b: 'The point opposite the Ascendant — partnership and the "other." The Descendant shows what you seek in close relationships and project onto a partner.' },
+    mc:  { acr: 'MC',  t: 'Midheaven', b: 'The highest point of the chart — career, public role, and reputation. The Midheaven shows what you are known for and your direction in life.' },
+    ic:  { acr: 'IC',  t: 'Imum Coeli', b: 'The lowest point of the chart — roots, home, and inner world. The IC shows your foundation, family, and private, protected self.' }
+  }
+};
+const _CHART_POINTS = { asc: 'asc', ascendant: 'asc', dsc: 'dsc', descendant: 'dsc', mc: 'mc', midheaven: 'mc', ic: 'ic', 'imum coeli': 'ic', imumcoeli: 'ic' };
+function _chartPointKey(name) {
+  if (!name) return '';
+  return _CHART_POINTS[String(name).toLowerCase().trim()] || '';
+}
+
 let activePopup = null, activeTag = null;
 function closePopup() {
   if (activePopup) {
@@ -1583,6 +1605,19 @@ document.addEventListener('click', e => {
     var plName = d.t.replace(/^\S+\s+/, '');
     var plGlyph = '<svg class="pl-pop-gi" viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-' + key + '"/></svg>';
     _showPopup(plBtn, 'planet-pop', plGlyph + plName, d.b);
+    return;
+  }
+
+  // Chart-point (angle) popups — ASC / DSC / MC / IC (.cp-btn)
+  const cpBtn = _closest(e.target, '.cp-btn');
+  if (cpBtn) {
+    e.stopPropagation();
+    const key = cpBtn.getAttribute('data-cp'); if (!key) return;
+    if (activeTag === cpBtn) { closePopup(); return; }
+    const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+    const d = cpData[lang][key];
+    if (!d) return;
+    _showPopup(cpBtn, 'planet-pop', '<span class="cp-pop-acr">' + d.acr + '</span>' + d.t, d.b);
     return;
   }
 
@@ -1656,7 +1691,7 @@ document.addEventListener('click', e => {
 // role=button, onclick handlers). Taps on plain divs / page background never reach
 // the close-elsewhere handler above. `pointerdown` fires on any element, so use it
 // purely for outside-close. Triggers handle their own toggle via the click handler.
-const _POPUP_TRIGGER_SEL = '.et,.pl-btn,.sign-td,.house-td,.aspect-tag,.asy-btn,.mc-sign-btn,.el-popup';
+const _POPUP_TRIGGER_SEL = '.et,.pl-btn,.cp-btn,.sign-td,.house-td,.aspect-tag,.asy-btn,.mc-sign-btn,.el-popup';
 document.addEventListener('pointerdown', e => {
   if (!activePopup) return;
   if (_closest(e.target, _POPUP_TRIGGER_SEL)) return;
@@ -1681,7 +1716,7 @@ if (typeof window !== 'undefined' && window.matchMedia &&
     window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
   const HOVER_OPEN_DELAY = 1000;
   const HOVER_CLOSE_GRACE = 200;
-  const HOVER_TRIGGER_SEL = '.pl-btn,.sign-td,.house-td,.et,.asy-btn';
+  const HOVER_TRIGGER_SEL = '.pl-btn,.cp-btn,.sign-td,.house-td,.et,.asy-btn';
   let openTimer = null, openTarget = null;
   let closeTimer = null, hoverOpenedFor = null;
   const cancelOpen = () => {
@@ -3514,11 +3549,17 @@ function _planetKey(name) {
   var key = (PLANET_KA_REV[name] || name).toLowerCase().replace('north node', 'node').replace('south node', 'node');
   return _GLYPH_ALIAS[key] || key;
 }
-// Wrap an aspect-row planet (glyph + name) as a .pl-btn popup trigger when it
-// has an extended plData entry; otherwise render it plain.
-function _aspPlanet(glyph, name, key) {
-  if (_PL_POPUP_KEYS[key]) {
-    return '<span class="al-p pl-btn" data-pl="' + key + '">' + glyph + name + '</span>';
+// Wrap an aspect-row body (glyph + name) as a popup trigger: .pl-btn for planets
+// with an extended plData entry, .cp-btn for chart points (ASC/DSC/MC/IC);
+// otherwise render it plain.
+function _aspPlanet(glyph, name, rawName) {
+  var pk = _planetKey(rawName);
+  if (_PL_POPUP_KEYS[pk]) {
+    return '<span class="al-p pl-btn" data-pl="' + pk + '">' + glyph + name + '</span>';
+  }
+  var cp = _chartPointKey(rawName);
+  if (cp) {
+    return '<span class="al-p cp-btn" data-cp="' + cp + '">' + glyph + name + '</span>';
   }
   return '<span class="al-p">' + glyph + name + '</span>';
 }
@@ -3546,8 +3587,8 @@ function _buildAspect(asp) {
   var isAcr2 = g2.indexOf('gi-acr') !== -1;
   return '<div class="' + cls + '"' + clickAttr + '>' +
     '<span class="asy asy-btn" data-asp-type="' + _esc(aspectType) + '">' + (_aspectGlyph(aspectType) || _esc(asp.aspectSymbol || '')) + '</span>' +
-    _aspPlanet(g1, isAcr1 ? '' : ' ' + _esc(p1), _planetKey(p1Name)) +
-    _aspPlanet(g2, isAcr2 ? '' : ' ' + _esc(p2), _planetKey(p2Name)) +
+    _aspPlanet(g1, isAcr1 ? '' : ' ' + _esc(p1), p1Name) +
+    _aspPlanet(g2, isAcr2 ? '' : ' ' + _esc(p2), p2Name) +
     '<span class="alb">' +
     '<span class="al-type">' + _esc(typeLbl) + '</span>' +
     '<span class="al-orb">' + _esc(orbStr) + '</span>' +
@@ -3716,8 +3757,8 @@ function _buildSectionContent(sectionKey, section) {
           html += '<div class="ai-entry ' + _nc + '" data-asp-key="' + _aspKey + '">' +
             '<div class="al ' + _nc + '">' +
               '<span class="asy asy-btn" data-asp-type="' + _esc(_aType) + '">' + (_aspectGlyph(_aType) || _esc(a.aspectSymbol || '')) + '</span>' +
-              _aspPlanet(_g1, _isAcr1 ? '' : ' ' + _esc(_p1), _planetKey(_p1Name)) +
-              _aspPlanet(_g2, _isAcr2 ? '' : ' ' + _esc(_p2), _planetKey(_p2Name)) +
+              _aspPlanet(_g1, _isAcr1 ? '' : ' ' + _esc(_p1), _p1Name) +
+              _aspPlanet(_g2, _isAcr2 ? '' : ' ' + _esc(_p2), _p2Name) +
               '<span class="alb">' +
                 '<span class="al-type">' + _esc(_typeLbl) + '</span>' +
                 '<span class="al-orb">' + _esc(_orbStr) + '</span>' +
