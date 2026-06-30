@@ -1961,12 +1961,24 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
     h += '<use href="#'+SIGN_IDS[i]+'" x="'+(gp.x-7)+'" y="'+(gp.y-7)+'" width="14" height="14" fill="none" stroke="rgba(201,168,76,.35)" stroke-width=".9" class="mc-sign" style="animation-delay:'+(d+.05)+'s"/>';
     h += '</g>';
   }
-  // ASC label — outside the outer ring, at the LEFT
-  const ascP = pos(ASC_ECL, R + 22);
-  h += '<text x="'+(ascP.x - 4)+'" y="'+(ascP.y+5)+'" text-anchor="end" font-family="Outfit,sans-serif" font-size="13" font-weight="500" letter-spacing=".14em" fill="#c9a84c" class="mc-label" style="animation-delay:1.8s">ASC</text>';
-  // MC label — outside the outer ring, at the BOTTOM
-  const mcP = pos(MC_ECL, R + 22);
-  h += '<text x="'+mcP.x+'" y="'+(mcP.y+14)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-size="13" font-weight="500" letter-spacing=".14em" fill="#c9a84c" class="mc-label" style="animation-delay:1.9s">MC</text>';
+  // Chart angles — ASC/DSC (horizontal axis) and MC/IC (vertical axis) labels
+  // just outside the outer ring. Each is a clickable + hover target
+  // (.mc-angle-btn) wired to the same cpData popups used in aspect rows /
+  // interpretations. dx/dy offset the text from the ring point; hx/hy center
+  // the transparent hit circle over the rendered label.
+  const mcAngles = [
+    { cp: 'asc', txt: 'ASC', ecl: ASC_ECL,       dx: -4, dy: 5,  hx: -15, hy: 0,   anchor: 'end',    delay: 1.8 },
+    { cp: 'dsc', txt: 'DSC', ecl: ASC_ECL + 180, dx: 4,  dy: 5,  hx: 16,  hy: 0,   anchor: 'start',  delay: 1.85 },
+    { cp: 'mc',  txt: 'MC',  ecl: MC_ECL,        dx: 0,  dy: 14, hx: 0,   hy: 9,   anchor: 'middle', delay: 1.9 },
+    { cp: 'ic',  txt: 'IC',  ecl: MC_ECL + 180,  dx: 0,  dy: -8, hx: 0,   hy: -11, anchor: 'middle', delay: 1.95 }
+  ];
+  mcAngles.forEach(a => {
+    const lp = pos(a.ecl, R + 22);
+    h += '<g data-cp="'+a.cp+'" class="mc-angle-btn" style="cursor:pointer">';
+    h += '<circle cx="'+(lp.x + a.hx)+'" cy="'+(lp.y + a.hy)+'" r="16" fill="transparent" stroke="none"/>';
+    h += '<text x="'+(lp.x + a.dx)+'" y="'+(lp.y + a.dy)+'" text-anchor="'+a.anchor+'" font-family="Outfit,sans-serif" font-size="13" font-weight="500" letter-spacing=".14em" fill="#c9a84c" class="mc-label" style="animation-delay:'+a.delay+'s">'+a.txt+'</text>';
+    h += '</g>';
+  });
   // ASC–DSC axis line (horizontal, subtle)
   const ascA = pos(ASC_ECL, RI); const dscA = pos(ASC_ECL + 180, RI);
   h += '<line x1="'+ascA.x+'" y1="'+ascA.y+'" x2="'+dscA.x+'" y2="'+dscA.y+'" stroke="rgba(201,168,76,.08)" stroke-width=".5"/>';
@@ -2028,38 +2040,33 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
     });
   });
 
-  // Zodiac sign popup data
-  // Sign click handlers — same popup style as body text (.et / .pl-btn)
-  svg.querySelectorAll('.mc-sign-btn').forEach(g => {
-    const openSignPopup = () => {
-      const si = +g.getAttribute('data-sign');
-      const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-      const d = _SIGN_DATA[lang][si];
-      _showPopup(g, 'sign-pop', _signPopupSvg(si) + d.t, d.b);
-    };
+  // Sign + chart-angle popups — same popup style as body text (.et / .pl-btn).
+  // Both share the click + desktop-hover wiring via _wireMcPopup; only the
+  // `openPopup` callback (which popup to build) differs.
+  const _wireMcPopup = (g, openPopup) => {
     g.addEventListener('click', e => {
       e.stopPropagation();
       if (activeTag === g) { closePopup(); return; }
-      openSignPopup();
+      openPopup();
     });
     // Desktop hover — show popup without click. Skip touch (relies on click).
-    // The document-level mouseleave handler can't reach SVG nodes (its _closest
-    // helper only walks HTMLElement ancestors), so close directly here.
     g.addEventListener('pointerenter', e => {
       if (e.pointerType === 'touch') return;
       if (activeTag === g) return;
-      openSignPopup();
+      openPopup();
     });
+    // The document-level mouseleave handler can't reach SVG nodes (its _closest
+    // helper only walks HTMLElement ancestors), so close directly here.
     g.addEventListener('pointerleave', e => {
       if (e.pointerType === 'touch') return;
       if (activeTag !== g) return;
       const popup = activePopup;
       if (!popup) return;
-      // Coordinate-based hit-tracking: treat the sign + popup (plus a small
+      // Coordinate-based hit-tracking: treat the anchor + popup (plus a small
       // margin that bridges the 8px gap) as a single "engaged" region. The
       // popup only closes once the cursor has been clearly outside that
       // region for HOVER_OUT ms. This survives the case where the popup is
-      // flipped BELOW the sign (sign near header after scroll) — the previous
+      // flipped BELOW the anchor (near header after scroll) — the previous
       // `:hover`-based check would race style recalc and close on traversal.
       const HOVER_OUT = 220;
       const FALLBACK = 2500;
@@ -2069,11 +2076,11 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
         if (activeTag !== g || activePopup !== popup) return false;
         const pr = popup.getBoundingClientRect();
         const sr = g.getBoundingClientRect();
-        const inPopup = x >= pr.left - 6 && x <= pr.right + 6 &&
-                        y >= pr.top - 14 && y <= pr.bottom + 6;
-        const inSign  = x >= sr.left - 6 && x <= sr.right + 6 &&
-                        y >= sr.top - 6  && y <= sr.bottom + 14;
-        return inPopup || inSign;
+        const inPopup  = x >= pr.left - 6 && x <= pr.right + 6 &&
+                         y >= pr.top - 14 && y <= pr.bottom + 6;
+        const inAnchor = x >= sr.left - 6 && x <= sr.right + 6 &&
+                         y >= sr.top - 6  && y <= sr.bottom + 14;
+        return inPopup || inAnchor;
       };
       const cleanup = () => {
         if (resolved) return;
@@ -2101,6 +2108,27 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
         cleanup();
         if (activeTag === g && activePopup === popup) closePopup();
       }, FALLBACK);
+    });
+  };
+
+  // Zodiac sign glyphs
+  svg.querySelectorAll('.mc-sign-btn').forEach(g => {
+    _wireMcPopup(g, () => {
+      const si = +g.getAttribute('data-sign');
+      const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+      const d = _SIGN_DATA[lang][si];
+      _showPopup(g, 'sign-pop', _signPopupSvg(si) + d.t, d.b);
+    });
+  });
+
+  // Chart angles — ASC / DSC / MC / IC (same data as the .cp-btn handler)
+  svg.querySelectorAll('.mc-angle-btn').forEach(g => {
+    _wireMcPopup(g, () => {
+      const key = g.getAttribute('data-cp');
+      const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
+      const d = cpData[lang][key];
+      if (!d) return;
+      _showPopup(g, 'planet-pop', '<span class="cp-pop-acr">' + d.acr + '</span>' + d.t, d.b);
     });
   });
 }
