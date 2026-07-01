@@ -3980,8 +3980,13 @@ function hydrateReading(reading, user) {
   // 5. Switch to natal view if not already on a real reading view.
   // Treat 'synastry' and 'payment' as peer views — a language switch while
   // viewing synastry or a payment page must not kick the user back to natal.
+  // Exception: during password recovery (/auth?recovery=1) the user holds a
+  // live (recovery) session, so background hydration would otherwise flip the
+  // view to natal a few seconds after landing — auto-"logging in" over the
+  // set-new-password page. Keep them on the auth/reset view until they finish.
   var _hydCurrentView = document.body.getAttribute('data-view');
-  if (_hydCurrentView !== 'natal' && _hydCurrentView !== 'synastry' && _hydCurrentView !== 'payment') {
+  var _hydOnRecovery = /[?&]recovery=1(?:&|$)/.test(window.location.search);
+  if (!_hydOnRecovery && _hydCurrentView !== 'natal' && _hydCurrentView !== 'synastry' && _hydCurrentView !== 'payment') {
     switchView('natal', document.getElementById('devNatal'));
   }
 
