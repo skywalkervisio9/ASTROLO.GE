@@ -18,10 +18,19 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state');
 
   if (code) {
-    const stateValid = await consumeOauthStateCookie(state);
-    if (!stateValid) {
-      authAudit({ event: 'oauth.callback', route: '/api/auth/callback', outcome: 'failure', details: { reason: 'state_mismatch' } });
-      return NextResponse.redirect(`${origin}/auth?error=invalid_oauth_state`);
+    // OAuth logins carry a `state` param (issued by /api/auth/oauth/start) plus a
+    // matching httpOnly cookie — enforce that CSRF check for them. Supabase email
+    // links (password recovery, magic link, email confirmation) arrive with a
+    // `code` but NO `state`; their guard is the single-use PKCE code_verifier
+    // cookie that exchangeCodeForSession validates below. So only gate on the
+    // state cookie when a state param is actually present, otherwise a valid
+    // recovery link is wrongly rejected as invalid_oauth_state.
+    if (state) {
+      const stateValid = await consumeOauthStateCookie(state);
+      if (!stateValid) {
+        authAudit({ event: 'oauth.callback', route: '/api/auth/callback', outcome: 'failure', details: { reason: 'state_mismatch' } });
+        return NextResponse.redirect(`${origin}/auth?error=invalid_oauth_state`);
+      }
     }
 
     const supabase = await createServerSupabase();
