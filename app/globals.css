@@ -1170,7 +1170,7 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .loading-progress{width:160px;height:2px;background:var(--sf2);border-radius:2px;margin:18px auto 0;overflow:hidden}
 .loading-fill{height:100%;background:linear-gradient(90deg,var(--gd),var(--gold));border-radius:2px;width:0%;transition:width .3s var(--ease)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.fun-fact{max-width:340px;margin:24px auto 0;padding:14px 18px;background:linear-gradient(135deg,rgba(201,168,76,.04),transparent);border:1px solid rgba(201,168,76,.06);border-radius:12px;opacity:0;animation:fadeUp .6s ease .8s forwards;transition:opacity .4s}
+.fun-fact{max-width:340px;margin:24px auto 0;padding:14px 18px;background:linear-gradient(135deg,rgba(201,168,76,.04),transparent);border:1px solid rgba(201,168,76,.06);border-radius:12px;text-align:center;opacity:0;animation:fadeUp .6s ease .8s forwards;transition:opacity .4s}
 .fun-fact-label{font-size:.58rem;letter-spacing:.16em;color:var(--gd);margin-bottom:4px}
 .fun-fact p{font-family:var(--fd);font-size:.84rem;font-style:italic;color:var(--silver);line-height:1.7}
 .constellation{position:absolute;inset:0;pointer-events:none;overflow:hidden}
@@ -1657,9 +1657,9 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .sycos-progress::after{content:'';position:absolute;top:0;left:-40%;width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--gold-bright),transparent);animation:sycosSlide 2.4s ease-in-out infinite}
 @keyframes sycosSlide{0%{left:-40%}100%{left:100%}}
 .sycos-note{margin-top:22px;font-size:.7rem;color:var(--txd);opacity:.65;letter-spacing:.05em;animation:fadeUp .8s var(--ease) .25s both}
-.sycos-fact{margin-top:26px;max-width:420px;text-align:center;transition:opacity .4s ease;animation:fadeUp .8s var(--ease) .35s both}
-.sycos-fact-label{font-size:.7rem;color:var(--gold);opacity:.75;letter-spacing:.12em;font-family:var(--fb);margin-bottom:8px}
-.sycos-fact-text{font-size:.82rem;color:var(--txd);opacity:.78;line-height:1.55;letter-spacing:.01em}
+.sycos-fact{max-width:340px;margin:26px auto 0;padding:14px 18px;background:linear-gradient(135deg,rgba(201,168,76,.04),transparent);border:1px solid rgba(201,168,76,.06);border-radius:12px;text-align:center;transition:opacity .4s ease;animation:fadeUp .8s var(--ease) .35s both}
+.sycos-fact-label{font-size:.58rem;letter-spacing:.16em;color:var(--gd);margin-bottom:4px}
+.sycos-fact-text{font-family:var(--fd);font-size:.84rem;font-style:italic;color:var(--silver);line-height:1.7}
 .sycos-err{margin-top:14px;font-size:.82rem;color:#f6a89a;max-width:380px;text-align:center;line-height:1.6}
 @media (max-width:480px){
   .sycos-scene{width:200px;height:200px}
