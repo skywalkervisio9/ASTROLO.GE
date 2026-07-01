@@ -937,6 +937,7 @@ function applyTranslations(l) {
     var rh = pr.querySelector('.auth-header h1'); if (rh) rh.textContent = a.newPassword;
     var rsub = pr.querySelector('.auth-header .sub'); if (rsub) rsub.textContent = a.newPasswordSub;
     var rLabels = pr.querySelectorAll('#reset-form .field label'); if (rLabels[0]) rLabels[0].textContent = a.newPasswordLabel; if (rLabels[1]) rLabels[1].textContent = a.confirmPasswordLabel;
+    var rpw = pr.querySelector('#reset-pw'); if (rpw) rpw.setAttribute('placeholder', a.passwordMinPlaceholder || '');
     var rbt = pr.querySelector('#reset-form .auth-btn .btn-text'); if (rbt) rbt.textContent = a.updatePassword;
     var rsh = pr.querySelector('#reset-success .reset-success h3'); if (rsh) rsh.textContent = a.passwordUpdated;
     var rsp = pr.querySelector('#reset-success .reset-success p'); if (rsp) rsp.textContent = a.passwordUpdatedInfo;
