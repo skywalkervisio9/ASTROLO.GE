@@ -2846,8 +2846,8 @@ var _loadingMsgs = {
   en: ['Calculating stellar coordinates…','Locating planetary positions…','Analysing aspects…','Building house system…','Evaluating elemental balance…','Interpreting karmic nodes…','Mapping shadow integration…','Synthesising spiritual path…','Your celestial blueprint is being prepared…']
 };
 var _loadingFunFacts = {
-  ka: ['თევზები ზოდიაქოს ბოლო ნიშანია — ყველა წინა ნიშნის სიბრძნეს ატარებს.','სატურნის დაბრუნება ~29 წელიწადში ხდება და სიმწიფის ახალ ციკლს იწყებს.','მთვარის კვანძები 18.6 წელიწადში ასრულებენ სრულ ციკლს.','პლუტონი მერწყულში 2024-დან 2044-მდე დარჩება — თაობრივი ტრანსფორმაცია.','ვენერა ციურ სხეულებს შორის ყველაზე სრულყოფილ წრეს ხაზავს — ვარდის ნიმუშს.'],
-  en: ['Pisces is the last sign of the zodiac — it carries the wisdom of all preceding signs.','Saturn return happens every ~29 years and begins a new cycle of maturity.','The lunar nodes complete a full cycle in 18.6 years.','Pluto stays in Aquarius from 2024 to 2044 — a generational transformation.','Venus traces the most perfect circle among celestial bodies — the rose pattern.']
+  ka: ['თევზები ზოდიაქოს ბოლო ნიშანია — ყველა წინა ნიშნის სიბრძნეს ატარებს.','სატურნის დაბრუნება ~29 წელიწადში ხდება და სიმწიფის ახალ ციკლს იწყებს.','მთვარის კვანძები 18.6 წელიწადში ასრულებენ სრულ ციკლს.','პლუტონი მერწყულში 2024-დან 2044-მდე დარჩება — თაობრივი ტრანსფორმაცია.','ვენერა ციურ სხეულებს შორის ყველაზე სრულყოფილ წრეს ხაზავს — ვარდის ნიმუშს.','ასცენდენტი ყოველ ~2 საათში იცვლება — შენი დაბადების ზუსტი დრო განსაზღვრავს მას.','მერკური წელიწადში 3-4-ჯერ გადადის რეტროგრადულ მოძრაობაში.','ზოდიაქოს 12 ნიშანი 4 ელემენტში იყოფა: ცეცხლი, მიწა, ჰაერი და წყალი.','მზის ნიშანი მხოლოდ ერთი ნაწილია რუკის — მთვარე და ასცენდენტი ერთნაირად მნიშვნელოვანია.','იუპიტერი თითოეულ ნიშანში დაახლოებით ერთ წელიწადს ატარებს.','მთვარის ფაზები 29.5 დღიან ციკლს ქმნიან — ახალი მთვარიდან სავსემდე.','ჩრდილის და თეთრი მთვარის კვანძები ყოველთვის ერთმანეთის ზუსტ საპირისპიროდ დგანან.','მარსი დაახლოებით 2 წელიწადში ერთხელ უბრუნდება რეტროგრადს.','სახლების სისტემა ცის 12 სექტორად ყოფს — თითოეული ცხოვრების სფეროს წარმოადგენს.','ურანი თითოეულ ნიშანში დაახლოებით 7 წელს რჩება.','ნეპტუნი ერთ ნიშანში დაახლოებით 14 წელიწადს ატარებს — თაობრივი გავლენა.'],
+  en: ['Pisces is the last sign of the zodiac — it carries the wisdom of all preceding signs.','Saturn return happens every ~29 years and begins a new cycle of maturity.','The lunar nodes complete a full cycle in 18.6 years.','Pluto stays in Aquarius from 2024 to 2044 — a generational transformation.','Venus traces the most perfect circle among celestial bodies — the rose pattern.','The ascendant changes roughly every 2 hours — your exact birth time determines it.','Mercury goes retrograde 3-4 times a year.','The 12 zodiac signs are divided into 4 elements: fire, earth, air, and water.','Your Sun sign is only one part of the chart — Moon and Ascendant matter just as much.','Jupiter spends about one year in each sign.',"The Moon's phases form a 29.5-day cycle — from new moon to full moon.",'The North and South Nodes always sit in exact opposition to each other.','Mars goes retrograde roughly once every two years.','The house system divides the sky into 12 sectors — each representing a different area of life.','Uranus stays in each sign for about 7 years.','Neptune spends about 14 years in each sign — a generational influence.']
 };
 var _loadingTitles = { ka: 'ვარსკვლავები ლაპარაკობენ…', en: 'The stars are speaking…' };
 var _loadingFactLabels = { ka: '✦ იცოდი?', en: '✦ Did you know?' };
@@ -2865,6 +2865,13 @@ var _sectionPickerIcons = { characteristics: 'gl-facet', relationships: 'gl-venu
 var _selectedFreePick = 'shadow'; // default
 
 function startLoading(lang, durationMs) {
+  // Guard against duplicate calls (e.g. React Strict Mode double-invoking the
+  // /loading page's effect in dev). Without this, a second call's tickInt/
+  // zInt/factInt overwrite window.finishLoading's closure but the first
+  // call's intervals keep running uncleared — two out-of-phase fact-rotation
+  // timers, which shows up as the fun-fact box jumping again a second later.
+  if (window._stopLoadingIntervals) window._stopLoadingIntervals();
+
   _loadingLang = lang || 'ka';
   var loadMsgs = _loadingMsgs[_loadingLang] || _loadingMsgs.ka;
   var funFacts = _loadingFunFacts[_loadingLang] || _loadingFunFacts.ka;
@@ -2980,6 +2987,7 @@ function startLoading(lang, durationMs) {
 
     if (!liveMode && elapsed >= TOTAL_DURATION) {
       clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
+      window._stopLoadingIntervals = null;
       stopParallax();
       setTimeout(() => {
         overlay.style.opacity = '0';
@@ -2994,6 +3002,9 @@ function startLoading(lang, durationMs) {
   }
   tick();
   const tickInt = setInterval(tick, 1000);
+  window._stopLoadingIntervals = function() {
+    clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
+  };
 
   // Parallax: stars shift opposite to cursor / device tilt, eased via rAF.
   // Mouse drives desktop; deviceorientation drives mobile gyro.
@@ -3101,6 +3112,7 @@ function startLoading(lang, durationMs) {
   window.finishLoading = function finishLoading() {
     try {
       clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
+      window._stopLoadingIntervals = null;
       stopParallax();
       // Snap progress bar to 100%
       fillEl.style.width = '100%';

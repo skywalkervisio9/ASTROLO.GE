@@ -327,10 +327,7 @@ export default function SynastryViewWrapper() {
   }, [fetchConnections, fetchReading, language]);
 
   const handleBackToNatal = () => {
-    const btn = document.getElementById('devNatal');
-    if (btn) {
-      (window as unknown as Record<string, unknown> & { switchView?: (v: string, b: HTMLElement) => void }).switchView?.('natal', btn);
-    }
+    (window as unknown as Record<string, unknown> & { switchView?: (v: string, b?: HTMLElement) => void }).switchView?.('natal');
   };
 
   // ── Render states ──

@@ -148,7 +148,7 @@ async function devSignInAndGo(data: { email: string; password: string; shareSlug
   window.location.assign(target);
 }
 
-// One handler for the three test-user buttons (Last / Prev / Prev2).
+// One handler for the test-user buttons (Last / Prev / Prev2 / … / Prev6).
 const onDevTestUserClick = (label: string, offset: number) =>
   async (e: React.MouseEvent<HTMLButtonElement>) => {
     const btn = e.currentTarget;
@@ -635,7 +635,7 @@ export default function BodyContent() {
 
 
 <nav className="tb">
-<a className="tbl" href="#" aria-label="ASTROLO.GE" onClick={(e) => { e.preventDefault(); (window as unknown as Record<string, unknown> & { switchView?: (v: string, b?: HTMLElement | null) => void }).switchView?.('natal', document.getElementById('devNatal')); }}><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-ge"><span className="lt-dot">.</span>GE</span></span></a>
+<a className="tbl" href="#" aria-label="ASTROLO.GE" onClick={(e) => { e.preventDefault(); if (document.body.getAttribute('data-view') === 'auth') return; (window as unknown as Record<string, unknown> & { switchView?: (v: string, b?: HTMLElement | null) => void }).switchView?.('natal', document.getElementById('devNatal')); }}><span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-brand-sparkle"/></svg></span><span className="lt">ASTROLO<span className="lt-ge"><span className="lt-dot">.</span>GE</span></span></a>
 <div className="tbr">
   <div className="lg">
     <button className="lo active" onClick={(e) => { proto().setLang?.("ka", e.currentTarget); }}>ქარ</button>
@@ -1048,14 +1048,6 @@ export default function BodyContent() {
   <div className="dev-row" style={{justifyContent:'flex-end',width:'100%'}}>
     <button className="dev-btn" onClick={() => setDevModeFlag(false)} title="Lock developer mode">🔒 Lock</button>
   </div>
-  <div className="dev-label">VIEW</div>
-  <button className="dev-btn" onClick={signOutAndGoAuth} id="devAuth">☽ AUTH</button>
-  <button className="dev-btn active" onClick={() => { window.location.href = "/"; }} id="devNatal">⊙ NATAL</button>
-  <div className="dev-row">
-    <button className="dev-btn" onClick={(e) => { proto().switchSynastry?.("couple", e.currentTarget); }} id="devCouple">☌ COUPLE</button>
-    <button className="dev-btn" onClick={(e) => { proto().switchSynastry?.("friend", e.currentTarget); }} id="devFriend">☌ FRIEND</button>
-  </div>
-  <div className="dev-sep"></div>
   <div className="dev-label">ACCOUNT</div>
   <div className="dev-row">
     <button className="dev-btn" onClick={(e) => { proto().setTier?.("free", e.currentTarget); }} id="devFree">FREE</button>
@@ -1082,6 +1074,11 @@ export default function BodyContent() {
   </div>
   <div className="dev-sep"></div>
   <div className="dev-label">TEST USER</div>
+  <div className="dev-row">
+    <button className="dev-btn" id="devPrev6Login" onClick={onDevTestUserClick('⬅⬅⬅⬅⬅⬅ Prev6', 6)}>⬅⬅⬅⬅⬅⬅ Prev6</button>
+    <button className="dev-btn" id="devPrev5Login" onClick={onDevTestUserClick('⬅⬅⬅⬅⬅ Prev5', 5)}>⬅⬅⬅⬅⬅ Prev5</button>
+    <button className="dev-btn" id="devPrev4Login" onClick={onDevTestUserClick('⬅⬅⬅⬅ Prev4', 4)}>⬅⬅⬅⬅ Prev4</button>
+  </div>
   <div className="dev-row">
     <button className="dev-btn" id="devPrevPrevPrevLogin" onClick={onDevTestUserClick('⬅⬅⬅ Prev3', 3)}>⬅⬅⬅ Prev3</button>
     <button className="dev-btn" id="devPrevPrevLogin" onClick={onDevTestUserClick('⬅⬅ Prev2', 2)}>⬅⬅ Prev2</button>
