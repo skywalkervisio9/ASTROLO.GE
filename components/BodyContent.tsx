@@ -85,6 +85,8 @@ type ProtoGlobals = {
   handleLogin?: () => void;
   handleSignup?: () => void;
   handleForgot?: () => void;
+  handleResetPassword?: () => void;
+  handleResetContinue?: () => void;
   handleBirthData?: () => void;
   handleTestUser?: () => void;
   startLoading?: () => void;
@@ -747,7 +749,22 @@ export default function BodyContent() {
       </div>
     </div>
 
-    
+
+    <div className="auth-page" id="page-reset">
+      <div className="auth-sigil"><AuthSigil kind="forgot" /></div>
+      <div className="auth-header"><h1>ახალი პაროლი</h1><div className="sub">დააყენე ახალი პაროლი</div></div>
+      <div className="auth-panel">
+        <div className="msg error" id="reset-error"></div>
+        <div id="reset-form">
+          <div className="field"><label>ახალი პაროლი</label><div className="field-pw"><input type="password" id="reset-pw" placeholder="მინ. 8 სიმბოლო" autoComplete="new-password"/><button className="pw-toggle" onClick={(e) => { proto().togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
+          <div className="field"><label>გაიმეორე პაროლი</label><div className="field-pw"><input type="password" id="reset-pw2" placeholder="••••••••" autoComplete="new-password" onKeyDown={(e) => { if (e.key === 'Enter') proto().handleResetPassword?.(); }}/><button className="pw-toggle" onClick={(e) => { proto().togglePw?.(e.currentTarget); }}>ჩვენება</button></div></div>
+          <button className="auth-btn" onClick={() => { proto().handleResetPassword?.(); }} style={{marginTop: '4px'}}><span className="btn-text">პაროლის შენახვა</span></button>
+        </div>
+        <div id="reset-success" style={{display: 'none'}}><div className="reset-success"><div className="check-icon">✓</div><h3>პაროლი შეიცვალა</h3><p>ახლა შეგიძლია ახალი პაროლით შესვლა.</p></div><button className="auth-btn" onClick={() => { proto().handleResetContinue?.(); }} style={{marginTop: '12px'}}><span className="btn-text">გაგრძელება</span></button></div>
+      </div>
+    </div>
+
+
     <div className="auth-page" id="page-birth">
       <div className="auth-sigil"><AuthSigil kind="birth" /></div>
       <div className="auth-header"><h1>დაბადების მონაცემები</h1></div>
