@@ -1,5 +1,5 @@
 // runtime-extras.js — payment / invite / share cluster, lazily injected by the
-// self-replacing stubs in prototype-runtime.js (warmed at idle, loaded at the
+// self-replacing stubs in app-runtime.js (warmed at idle, loaded at the
 // latest on first use).
 //
 // CONTRACT — read before editing:
@@ -7,7 +7,7 @@
 //    overwrite the core's window-property stubs, and a top-level let/const that
 //    collides with a core binding is a SyntaxError that kills this whole file
 //    (scripts/build-runtime.mjs enforces this).
-//  * This file is only ever evaluated AFTER prototype-runtime.js, so it can
+//  * This file is only ever evaluated AFTER app-runtime.js, so it can
 //    read the core's globals directly via the shared global scope:
 //    discountOn, currentAccountType, selectedInviteType, getSlot1Occupied(),
 //    closeSidebar(), switchView(), _currentUser.

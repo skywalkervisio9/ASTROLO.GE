@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 // pattern resolves consistently across Next's config-loader compilation modes.
 const PROJECT_ROOT = path.dirname(fileURLToPath(import.meta.url));
 
-// Content hash of the prototype-runtime assets, produced by the npm `prebuild`
+// Content hash of the app-runtime assets, produced by the npm `prebuild`
 // step (scripts/build-runtime.mjs) into public/runtime-manifest.json. Empty
 // string = dev, or a build where prebuild didn't run — pages then reference the
 // raw must-revalidate sources instead of the hashed immutable artifacts
@@ -26,7 +26,7 @@ function runtimeV(): string {
   try {
     if (process.env.NODE_ENV !== "production") return "";
     const manifest = path.join(PROJECT_ROOT, "public", "runtime-manifest.json");
-    const minCore = path.join(PROJECT_ROOT, "public", "prototype-runtime.min.js");
+    const minCore = path.join(PROJECT_ROOT, "public", "app-runtime.min.js");
     if (!existsSync(manifest) || !existsSync(minCore)) return "";
     return String(JSON.parse(readFileSync(manifest, "utf8")).v ?? "");
   } catch {
@@ -51,13 +51,13 @@ const nextConfig: NextConfig = {
   //    a new deploy that changes them changes the URL.
   async headers() {
     const raw = [
-      '/prototype-runtime.js',
+      '/app-runtime.js',
       '/runtime-extras.js',
       '/runtime-loading.js',
       '/runtime-interp.json',
     ];
     const hashed = [
-      '/prototype-runtime.min.js',
+      '/app-runtime.min.js',
       '/runtime-extras.min.js',
       '/runtime-loading.min.js',
       '/runtime-interp.min.json',

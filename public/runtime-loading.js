@@ -2,7 +2,7 @@
 // message + fun-fact rotation, zodiac ring, star-field parallax, section
 // picker). Two ways this file runs:
 //  * STANDALONE on /loading — it is the ONLY runtime script there (the page
-//    references it instead of prototype-runtime.js), so core functions may
+//    references it instead of app-runtime.js), so core functions may
 //    not exist: every cross-call below is typeof-guarded, and the readiness
 //    signal at EOF is what lib/runtime-ready.ts waits for.
 //  * LAZY-LOADED into the full app — core's startLoading stub injects it

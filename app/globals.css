@@ -22,7 +22,7 @@ body:has(#loadingScreen.active) .pbar{display:none}
    --depth (the trail calc below still reads it) and only run their own twinkle. */
 /* Seamless wrap: the runtime drifts each layer by --wy = -((scrollY×depth) mod
    tile), where one tile of stars is cloned a viewport below (see the STARS
-   block in prototype-runtime.js). The layer parallaxes forever and never empties
+   block in app-runtime.js). The layer parallaxes forever and never empties
    — when --wy wraps -tile→0 the clone lands exactly where the original was, so
    the seam is invisible. --wy stays 0 (static field) on touch / reduced-motion. */
 .star-layer{position:absolute;inset:0;transform:translate3d(0,var(--wy,0px),0);will-change:transform}
@@ -281,7 +281,7 @@ section.vis{opacity:1;transform:translateY(0)}
 }
 /* Subtle interactive bloom: section icons glow + lift on hover (desktop) and
    when scrolled to the viewport center band (mobile, via .sh-active toggled by
-   the IntersectionObserver in prototype-runtime.js). */
+   the IntersectionObserver in app-runtime.js). */
 .sh .section-icon svg,.section-head .section-icon svg{transition:filter .55s var(--ease),transform .55s var(--ease)}
 .sh:hover .section-icon svg,.sh.sh-active .section-icon svg,
 .section-head:hover .section-icon svg{filter:drop-shadow(0 0 11px rgba(228,199,107,.6));transform:scale(1.08)}
@@ -916,7 +916,7 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
 .card:hover p{color:var(--tx)}
 
 /* Mobile scroll-activation: mirror :hover styles when card is in viewport center band.
-   Class is toggled by IntersectionObserver in prototype-runtime.js (mobile only). */
+   Class is toggled by IntersectionObserver in app-runtime.js (mobile only). */
 @media(max-width:720px){
   .c.c-active::after,.card.c-active::after{opacity:1}
   .c.c-active,.card.c-active{border-color:rgba(201,168,76,.2);box-shadow:0 4px 20px rgba(201,168,76,.04),0 12px 40px rgba(201,168,76,.03)}

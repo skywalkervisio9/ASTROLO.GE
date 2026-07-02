@@ -19,7 +19,7 @@ interface Connection {
 /**
  * SynastryViewWrapper — manages data fetching, dev triggers, and state.
  * Renders SynastryView when reading data is available.
- * Integrates with prototype-runtime.js via window events.
+ * Integrates with app-runtime.js via window events.
  */
 export default function SynastryViewWrapper() {
   const [reading, setReading] = useState<SynastryReadingData | null>(null);
@@ -36,7 +36,7 @@ export default function SynastryViewWrapper() {
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
-  // Language is owned by prototype-runtime which toggles `lang-en` on <body>.
+  // Language is owned by app-runtime which toggles `lang-en` on <body>.
   // Mirror it into React so the cosmic state can render in the right tongue.
   const [language, setLanguage] = useState<Language>(() => {
     if (typeof document !== 'undefined' && document.body.classList.contains('lang-en')) return 'en';
@@ -150,7 +150,7 @@ export default function SynastryViewWrapper() {
               if (generated) {
                 await fetchReading(generated.id, language);
               }
-              // Notify prototype-runtime.js
+              // Notify app-runtime.js
               window.dispatchEvent(new CustomEvent('synastry-ready', {
                 detail: { connectionId: msg.connectionId, ...msg },
               }));
@@ -176,7 +176,7 @@ export default function SynastryViewWrapper() {
     }
   }, [fetchConnections, fetchReading, language]);
 
-  // Listen for synastry load requests from prototype-runtime.js
+  // Listen for synastry load requests from app-runtime.js
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -188,14 +188,14 @@ export default function SynastryViewWrapper() {
     return () => window.removeEventListener('load-synastry', handler);
   }, [fetchReading]);
 
-  // Listen for dev-panel test synastry trigger from prototype-runtime.js
+  // Listen for dev-panel test synastry trigger from app-runtime.js
   useEffect(() => {
     const handler = () => { triggerDevSynastry(); };
     window.addEventListener('dev-trigger-synastry', handler);
     return () => window.removeEventListener('dev-trigger-synastry', handler);
   }, [triggerDevSynastry]);
 
-  // Expose state to prototype-runtime.js
+  // Expose state to app-runtime.js
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__synastryState = {
       reading,

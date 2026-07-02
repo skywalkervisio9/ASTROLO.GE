@@ -71,7 +71,7 @@ export default function AuthPageClient() {
     };
 
     // Mirror showAuthPage('page-birth') + renderAuthSteps(3) with the DOM alone.
-    // prototype-runtime.js loads afterInteractive, so on a fresh /auth?step=birth
+    // app-runtime.js loads afterInteractive, so on a fresh /auth?step=birth
     // load (post-signup) it isn't ready on the first pass. Without this, the
     // fallback below reveals the auth view while page-login is still the default
     // .active page — a ~1s flash of the login form before the runtime swaps in

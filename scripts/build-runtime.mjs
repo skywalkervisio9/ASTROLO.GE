@@ -1,4 +1,4 @@
-// Emits minified, version-stamped copies of the prototype-runtime assets into
+// Emits minified, version-stamped copies of the app-runtime assets into
 // /public. Runs as npm "prebuild", so `npm run build` (locally and on Vercel)
 // regenerates them before `next build` reads runtime-manifest.json.
 //
@@ -24,7 +24,7 @@ const pub = (f) => path.join(ROOT, 'public', f);
 // isChunk: evaluated lazily alongside an already-evaluated core script, so
 // top-level let/const are forbidden (see invariant above).
 const JS_SOURCES = [
-  { file: 'prototype-runtime.js', isChunk: false },
+  { file: 'app-runtime.js', isChunk: false },
   { file: 'runtime-extras.js', isChunk: true },
   { file: 'runtime-loading.js', isChunk: true },
 ];
@@ -33,7 +33,7 @@ const JSON_SOURCES = ['runtime-interp.json'];
 // Spot checks of the global contract: these exact substrings must survive in
 // the emitted files. A miss means something got renamed/dropped -> fail build.
 const REQUIRED_SUBSTRINGS = {
-  'prototype-runtime.js': [
+  'app-runtime.js': [
     'function switchView',
     'function setLang',
     'function hydrateReading',

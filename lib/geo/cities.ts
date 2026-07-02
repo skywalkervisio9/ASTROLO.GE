@@ -1,4 +1,4 @@
-// Auto-extracted from public/prototype-runtime.js — keep in sync if the runtime seed changes.
+// Auto-extracted from public/app-runtime.js — keep in sync if the runtime seed changes.
 // City seed + country-name maps for the birth-place autocomplete, reused by the
 // DOB-correction modal (the auth runtime keeps its own inline copy).
 

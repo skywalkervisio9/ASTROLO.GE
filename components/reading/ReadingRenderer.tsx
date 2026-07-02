@@ -1,6 +1,6 @@
 // ============================================================
 // ReadingRenderer — listens for `reading:hydrated` events from
-// prototype-runtime.js, queries all [data-reading-slot] elements,
+// app-runtime.js, queries all [data-reading-slot] elements,
 // and portals a <CardComponent> into each slot.
 //
 // Prototype owns the shell (nav, hero, section headers, planet
