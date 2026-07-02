@@ -266,10 +266,15 @@ section.vis{opacity:1;transform:translateY(0)}
    #s1 is excluded (visible right after the hero at load). `auto` in
    contain-intrinsic-size keeps the last-rendered height once seen, so
    go('sN') nav scrolling stays exact on repeat use; 900px is the placeholder
-   estimate for never-rendered sections. */
+   estimate for never-rendered sections.
+   ONLY while un-revealed (:not(.vis)): content-visibility implies paint
+   containment, which clips children that overflow the section box — hover
+   tooltips (.tip::after) and popups anchored near a section edge were getting
+   cut at the section boundary. Once the reveal observer adds .vis the section
+   renders normally, so anything the user can interact with is never clipped. */
 @supports (content-visibility: auto) {
-  #view-natal section:not(#s1),
-  #view-natal .lock-wrap{content-visibility:auto;contain-intrinsic-size:auto 900px}
+  #view-natal section:not(#s1):not(.vis),
+  #view-natal .lock-wrap:not(.vis){content-visibility:auto;contain-intrinsic-size:auto 900px}
 }
 .sh{text-align:center;margin-bottom:32px}
 .sh .section-icon{width:48px;height:48px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
