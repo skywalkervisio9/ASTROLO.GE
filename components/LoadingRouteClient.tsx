@@ -127,9 +127,15 @@ export default function LoadingRouteClient() {
       const isRegenerateCall1 = urlParams.get('mode') === 'regenerate-call1';
       const isRegenerate = isRegenerateFull || isRegenerateCall1;
       const isFakeFull = urlParams.get('mode') === 'fake-full';
+      // ?mode=resume: generation is already running somewhere (another device,
+      // another tab, or a server run that outlived its tab) — watch + poll
+      // only, never re-fire the AI calls, and use the long polling cap
+      // regardless of tier. Set by /post-auth, /r/[slug] and AuthBridge when
+      // onboarding status reports 'generating'.
+      const isResume = urlParams.get('mode') === 'resume';
       const inviteFromUrl = urlParams.get('invite');
       const hasInvite = Boolean(inviteFromUrl);
-      const isFree = !isGenerateFull && !isRegenerate && !isFakeFull && !hasInvite;
+      const isFree = !isGenerateFull && !isRegenerate && !isFakeFull && !hasInvite && !isResume;
 
       // Fetch user's language preference for loading screen
       let userLang: string = 'ka';
@@ -149,9 +155,9 @@ export default function LoadingRouteClient() {
         // 6min generate-full (full AI reading).
         const duration = isFree ? 20000
           : isFakeFull ? 60000
-          : hasInvite ? 30000
+          : hasInvite && !isResume ? 30000
           : isRegenerateCall1 ? 120000   // DOB correction, invited tier — Call 1 only
-          : 360000;
+          : 360000;                      // generate-full + resume (remaining time unknown)
         if (fn) fn(userLang, duration);
       });
 
@@ -291,8 +297,9 @@ export default function LoadingRouteClient() {
           console.error('[loading] error starting full generation');
         }
         // Fall through to polling loop — it will detect DB completion regardless of HTTP timing
-      } else {
-        // ── INITIAL ONBOARDING: chart/generate ──
+      } else if (!isResume) {
+        // ── INITIAL ONBOARDING: chart/generate ── (skipped in resume mode:
+        // the work is already running elsewhere, we only watch and poll)
         let reqBody: GenerateChartRequest | null = null;
 
         const pendingRes = await fetch('/api/onboarding/pending', { credentials: 'include' });

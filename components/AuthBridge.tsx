@@ -583,13 +583,15 @@ export default function AuthBridge() {
                 return;
               }
             }
-            // Chart is still being generated (crash recovery) — send back to loading
+            // Chart is still being generated (crash recovery / another device) —
+            // send back to loading in resume mode: watch + poll only, long
+            // polling cap regardless of tier, never re-fires the AI calls.
             if (s.status === 'generating') {
-              console.log("[AB] onAuthSuccess: generation in progress, redirecting to /loading");
+              console.log("[AB] onAuthSuccess: generation in progress, redirecting to /loading?mode=resume");
               const inviteGen = new URLSearchParams(window.location.search).get('invite');
               window.location.href = inviteGen
-                ? `/loading?invite=${encodeURIComponent(inviteGen)}`
-                : '/loading';
+                ? `/loading?mode=resume&invite=${encodeURIComponent(inviteGen)}`
+                : '/loading?mode=resume';
               return;
             }
           }

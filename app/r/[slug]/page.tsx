@@ -15,11 +15,13 @@ import {
   getReadingMeta,
   getReadingOwnership,
 } from '@/lib/data/public-reading';
+import { computeOnboardingStatus } from '@/lib/onboarding/status';
 import PrototypeClient from '@/components/PrototypeClient';
 import PublicReadingClient from '@/components/PublicReadingClient';
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 // Server-rendered metadata for social share previews (FB, WhatsApp, X, etc).
@@ -54,7 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ReadingPage({ params }: Props) {
+export default async function ReadingPage({ params, searchParams }: Props) {
   const { slug } = await params;
 
   // Cached ownership lookup — no DB hit on repeat visits to the same slug.
@@ -70,6 +72,25 @@ export default async function ReadingPage({ params }: Props) {
   }
 
   if (isOwner) {
+    // Reloading (or logging in from another device) while the owner's reading
+    // is still generating must land on /loading, not on a stale/partial
+    // reading. Synastry flows are excluded: the invite path intentionally
+    // parks the user on /r/[slug]?synastry=1 while Call 1 runs in the
+    // background — the synastry view's cosmic loader owns that wait.
+    const sp = await searchParams;
+    if (!('synastry' in sp)) {
+      const st = await computeOnboardingStatus(user.id);
+      if (st.status === 'generating') {
+        // resume = watch + poll only; never re-fires the AI calls.
+        redirect('/loading?mode=resume');
+      }
+      if (st.status === 'queued') {
+        // chart_data missing (e.g. interrupted onboarding or DOB correction) —
+        // plain /loading rebuilds the chart from the pending payload/profile.
+        redirect('/loading');
+      }
+    }
+
     // Owner gets the full interactive app (sidebar, language toggle,
     // synastry, upgrade CTAs, settings). PrototypeClient already
     // handles auth-based hydration.

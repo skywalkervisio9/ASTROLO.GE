@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { ensureUserProfileRow } from '@/lib/auth/profile';
+import { computeOnboardingStatus } from '@/lib/onboarding/status';
 import { normalizeInviteCode } from '@/lib/utils/invite';
 
 function pickInvite(sp: Record<string, string | string[] | undefined>): string | undefined {
@@ -52,23 +53,26 @@ export default async function PostAuthPage({
 
   const hasBirth = !!(profile?.birth_day && profile?.birth_year && profile?.birth_city);
 
-  // If a reading already exists, take them to the canonical /r/[slug] URL.
-  const { data: readingRow } = await supabase
-    .from('natal_readings')
-    .select('id, share_slug')
-    .eq('user_id', user.id)
-    .maybeSingle();
+  // Tier-aware generation state — the same check the /loading poller uses.
+  // A user logging in from another device (or bouncing through /auth) while
+  // their reading is still being generated must land on /loading, not on a
+  // stale/partial /r/[slug].
+  const st = await computeOnboardingStatus(user.id);
 
-  if (readingRow?.share_slug) {
+  if (st.status === 'generating') {
+    // mode=resume: watch + poll only — never re-fires the AI calls (the
+    // original tab / server run is already doing the work) and uses the
+    // long polling cap regardless of tier.
+    redirect(invite ? `/loading?mode=resume&invite=${encodeURIComponent(invite)}` : '/loading?mode=resume');
+  }
+
+  if (st.status === 'complete' && st.shareSlug) {
     // Must hit /loading so client POST /api/invite/accept runs before natal redirect.
     redirect(
       invite
         ? `/loading?invite=${encodeURIComponent(invite)}`
-        : `/r/${readingRow.share_slug}`,
+        : `/r/${st.shareSlug}`,
     );
-  }
-  if (readingRow?.id) {
-    // Legacy row missing a slug — fall through to loading so it gets one.
   }
 
   // New user (or missing birth data): go to birth data input.
@@ -76,7 +80,9 @@ export default async function PostAuthPage({
     redirect(invite ? `/auth?step=birth&invite=${encodeURIComponent(invite)}` : '/auth?step=birth');
   }
 
-  // Has birth data but no reading yet: go to loading and generate/poll.
+  // Has birth data but generation never started/finished ('queued', 'failed',
+  // or complete-without-slug): go to /loading, which starts/recovers
+  // generation from the pending payload or profile and then polls.
   redirect(invite ? `/loading?invite=${encodeURIComponent(invite)}` : '/loading');
 }
 
