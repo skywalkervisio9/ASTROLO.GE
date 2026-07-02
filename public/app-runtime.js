@@ -1298,6 +1298,7 @@ const PLANET_TIPS_KA = {
   saturn: 'სატურნი — სტრუქტურა, დისციპლინა, გაკვეთილები', uranus: 'ურანი — თავისუფლება, ინოვაცია, გამოღვიძება',
   neptune: 'ნეპტუნი — ოცნება, ინტუიცია, სულიერება', pluto: 'პლუტონი — ტრანსფორმაცია, ძალა, განახლება',
   lilith: 'ლილითი — ჩრდილი, პირველადი ინსტინქტი, ტაბუ', node: 'ჩრდილოეთის კვანძი — კარმული მიმართულება, ზრდის გზა',
+  'south node': 'სამხრეთის კვანძი — კარმული წარსული, თანდაყოლილი გამოცდილება',
   chiron: 'ქირონი — ჭრილობა და განკურნება'
 };
 const PLANET_TIPS_EN = {
@@ -1307,6 +1308,7 @@ const PLANET_TIPS_EN = {
   saturn: 'Saturn — structure, discipline, lessons', uranus: 'Uranus — freedom, innovation, awakening',
   neptune: 'Neptune — dreams, intuition, spirituality', pluto: 'Pluto — transformation, power, rebirth',
   lilith: 'Lilith — shadow, raw instinct, taboo', node: 'North Node — karmic direction, growth path',
+  'south node': 'South Node — karmic past, innate gifts',
   chiron: 'Chiron — the wound and the healing'
 };
 // Bodies that have a click popup (plData) — used to gate .pl-btn triggers in aspect rows.
@@ -2862,9 +2864,13 @@ function _renderRichText(text) {
     if (SYMBOL_TO_GLYPH[ch]) {
       var glyphName = SYMBOL_TO_GLYPH[ch];
       if (PLANET_SYMBOLS.has(ch)) {
-        var _ptip = (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[glyphName] || '';
+        // ☋ South Node reuses the node glyph rotated 180° (astro convention)
+        // and gets its own tooltip text.
+        var _isSouth = ch === '☋';
+        var _tipKey = _isSouth ? 'south node' : glyphName;
+        var _ptip = (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[_tipKey] || '';
         var _ptipAttr = _ptip ? ' tip" data-tip="' + _ptip + '" style="cursor:help"' : '"';
-        result += '<span class="gi gi-pl' + _ptipAttr + '><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+        result += '<span class="gi gi-pl' + (_isSouth ? ' gi-flip' : '') + _ptipAttr + '><svg><use href="#gl-' + glyphName + '"/></svg></span>';
       } else if (SIGN_SYMBOLS.has(ch)) {
         var el = SIGN_ELEMENT[glyphName] || '';
         result += '<span class="gi gi-' + el + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
@@ -2890,7 +2896,12 @@ function _buildBadgeHtml(label) {
     if (SYMBOL_TO_GLYPH[ch]) {
       var glyphName = SYMBOL_TO_GLYPH[ch];
       if (PLANET_SYMBOLS.has(ch)) {
-        result += '<span class="gi gi-pl"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+        // Same tooltip + South-Node rotation as _renderRichText's prose pass —
+        // badges are the most visible planet symbols in a card.
+        var _bSouth = ch === '☋';
+        var _bTip = (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[_bSouth ? 'south node' : glyphName] || '';
+        var _bTipAttr = _bTip ? ' tip" data-tip="' + _bTip + '" style="cursor:help"' : '"';
+        result += '<span class="gi gi-pl' + (_bSouth ? ' gi-flip' : '') + _bTipAttr + '><svg><use href="#gl-' + glyphName + '"/></svg></span>';
       } else if (SIGN_SYMBOLS.has(ch)) {
         var el = SIGN_ELEMENT[glyphName] || '';
         result += '<span class="gi gi-' + el + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
@@ -2939,10 +2950,13 @@ var _GLYPH_ACRONYM = { ascendant:'ASC', midheaven:'MC', mc:'MC', ic:'IC', descen
 var _GLYPH_SYMBOL = { chiron:'⚷' };
 function _planetGlyph(name) {
   if (!name) return '';
-  var key = (PLANET_KA_REV[name] || name).toLowerCase().replace('north node','node').replace('south node','node');
+  var raw = (PLANET_KA_REV[name] || name).toLowerCase();
+  // South Node = node glyph rotated 180° (astro convention: ☊ vs ☋)
+  var isSouth = raw.indexOf('south node') !== -1;
+  var key = raw.replace('north node','node').replace('south node','node');
   var resolved = _GLYPH_ALIAS[key] || key;
   if (_GLYPH_IDS[resolved]) {
-    return '<span class="gi gi-pl"><svg><use href="#gl-' + resolved + '"/></svg></span>';
+    return '<span class="gi gi-pl' + (isSouth ? ' gi-flip' : '') + '"><svg><use href="#gl-' + resolved + '"/></svg></span>';
   }
   var acr = _GLYPH_ACRONYM[key] || _GLYPH_ACRONYM[resolved];
   if (acr) return '<span class="gi-acr">' + acr + '</span>';
@@ -3174,8 +3188,9 @@ function _buildSectionContent(sectionKey, section) {
         html += '<div class="pts-row" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:4px">';
         if (pts.ascendant) html += '<span class="pb2">ASC ' + _signGlyph(pts.ascendant.sign) + ' ' + _esc(pts.ascendant.degree) + '</span>';
         if (pts.midheaven) html += '<span class="pb2">MC ' + _signGlyph(pts.midheaven.sign) + ' ' + _esc(pts.midheaven.degree) + '</span>';
-        if (pts.northNode) html += '<span class="pb2">' + _planetGlyph('node') + ' ' + _signGlyph(pts.northNode.sign) + ' ' + _esc(pts.northNode.degree) + '</span>';
-        if (pts.lilith) html += '<span class="pb2">' + _planetGlyph('lilith') + ' ' + _signGlyph(pts.lilith.sign) + ' ' + _esc(pts.lilith.degree) + '</span>';
+        var _ptsTips = _hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN;
+        if (pts.northNode) html += '<span class="pb2 tip" data-tip="' + _ptsTips.node + '" style="cursor:help">' + _planetGlyph('node') + ' ' + _signGlyph(pts.northNode.sign) + ' ' + _esc(pts.northNode.degree) + '</span>';
+        if (pts.lilith) html += '<span class="pb2 tip" data-tip="' + _ptsTips.lilith + '" style="cursor:help">' + _planetGlyph('lilith') + ' ' + _signGlyph(pts.lilith.sign) + ' ' + _esc(pts.lilith.degree) + '</span>';
         html += '</div>';
       }
       html += '</div>';

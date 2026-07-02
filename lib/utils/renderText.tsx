@@ -19,6 +19,38 @@ const SYMBOL_TO_GLYPH: Record<string, string> = {
   '🔱':'asc','⬆':'asc','↑':'asc',
 };
 const PLANET_SET = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋']);
+// Short planet one-liners for hover tooltips on in-text planet symbols.
+// Mirrors PLANET_TIPS_KA/EN in public/app-runtime.js — keep in sync.
+const PLANET_TIPS_KA: Record<string, string> = {
+  sun: 'მზე — იდენტობა, ეგო, სასიცოცხლო ძალა', moon: 'მთვარე — ემოცია, ინსტინქტი, შინაგანი სამყარო',
+  mercury: 'მერკური — გონება, კომუნიკაცია, აზროვნება', venus: 'ვენერა — სიყვარული, ესთეტიკა, ღირებულებები',
+  mars: 'მარსი — მოქმედება, ვნება, ნება', jupiter: 'იუპიტერი — ზრდა, სიუხვე, ბედი',
+  saturn: 'სატურნი — სტრუქტურა, დისციპლინა, გაკვეთილები', uranus: 'ურანი — თავისუფლება, ინოვაცია, გამოღვიძება',
+  neptune: 'ნეპტუნი — ოცნება, ინტუიცია, სულიერება', pluto: 'პლუტონი — ტრანსფორმაცია, ძალა, განახლება',
+  lilith: 'ლილითი — ჩრდილი, პირველადი ინსტინქტი, ტაბუ', node: 'ჩრდილოეთის კვანძი — კარმული მიმართულება, ზრდის გზა',
+  'south node': 'სამხრეთის კვანძი — კარმული წარსული, თანდაყოლილი გამოცდილება',
+  chiron: 'ქირონი — ჭრილობა და განკურნება',
+};
+const PLANET_TIPS_EN: Record<string, string> = {
+  sun: 'Sun — identity, ego, vitality', moon: 'Moon — emotion, instinct, inner world',
+  mercury: 'Mercury — mind, communication, thought', venus: 'Venus — love, beauty, values',
+  mars: 'Mars — action, drive, will', jupiter: 'Jupiter — growth, abundance, fortune',
+  saturn: 'Saturn — structure, discipline, lessons', uranus: 'Uranus — freedom, innovation, awakening',
+  neptune: 'Neptune — dreams, intuition, spirituality', pluto: 'Pluto — transformation, power, rebirth',
+  lilith: 'Lilith — shadow, raw instinct, taboo', node: 'North Node — karmic direction, growth path',
+  'south node': 'South Node — karmic past, innate gifts',
+  chiron: 'Chiron — the wound and the healing',
+};
+
+/** Tooltip text for a planet SYMBOL in the current render language.
+ *  ☋ South Node gets its own text (the glyph itself is the rotated node —
+ *  render it with the gi-flip class). Returns undefined for non-planets. */
+export function planetSymbolTip(ch: string): string | undefined {
+  if (!PLANET_SET.has(ch)) return undefined;
+  const glyph = SYMBOL_TO_GLYPH[ch];
+  const key = ch === '☋' ? 'south node' : glyph;
+  return (_renderLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[key];
+}
 // Aspect symbols rendered in the same gold tone as planets
 const ASPECT_SET = new Set(['☌','☍','△','□','⚹']);
 const SIGN_ELEMENT: Record<string, string> = {
@@ -303,8 +335,13 @@ export function renderText(text: string): React.ReactNode {
       const glyph = SYMBOL_TO_GLYPH[ch];
 
       if (glyph) {
+        // Planet symbols get a hover tooltip; ☋ South Node reuses the node
+        // glyph rotated 180° (astro convention) with its own tooltip text.
+        const isSouth = ch === '☋';
+        const tip = planetSymbolTip(ch);
+        const cls = `gi gi-pl${isSouth ? ' gi-flip' : ''}${tip ? ' tip' : ''}`;
         nodes.push(
-          <span key={k++} className="gi gi-pl">
+          <span key={k++} className={cls} {...(tip ? { 'data-tip': tip, style: { cursor: 'help' } } : {})}>
             <svg><use href={`#gl-${glyph}`}/></svg>
           </span>
         );

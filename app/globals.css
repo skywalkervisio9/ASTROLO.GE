@@ -257,6 +257,10 @@ body[data-public-view] .pn{color:#a6d9e4;max-width:180px;white-space:nowrap;over
 body.free-tier .nbtn.locked .lock-dot{display:inline-block}
 body.free-tier .nbtn.locked{opacity:.5}
 
+/* South Node — the node glyph rotated 180° (astro convention: ☊ vs ☋).
+   Applied by _planetGlyph/_renderRichText (runtime) and renderText.tsx. */
+.gi-flip svg{transform:rotate(180deg)}
+
 /* ═══ SECTIONS ═══ */
 section{margin-bottom:80px;opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease;scroll-margin-top:125px}
 section.vis{opacity:1;transform:translateY(0)}

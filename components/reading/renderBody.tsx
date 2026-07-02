@@ -10,7 +10,7 @@
 // ============================================================
 
 import React, { type ReactNode } from 'react';
-import { renderText } from '@/lib/utils/renderText';
+import { renderText, planetSymbolTip } from '@/lib/utils/renderText';
 
 // ── Label/badge renderer (mirrors prototype's _buildBadgeHtml) ──
 // Unicode astro symbols → SVG glyphs, ℞ stays plain, aspect symbols get
@@ -46,9 +46,15 @@ export function renderLabel(label: string): ReactNode {
     if (LABEL_SYMBOL_TO_GLYPH[ch]) {
       flushRun();
       const glyph = LABEL_SYMBOL_TO_GLYPH[ch];
-      const cls = LABEL_PLANET_SET.has(ch) ? 'gi gi-pl' : `gi gi-${LABEL_SIGN_ELEMENT[glyph] || ''}`;
+      // Planet symbols carry the shared hover tooltip; ☋ South Node reuses
+      // the node glyph rotated 180° (gi-flip) — same as renderText/runtime.
+      const tip = planetSymbolTip(ch);
+      const flip = ch === '☋' ? ' gi-flip' : '';
+      const cls = LABEL_PLANET_SET.has(ch)
+        ? `gi gi-pl${flip}${tip ? ' tip' : ''}`
+        : `gi gi-${LABEL_SIGN_ELEMENT[glyph] || ''}`;
       out.push(
-        <span key={k++} className={cls}>
+        <span key={k++} className={cls} {...(tip ? { 'data-tip': tip, style: { cursor: 'help' } } : {})}>
           <svg><use href={`#gl-${glyph}`}/></svg>
         </span>
       );
