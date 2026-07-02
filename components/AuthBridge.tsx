@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * AuthBridge — connects prototype-runtime.js auth stubs to real Supabase auth.
+ * AuthBridge — connects app-runtime.js auth stubs to real Supabase auth.
  * Overrides window.handleGoogle, handleLogin, handleSignup, handleForgot
  * after the runtime script loads.
  */
@@ -119,7 +119,7 @@ export default function AuthBridge() {
     };
 
     // Install/refresh runtime auth overrides.
-    // We re-run this during boot because prototype-runtime.js can assign
+    // We re-run this during boot because app-runtime.js can assign
     // its own handlers slightly after hydration and overwrite ours.
     function wireAuth() {
       const w = window as unknown as Record<string, unknown>;
@@ -334,7 +334,7 @@ export default function AuthBridge() {
       };
 
       // ─── Synastry Invite Link Generation (real backend) ───
-      // Overrides prototype-runtime's fake random-code generator so the modal
+      // Overrides app-runtime's fake random-code generator so the modal
       // creates real invite_codes + synastry_connections rows.
       w.generateInviteLink = async () => {
         const selectedEl = document.querySelector(".invite-opt.selected");
@@ -381,7 +381,7 @@ export default function AuthBridge() {
       // ─── Birth Data Submit ───
       // Also assigned to __authBirthSubmit — a namespace the prototype runtime never
       // touches — so the button can call it directly without racing against
-      // prototype-runtime.js overwriting window.handleBirthData.
+      // app-runtime.js overwriting window.handleBirthData.
       const handleBirthDataFn = async () => {
         console.log("🟢 [AB] Birth submit fired");
 
@@ -655,7 +655,7 @@ export default function AuthBridge() {
         set("birth-year", p.birth_year);
       };
 
-      // Wait for prototype-runtime.js to finish loading before trying to switch views.
+      // Wait for app-runtime.js to finish loading before trying to switch views.
       // The script uses strategy="afterInteractive" so it may not be ready immediately
       // after React hydrates — especially on fresh Google OAuth redirects.
       const applyView = () => {

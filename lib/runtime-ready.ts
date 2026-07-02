@@ -1,5 +1,5 @@
 /**
- * Resolves when prototype-runtime.js has fully loaded and all
+ * Resolves when app-runtime.js has fully loaded and all
  * window functions (hydrateReading, startLoading, etc.) are available.
  *
  * - If runtime already loaded (script was cached / fast connection): resolves instantly

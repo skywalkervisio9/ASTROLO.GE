@@ -1,5 +1,5 @@
 // Birth-place geocoding for the DOB-correction modal.
-// Mirrors the autocomplete in public/prototype-runtime.js (Nominatim search +
+// Mirrors the autocomplete in public/app-runtime.js (Nominatim search +
 // timeapi.io timezone resolution) but as reusable TS for React call-sites.
 
 import { KA_COUNTRIES, getCitySeed, type CitySeed } from './cities';

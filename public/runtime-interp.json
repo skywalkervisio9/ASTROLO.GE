@@ -1,0 +1,446 @@
+{
+  "elData": {
+    "ka": {
+      "fire": {
+        "title": "ცეცხლი",
+        "body": "ინტუიცია, შთაგონება და სპონტანური მოქმედება. ცეცხლის ენერგია ქმნის, იწყებს და ანთებს — ეს არის ნების ძალა, თავდაჯერებულობა და სიცოცხლის წყურვილი. ჭარბად — იმპულსურობა, სიმწვავე. ნაკლებად — ენერგიის, მოტივაციის დეფიციტი."
+      },
+      "earth": {
+        "title": "მიწა",
+        "body": "სტაბილურობა, პრაქტიკულობა და ფიზიკური სამყაროსთან კავშირი. მიწის ენერგია აშენებს, ამყარებს და ხელშესახებს ხდის — ეს არის მოთმინება, გამძლეობა და სენსორული სიბრძნე. ჭარბად — სიჯიუტე, ინერცია. ნაკლებად — დაუსაბუთებლობა, არასტაბილურობა."
+      },
+      "air": {
+        "title": "ჰაერი",
+        "body": "ინტელექტი, კომუნიკაცია და კავშირები. ჰაერის ენერგია აანალიზებს, აკავშირებს და გადმოსცემს — ეს არის იდეების სამყარო, სოციალური ინტელექტი და ობიექტურობა. ჭარბად — ზედმეტი ინტელექტუალიზაცია. ნაკლებად — იზოლაცია, კომუნიკაციის სირთულე."
+      },
+      "water": {
+        "title": "წყალი",
+        "body": "ემოციები, ინტუიცია და ფსიქიკური სიღრმე. წყლის ენერგია გრძნობს, კურნავს და გარდაქმნის — ეს არის ემპათია, წარმოსახვა და არაცნობიერთან კავშირი. ჭარბად — ემოციური დატბორვა. ნაკლებად — ემოციური სიცარიელე, გაუცხოება."
+      }
+    },
+    "en": {
+      "fire": {
+        "title": "Fire",
+        "body": "Intuition, inspiration, and spontaneous action. Fire energy creates, initiates, and ignites — willpower, confidence, and the thirst for life."
+      },
+      "earth": {
+        "title": "Earth",
+        "body": "Stability, practicality, and connection to the physical world. Earth energy builds, grounds, and materialises — patience, endurance, and sensory wisdom."
+      },
+      "air": {
+        "title": "Air",
+        "body": "Intellect, communication, and connections. Air energy analyses, links, and transmits — the world of ideas, social intelligence, and objectivity."
+      },
+      "water": {
+        "title": "Water",
+        "body": "Emotions, intuition, and psychic depth. Water energy feels, heals, and transforms — empathy, imagination, and connection to the unconscious."
+      }
+    }
+  },
+  "aspectData": {
+    "ka": {
+      "harmony": {
+        "t": "ჰარმონია — ტრინი / სექსტილი",
+        "b": "მხარდამჭერი, მიმდინარე ენერგია ორ პლანეტას შორის. ნიჭი, რომელიც ბუნებრივად მოედინება — ძალისხმევის გარეშე."
+      },
+      "tension": {
+        "t": "დაძაბულობა — კვადრატი / ოპოზიცია",
+        "b": "ფრიქცია და გამოწვევა ორ პლანეტას შორის. ეს არის ზრდის ძრავა — არაკომფორტული, მაგრამ ტრანსფორმაციული."
+      },
+      "magnetic": {
+        "t": "მაგნიტური — კონიუნქცია / კარმული",
+        "b": "გაერთიანების, შერწყმის ენერგია. კონიუნქცია ორ პლანეტას ერთ ძალად აქცევს — ინტენსიური, განუყოფელი."
+      }
+    },
+    "en": {
+      "harmony": {
+        "t": "Harmony — Trine / Sextile",
+        "b": "Supportive, flowing energy between two planets. A natural gift that requires no effort."
+      },
+      "tension": {
+        "t": "Tension — Square / Opposition",
+        "b": "Friction and challenge between two planets. This is the engine of growth — uncomfortable but transformational."
+      },
+      "magnetic": {
+        "t": "Magnetic — Conjunction / Karmic",
+        "b": "Merging, unifying energy. Conjunction fuses two planets into one force — intense, inseparable."
+      }
+    }
+  },
+  "_aspTypeBody": {
+    "ka": {
+      "conjunction": "ორი პლანეტა ერთ წერტილში ერწყმის — მათი ენერგია ერთ ძალად იქცევა. ინტენსიური, განუყოფელი შერწყმა, სადაც ერთი მეორეს აძლიერებს.",
+      "trine": "ჰარმონიული, თავისუფლად მოედინება ენერგია ორ პლანეტას შორის. ბუნებრივი ნიჭი, რომელიც ძალისხმევის გარეშე მუშაობს.",
+      "sextile": "ნაზი შესაძლებლობა და მხარდაჭერა. ნიჭი, რომელიც ცოტა ძალისხმევით აქტიურდება — კარი, რომელიც გელით, რომ გააღოთ.",
+      "square": "დაძაბულობა და ფრიქცია, რომელიც ქმედებისკენ გიბიძგებთ. შინაგანი კონფლიქტი, რომელიც ზრდის ძრავაა — არაკომფორტული, მაგრამ ნაყოფიერი.",
+      "opposition": "ორი საპირისპირო ძალის გადაზიდვა — ბალანსის ძიება. ხშირად სხვებში ან ურთიერთობებში ვლინდება, სანამ შიგნით არ შეერთდება."
+    },
+    "en": {
+      "conjunction": "Two planets merge at a single point — their energies fuse into one force. An intense, inseparable blend where each amplifies the other.",
+      "trine": "Harmonious, freely flowing energy between two planets. A natural gift that works without effort.",
+      "sextile": "A gentle opportunity and support. A talent that activates with a little effort — a door waiting for you to open it.",
+      "square": "Tension and friction that pushes you toward action. An inner conflict that is the engine of growth — uncomfortable but productive.",
+      "opposition": "A pull between two opposing forces, seeking balance. Often shows up in others or relationships until you integrate it within."
+    }
+  },
+  "plData": {
+    "ka": {
+      "sun": {
+        "t": "☉ მზე",
+        "b": "იდენტობა, ეგო და ცხოვრების ძირითადი ენერგია. მზე აჩვენებს ვინ ხარ შენს ბირთვში."
+      },
+      "moon": {
+        "t": "☽ მთვარე",
+        "b": "ემოციები, ინსტინქტები და შინაგანი სამყარო. მთვარე აჩვენებს როგორ გრძნობ, რა გჭირდება უსაფრთხოებისთვის."
+      },
+      "mercury": {
+        "t": "☿ მერკური",
+        "b": "გონება, კომუნიკაცია და აღქმის სტილი. მერკური აჩვენებს როგორ ფიქრობ, სწავლობ და გადმოსცემ ინფორმაციას."
+      },
+      "venus": {
+        "t": "♀ ვენერა",
+        "b": "სიყვარული, ესთეტიკა და ღირებულებები. ვენერა გვიჩვენებს, სად ეძებ ჰარმონიას, რა გიტაცებს სილამაზით და როგორ ეკიდები სიახლოვეს."
+      },
+      "mars": {
+        "t": "♂ მარსი",
+        "b": "სურვილი, ძალა და ქმედება. მარსი გვიჩვენებს, სად მიაქვს ენერგია, როგორ იბრძვი შენი მიზნებისთვის და სად ვლინდება შენი ნება."
+      },
+      "jupiter": {
+        "t": "♃ იუპიტერი",
+        "b": "ზრდა, სიუხვე და ოპტიმიზმი. იუპიტერი გვიჩვენებს, სად ვიზრდებით ბუნებრივად, სად გვიმართლებს ბედი და რა ფილოსოფია გვმართავს."
+      },
+      "saturn": {
+        "t": "♄ სატურნი",
+        "b": "სტრუქტურა, დისციპლინა და კარმული გაკვეთილები. სატურნი აჩვენებს სად არის შენი უდიდესი გამოწვევა."
+      },
+      "uranus": {
+        "t": "♅ ურანი",
+        "b": "თავისუფლება, გამოღვიძება და ინოვაცია. ურანი გვიჩვენებს, სად სცდები ჩვეულ ნორმებს, სად ეძებ ინდივიდუალობას და საიდან მოდის მოულოდნელი ცვლილება."
+      },
+      "neptune": {
+        "t": "♆ ნეპტუნი",
+        "b": "ოცნება, ინსპირაცია და სულიერება. ნეპტუნი გვიჩვენებს, სად ეძებ ტრანსცენდენტულს, სად იბინდდება საზღვრები და საიდან მოდის შენი ხილვა."
+      },
+      "pluto": {
+        "t": "♇ პლუტონი",
+        "b": "ტრანსფორმაცია, სიღრმე და განახლება. პლუტონი გვიჩვენებს, სად ხდება ყველაზე ღრმა ცვლილება, სად ეთხოვება ძველს და სად იბადება ახალი ძალა."
+      },
+      "chiron": {
+        "t": "⚷ ქირონი",
+        "b": "ჭრილობა და განკურნება. ქირონი აჩვენებს ღრმა, ძველ ტკივილს, რომელსაც ვატარებთ — და ზუსტად იქ, სადაც ვისწავლით სხვების განკურნებას. „დაჭრილი მკურნალი.\""
+      },
+      "node": {
+        "t": "☊ ჩრდილოეთის კვანძი",
+        "b": "სულის ზრდის მიმართულება. ჩრდილოეთის კვანძი აჩვენებს, რა თვისებებისკენ უნდა გავიზარდოთ ამ ცხოვრებაში — შენი კომფორტის ზონის მიღმა."
+      },
+      "lilith": {
+        "t": "⚸ ლილითი",
+        "b": "შავი მთვარე ლილითი — ჩრდილი, პირველადი ინსტინქტი და ტაბუ. აჩვენებს, სად ვართ ყველაზე ნედლი, თავისუფალი და დაუმორჩილებელი."
+      }
+    },
+    "en": {
+      "sun": {
+        "t": "☉ Sun",
+        "b": "Identity, ego, and core life energy. The Sun reveals who you are at your essence."
+      },
+      "moon": {
+        "t": "☽ Moon",
+        "b": "Emotions, instincts, and inner world. The Moon reveals how you feel and what you need to feel safe."
+      },
+      "mercury": {
+        "t": "☿ Mercury",
+        "b": "Mind, communication, and perception style. Mercury reveals how you think, learn, and express ideas."
+      },
+      "venus": {
+        "t": "♀ Venus",
+        "b": "Love, beauty, and values. Venus reveals what you attract, how you love, and what you find beautiful."
+      },
+      "mars": {
+        "t": "♂ Mars",
+        "b": "Will, action, and desire. Mars reveals how you fight, what drives you, and where you direct your energy."
+      },
+      "jupiter": {
+        "t": "♃ Jupiter",
+        "b": "Expansion, wisdom, and abundance. Jupiter reveals where you grow and where fortune finds you."
+      },
+      "saturn": {
+        "t": "♄ Saturn",
+        "b": "Structure, discipline, and karmic lessons. Saturn reveals where your greatest challenge — and mastery — lies."
+      },
+      "uranus": {
+        "t": "♅ Uranus",
+        "b": "Freedom, innovation, and breakthrough. Uranus reveals where you rebel and where you seek originality."
+      },
+      "neptune": {
+        "t": "♆ Neptune",
+        "b": "Dreams, spirituality, and transcendence. Neptune reveals where you seek the divine and where illusion lives."
+      },
+      "pluto": {
+        "t": "♇ Pluto",
+        "b": "Transformation, power, and rebirth. Pluto reveals where deep psychological death and renewal take place."
+      },
+      "chiron": {
+        "t": "⚷ Chiron",
+        "b": "The wound and the healer. Chiron marks the deep, old hurt you carry — and the very place where you learn to heal others. The \"wounded healer.\""
+      },
+      "node": {
+        "t": "☊ North Node",
+        "b": "The soul's growth direction. The North Node shows the qualities you're here to develop in this life — just beyond your comfort zone."
+      },
+      "lilith": {
+        "t": "⚸ Lilith",
+        "b": "Black Moon Lilith — shadow, raw instinct, and the taboo. It shows where you are most untamed, free, and unwilling to submit."
+      }
+    }
+  },
+  "cpData": {
+    "ka": {
+      "asc": {
+        "acr": "ASC",
+        "t": "ასცენდენტი",
+        "b": "აღმავალი ნიშანი — შენი გარეგანი ნიღაბი და პირველი შთაბეჭდილება. ასცენდენტი აჩვენებს, როგორ ხვდები სამყაროს, შენს სტილსა და ფიზიკურ მანერას."
+      },
+      "dsc": {
+        "acr": "DSC",
+        "t": "დესცენდენტი",
+        "b": "ასცენდენტის საპირისპირო წერტილი — პარტნიორობა და „სხვა\". დესცენდენტი აჩვენებს, რას ეძებ მჭიდრო ურთიერთობებში და რას აპროექციებ პარტნიორზე."
+      },
+      "mc": {
+        "acr": "MC",
+        "t": "ცის შუაწერტილი",
+        "b": "ცის უმაღლესი წერტილი — კარიერა, საჯარო როლი და რეპუტაცია. MC აჩვენებს, რითი ხარ ცნობილი და რა მიმართულებით მიდიხარ ცხოვრებაში."
+      },
+      "ic": {
+        "acr": "IC",
+        "t": "ცის ფსკერი",
+        "b": "ცის ყველაზე დაბალი წერტილი — ფესვები, სახლი და შინაგანი სამყარო. IC აჩვენებს შენს საფუძველს, ოჯახსა და პირად, დაცულ თავს."
+      }
+    },
+    "en": {
+      "asc": {
+        "acr": "ASC",
+        "t": "Ascendant",
+        "b": "The rising sign — your outer mask and first impression. The Ascendant shows how you meet the world, your style, and physical manner."
+      },
+      "dsc": {
+        "acr": "DSC",
+        "t": "Descendant",
+        "b": "The point opposite the Ascendant — partnership and the \"other.\" The Descendant shows what you seek in close relationships and project onto a partner."
+      },
+      "mc": {
+        "acr": "MC",
+        "t": "Midheaven",
+        "b": "The highest point of the chart — career, public role, and reputation. The Midheaven shows what you are known for and your direction in life."
+      },
+      "ic": {
+        "acr": "IC",
+        "t": "Imum Coeli",
+        "b": "The lowest point of the chart — roots, home, and inner world. The IC shows your foundation, family, and private, protected self."
+      }
+    }
+  },
+  "_SIGN_DATA": {
+    "ka": [
+      {
+        "t": "ვერძი",
+        "b": "პიონერი. ცეცხლის პირველი ნიშანი — იმპულსი, თამამობა, ახლის დაწყება. მარსი მართავს. ენერგია: „მე ვარ.\" ყველაფერი იწყება ვერძით — პირველი ნაბიჯი, პირველი სუნთქვა."
+      },
+      {
+        "t": "კურო",
+        "b": "მშენებელი. მიწის პირველი ნიშანი — სტაბილურობა, სენსორული სიამოვნება, ღირებულებები. ვენერა მართავს. ენერგია: „მე მაქვს.\" სხეული, ქონება, სილამაზე — ხელშესახები სამყარო."
+      },
+      {
+        "t": "ტყუპი",
+        "b": "კომუნიკატორი. ჰაერის პირველი ნიშანი — ცნობისმოყვარეობა, ადაპტაცია, ინფორმაციის გაცვლა. მერკური მართავს. ენერგია: „მე ვფიქრობ.\" ორადობა, სიჩქარე, კავშირები."
+      },
+      {
+        "t": "კირჩხიბი",
+        "b": "მზრუნველი. წყლის პირველი ნიშანი — ემოცია, ოჯახი, დაცვა. მთვარე მართავს. ენერგია: „მე ვგრძნობ.\" შინაგანი სამყარო, მეხსიერება, ინტუიცია."
+      },
+      {
+        "t": "ლომი",
+        "b": "შემოქმედი. ცეცხლის მეორე ნიშანი — თვითგამოხატვა, სიხარული, ლიდერობა. მზე მართავს. ენერგია: „მე ვქმნი.\" გულუხვობა, დრამა, ავთენტურობა."
+      },
+      {
+        "t": "ქალწული",
+        "b": "ანალიტიკოსი. მიწის მეორე ნიშანი — სიზუსტე, მსახურება, სრულყოფა. მერკური მართავს. ენერგია: „მე ვაანალიზებ.\" დეტალი, ხელობა, განკურნება."
+      },
+      {
+        "t": "სასწორი",
+        "b": "დიპლომატი. ჰაერის მეორე ნიშანი — ბალანსი, ურთიერთობა, სამართლიანობა. ვენერა მართავს. ენერგია: „მე ვაბალანსებ.\" ჰარმონია, ესთეტიკა, პარტნიორობა."
+      },
+      {
+        "t": "მორიელი",
+        "b": "ტრანსფორმატორი. წყლის მეორე ნიშანი — სიღრმე, ძალაუფლება, აღდგენა. პლუტონი მართავს. ენერგია: „მე ვარდაქმნი.\" ინტენსივობა, საიდუმლო, სიკვდილ-აღდგომა."
+      },
+      {
+        "t": "მშვილდოსანი",
+        "b": "მკვლევარი. ცეცხლის მესამე ნიშანი — ფილოსოფია, თავისუფლება, ჰორიზონტი. იუპიტერი მართავს. ენერგია: „მე ვეძებ.\" მოგზაურობა, სიბრძნე, ოპტიმიზმი."
+      },
+      {
+        "t": "თხის რქა",
+        "b": "არქიტექტორი. მიწის მესამე ნიშანი — ამბიცია, სტრუქტურა, მოწიფულობა. სატურნი მართავს. ენერგია: „მე ვაშენებ.\" დისციპლინა, დრო, მემკვიდრეობა."
+      },
+      {
+        "t": "მერწყული",
+        "b": "ინოვატორი. ჰაერის მესამე ნიშანი — თავისუფლება, ორიგინალობა, კოლექტივი. ურანი მართავს. ენერგია: „მე ვცვლი.\" მომავალი, ტექნოლოგია, ჰუმანიზმი."
+      },
+      {
+        "t": "თევზები",
+        "b": "მისტიკოსი. წყლის მესამე ნიშანი — ტრანსცენდენცია, თანაგრძნობა, ოცნება. ნეპტუნი მართავს. ენერგია: „მე ვწუხვარ.\" ხელოვნება, სულიერება, საზღვრების გაქრობა."
+      }
+    ],
+    "en": [
+      {
+        "t": "Aries",
+        "b": "The Pioneer. First fire sign — impulse, courage, new beginnings. Ruled by Mars. Energy: \"I am.\" Everything starts with Aries."
+      },
+      {
+        "t": "Taurus",
+        "b": "The Builder. First earth sign — stability, sensory pleasure, values. Ruled by Venus. Energy: \"I have.\" The tangible world."
+      },
+      {
+        "t": "Gemini",
+        "b": "The Communicator. First air sign — curiosity, adaptation, information exchange. Ruled by Mercury. Energy: \"I think.\""
+      },
+      {
+        "t": "Cancer",
+        "b": "The Nurturer. First water sign — emotion, family, protection. Ruled by the Moon. Energy: \"I feel.\" Inner world, memory, intuition."
+      },
+      {
+        "t": "Leo",
+        "b": "The Creator. Second fire sign — self-expression, joy, leadership. Ruled by the Sun. Energy: \"I create.\" Generosity, drama, authenticity."
+      },
+      {
+        "t": "Virgo",
+        "b": "The Analyst. Second earth sign — precision, service, refinement. Ruled by Mercury. Energy: \"I analyze.\" Detail, craft, healing."
+      },
+      {
+        "t": "Libra",
+        "b": "The Diplomat. Second air sign — balance, relationship, justice. Ruled by Venus. Energy: \"I balance.\" Harmony, aesthetics, partnership."
+      },
+      {
+        "t": "Scorpio",
+        "b": "The Transformer. Second water sign — depth, power, regeneration. Ruled by Pluto. Energy: \"I transform.\" Intensity, secrets, death-rebirth."
+      },
+      {
+        "t": "Sagittarius",
+        "b": "The Explorer. Third fire sign — philosophy, freedom, horizon. Ruled by Jupiter. Energy: \"I seek.\" Travel, wisdom, optimism."
+      },
+      {
+        "t": "Capricorn",
+        "b": "The Architect. Third earth sign — ambition, structure, maturity. Ruled by Saturn. Energy: \"I build.\" Discipline, time, legacy."
+      },
+      {
+        "t": "Aquarius",
+        "b": "The Innovator. Third air sign — freedom, originality, collective. Ruled by Uranus. Energy: \"I change.\" Future, technology, humanism."
+      },
+      {
+        "t": "Pisces",
+        "b": "The Mystic. Third water sign — transcendence, compassion, dreams. Ruled by Neptune. Energy: \"I dream.\" Art, spirituality, dissolving boundaries."
+      }
+    ]
+  },
+  "_HOUSE_DATA": {
+    "ka": [
+      {
+        "t": "სახლი — პიროვნება",
+        "b": "ასცენდენტი. სხეული, გარეგნობა, ინდივიდუალობა — ვინ ხარ პირველი შეხვედრისას. თვითგამოხატვა, სტილი, ნიღაბი. ენერგია: „მე ვარ.\""
+      },
+      {
+        "t": "სახლი — ქონება",
+        "b": "ფინანსები, მატერიალური რესურსები, თვითშეფასება. ის, რაც გაქვს და გაძლევს კომფორტს. ფული, ხელშესახები სიამოვნება, ღირებულებათა სისტემა. ენერგია: „მე მაქვს.\""
+      },
+      {
+        "t": "სახლი — კომუნიკაცია",
+        "b": "გონება, და-ძმები, მეზობლები, ახლო მოგზაურობა. ყოველდღიური გაცვლა — სიტყვა, შეხვედრა, ინფორმაცია. ადვილი კავშირები. ენერგია: „მე ვფიქრობ.\""
+      },
+      {
+        "t": "სახლი — სახლი & ფესვები",
+        "b": "IC (ცის ფსკერი). ოჯახი, ბავშვობა, ფსიქოლოგიური ფუძე. სად გრძნობ თავს შინ — ფესვები, წინაპრები, ინტიმური სამყარო. ენერგია: „მე ვგრძნობ.\""
+      },
+      {
+        "t": "სახლი — შემოქმედება",
+        "b": "გართობა, რომანტიკა, ბავშვები, ხელოვნება, თამაში. სიხარული, პირველი სიყვარული, ავთენტური თვითგამოხატვა. ენერგია: „მე ვქმნი.\""
+      },
+      {
+        "t": "სახლი — ჯანმრთელობა",
+        "b": "ყოველდღიური რუტინა, სამსახური, ჯანმრთელობა, მსახურება. ეფექტური ყოფა, სხეულის მოვლა, პრაქტიკული ყოველდღიურობა. ენერგია: „მე ვემსახურები.\""
+      },
+      {
+        "t": "სახლი — პარტნიორობა",
+        "b": "DSC (დესცენდენტი). ქორწინება, ბიზნეს პარტნიორები, ღია მეტოქეები. ის, რასაც სხვაში ეძებ — სარკე, შემავსებელი, ურთიერთობა. ენერგია: „ჩვენ ვართ.\""
+      },
+      {
+        "t": "სახლი — ტრანსფორმაცია",
+        "b": "სიკვდილი, აღდგომა, სექსი, გაზიარებული ფინანსები, ოკულტი. სიღრმე, ფარული ძალა. ყველაფერი, რაც გარდაქმნის. ენერგია: „მე ვარდაქმნი.\""
+      },
+      {
+        "t": "სახლი — ფილოსოფია",
+        "b": "სარწმუნოება, უცხო კულტურა, შორი მოგზაურობა, უმაღლესი განათლება. ჰორიზონტი, იდეოლოგია, სიბრძნის ძიება. ენერგია: „მე ვეძებ.\""
+      },
+      {
+        "t": "სახლი — კარიერა",
+        "b": "MC (ცის შუაწერტილი). პროფესია, საჯარო ცხოვრება, რეპუტაცია, ავტორიტეტი. შენი ადგილი სამყაროში, ლეგასი. ენერგია: „მე ვაშენებ.\""
+      },
+      {
+        "t": "სახლი — ოცნებები",
+        "b": "მეგობრები, ჯგუფები, სოციალური წრე, კოლექტიური სასოება. ოცნება მომავლის შესახებ, სოლიდარობა, ჰუმანიზმი. ენერგია: „მე ვოცნებობ.\""
+      },
+      {
+        "t": "სახლი — ფარული სამყარო",
+        "b": "ქვეცნობიერი, სულიერება, მარტოობა, ფარული მტრები. ის, რაც ღრმად იმალება — უუნარობა, ტყვეობა, ან სულიერი ძიება. ენერგია: „მე ვატარებ.\""
+      }
+    ],
+    "en": [
+      {
+        "t": "House — Self",
+        "b": "The Ascendant. Body, appearance, identity — who you are at first meeting. Your self-presentation, style, the mask. Energy: \"I am.\""
+      },
+      {
+        "t": "House — Possessions",
+        "b": "Finances, material resources, self-worth. What you own and value for comfort. Money, tangible pleasures, your value system. Energy: \"I have.\""
+      },
+      {
+        "t": "House — Communication",
+        "b": "Mind, siblings, neighbors, short journeys. Everyday exchange — words, meetings, information. Quick connections and local movement. Energy: \"I think.\""
+      },
+      {
+        "t": "House — Home & Roots",
+        "b": "IC (Imum Coeli). Family, childhood, psychological foundation. Where you feel at home — roots, ancestry, the private self. Energy: \"I feel.\""
+      },
+      {
+        "t": "House — Creativity",
+        "b": "Play, romance, children, art, pleasure. Joy, first love, authentic self-expression. The heart's delight. Energy: \"I create.\""
+      },
+      {
+        "t": "House — Health",
+        "b": "Daily routines, work, health, service. Efficient living, body care, the practical realm. Craft and healing. Energy: \"I serve.\""
+      },
+      {
+        "t": "House — Partnership",
+        "b": "DSC (Descendant). Marriage, business partners, open enemies. What you seek in others — the mirror, complement, relationship. Energy: \"We are.\""
+      },
+      {
+        "t": "House — Transformation",
+        "b": "Death, rebirth, sex, shared resources, occult. Depth, hidden power. Everything that transforms you. Energy: \"I transform.\""
+      },
+      {
+        "t": "House — Philosophy",
+        "b": "Beliefs, foreign cultures, long travel, higher education. Horizon, ideology, the pursuit of wisdom and meaning. Energy: \"I seek.\""
+      },
+      {
+        "t": "House — Career",
+        "b": "MC (Midheaven). Profession, public life, reputation, authority. Your place in the world, legacy, ambition. Energy: \"I build.\""
+      },
+      {
+        "t": "House — Dreams",
+        "b": "Friends, groups, social circle, collective hopes. Dreams about the future, solidarity, humanitarian causes. Energy: \"I dream.\""
+      },
+      {
+        "t": "House — Hidden Realm",
+        "b": "Subconscious, spirituality, isolation, hidden enemies. What lies beneath — weakness, confinement, or deep spiritual seeking. Energy: \"I surrender.\""
+      }
+    ]
+  }
+}

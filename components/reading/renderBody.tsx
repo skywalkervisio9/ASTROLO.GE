@@ -1,5 +1,5 @@
 // ============================================================
-// renderBody — React port of prototype-runtime.js _buildBodyHtml.
+// renderBody — React port of app-runtime.js _buildBodyHtml.
 //
 // Two modes match the prototype:
 //   renderSimpleBody   — for Card.body paragraphs (prose only,

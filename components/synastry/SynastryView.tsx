@@ -3,7 +3,7 @@
 // ============================================================
 // SynastryView — renders the s4 synastry reading JSON using the
 // SAME short-form CSS class vocabulary as the natal reading
-// (hydrated by prototype-runtime.js). This keeps both surfaces
+// (hydrated by app-runtime.js). This keeps both surfaces
 // visually identical: .c / .b / .h / .ht / .ce / .tb2 / .sh / .st
 // / .snav / .snb / .pq / .g2 / .af .ae .aa .aw .ar .as .ag
 // ============================================================

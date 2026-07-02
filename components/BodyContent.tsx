@@ -48,7 +48,7 @@ const setDevModeFlag = (on: boolean) => {
   window.dispatchEvent(new CustomEvent(DEV_MODE_EVENT));
 };
 
-// ─── Bridge to prototype-runtime.js ──────────────────────────────────────
+// ─── Bridge to app-runtime.js ──────────────────────────────────────
 // The legacy runtime exposes its handlers on `window`. Cast through `proto()`
 // once instead of repeating `(window as unknown as ProtoGlobals)` everywhere.
 type ProtoGlobals = {
@@ -111,7 +111,7 @@ const IconTikTok = (
 
 // ─── Promo display ───────────────────────────────────────────────────────
 // Drives both the React-rendered status line and the imperative DOM mutation
-// that keeps prototype-runtime.js's payment markup (price/badge/CTA) in sync.
+// that keeps app-runtime.js's payment markup (price/badge/CTA) in sync.
 type PromoVariant = 'discount' | 'luka' | 'skywalker' | 'unlock' | 'invalid' | 'none';
 const PROMO_DISPLAY: Record<PromoVariant, { amount: string; oldPriceVisible: boolean; badgeVisible: boolean; badgeText?: string }> = {
   discount:  { amount: '₾10',  oldPriceVisible: true,  badgeVisible: true,  badgeText: '-33%' },
@@ -231,7 +231,7 @@ export default function BodyContent() {
     return () => obs.disconnect();
   }, []);
 
-  /** Real invite link — does not depend on prototype-runtime / AuthBridge timing. */
+  /** Real invite link — does not depend on app-runtime / AuthBridge timing. */
   const handleInviteLinkGenerate = useCallback(async () => {
     const isEn = document.body.classList.contains('lang-en');
     if (!inviteKind) {
@@ -283,7 +283,7 @@ export default function BodyContent() {
     };
   }, [openUnlockDialog]);
 
-  /** After invite flow we land on /r/[slug]?synastry=1 — switch tab once prototype-runtime is up (retry; single tick often races). */
+  /** After invite flow we land on /r/[slug]?synastry=1 — switch tab once app-runtime is up (retry; single tick often races). */
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const sp = new URLSearchParams(window.location.search);
@@ -390,7 +390,7 @@ export default function BodyContent() {
 
   // Mirror promo state into the prototype DOM (price, old-price strikethrough,
   // discount badge, CTA text) so the visual stays consistent with the rest of
-  // the payment page, which prototype-runtime.js wrote against directly.
+  // the payment page, which app-runtime.js wrote against directly.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const isEn = document.body.classList.contains('lang-en');

@@ -5,8 +5,8 @@
 // Behavior:
 //   - 200ms mount delay → cached/fast hits never flash a loader
 //   - Portals into #readingSkeletonHost (the empty .ct div in BodyContent
-//     where prototype-runtime later injects sections)
-//   - Hides itself on the `reading:hydrated` event from prototype-runtime
+//     where app-runtime later injects sections)
+//   - Hides itself on the `reading:hydrated` event from app-runtime
 //   - Also hides if hydration already happened before mount (window.__readingState)
 // ============================================================
 

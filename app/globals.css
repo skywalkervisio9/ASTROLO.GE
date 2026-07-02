@@ -22,7 +22,7 @@ body:has(#loadingScreen.active) .pbar{display:none}
    --depth (the trail calc below still reads it) and only run their own twinkle. */
 /* Seamless wrap: the runtime drifts each layer by --wy = -((scrollY×depth) mod
    tile), where one tile of stars is cloned a viewport below (see the STARS
-   block in prototype-runtime.js). The layer parallaxes forever and never empties
+   block in app-runtime.js). The layer parallaxes forever and never empties
    — when --wy wraps -tile→0 the clone lands exactly where the original was, so
    the seam is invisible. --wy stays 0 (static field) on touch / reduced-motion. */
 .star-layer{position:absolute;inset:0;transform:translate3d(0,var(--wy,0px),0);will-change:transform}
@@ -260,6 +260,22 @@ body.free-tier .nbtn.locked{opacity:.5}
 /* ═══ SECTIONS ═══ */
 section{margin-bottom:80px;opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease;scroll-margin-top:125px}
 section.vis{opacity:1;transform:translateY(0)}
+/* Skip layout/paint for below-fold reading sections until they near the
+   viewport (the browser renders them ~one viewport ahead, before the .vis
+   reveal observer's 10% threshold fires, so the fade-in is unaffected).
+   #s1 is excluded (visible right after the hero at load). `auto` in
+   contain-intrinsic-size keeps the last-rendered height once seen, so
+   go('sN') nav scrolling stays exact on repeat use; 900px is the placeholder
+   estimate for never-rendered sections.
+   ONLY while un-revealed (:not(.vis)): content-visibility implies paint
+   containment, which clips children that overflow the section box — hover
+   tooltips (.tip::after) and popups anchored near a section edge were getting
+   cut at the section boundary. Once the reveal observer adds .vis the section
+   renders normally, so anything the user can interact with is never clipped. */
+@supports (content-visibility: auto) {
+  #view-natal section:not(#s1):not(.vis),
+  #view-natal .lock-wrap:not(.vis){content-visibility:auto;contain-intrinsic-size:auto 900px}
+}
 .sh{text-align:center;margin-bottom:32px}
 .sh .section-icon{width:48px;height:48px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
 .sh .section-icon svg{width:30px;height:30px;color:var(--gold)}
@@ -270,7 +286,7 @@ section.vis{opacity:1;transform:translateY(0)}
 }
 /* Subtle interactive bloom: section icons glow + lift on hover (desktop) and
    when scrolled to the viewport center band (mobile, via .sh-active toggled by
-   the IntersectionObserver in prototype-runtime.js). */
+   the IntersectionObserver in app-runtime.js). */
 .sh .section-icon svg,.section-head .section-icon svg{transition:filter .55s var(--ease),transform .55s var(--ease)}
 .sh:hover .section-icon svg,.sh.sh-active .section-icon svg,
 .section-head:hover .section-icon svg{filter:drop-shadow(0 0 11px rgba(228,199,107,.6));transform:scale(1.08)}
@@ -569,9 +585,7 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 .lock-wrap.vis{opacity:1;transform:translateY(0)}
 body.free-tier .lock-wrap.locked{display:block}
 body.free-tier .lock-wrap.locked + section{display:none}
-.lock-preview{background:var(--sf);border:1px solid rgba(201,168,76,.06);border-radius:16px;padding:26px;position:relative;overflow:hidden}
 .lock-hint{font-size:.78rem;color:var(--silver);padding:10px 14px;background:linear-gradient(135deg,rgba(201,168,76,.04),rgba(201,168,76,.015));border:1px solid rgba(201,168,76,.06);border-radius:8px;margin-bottom:14px}
-.blur-lines{margin:16px 0}.blur-line{height:11px;border-radius:4px;background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.015));margin:8px 0}
 .unlock-cta{width:100%;padding:14px;border:1px solid rgba(201,168,76,.15);background:linear-gradient(135deg,rgba(201,168,76,.06),rgba(201,168,76,.02));color:var(--gold);font-family:var(--fb);font-size:.78rem;letter-spacing:.08em;border-radius:10px;cursor:pointer;transition:all .4s var(--ease);display:flex;align-items:center;justify-content:center;gap:8px}
 .unlock-cta:hover{background:linear-gradient(135deg,rgba(201,168,76,.12),rgba(201,168,76,.04));border-color:rgba(201,168,76,.3);transform:translateY(-1px);box-shadow:0 4px 20px rgba(201,168,76,.08)}
 .btn-unlock{width:100%;padding:15px;border:1px solid rgba(107,175,107,.35);background:linear-gradient(135deg,rgba(107,175,107,.14),rgba(80,150,80,.06));color:#7ecf7e;font-family:var(--fb);font-size:.82rem;letter-spacing:.08em;border-radius:10px;cursor:pointer;transition:all .4s var(--ease);display:flex;align-items:center;justify-content:center;gap:8px}
@@ -589,8 +603,6 @@ body.free-tier .lock-wrap.locked + section{display:none}
 .lp-gate{padding:20px 20px 22px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;background:linear-gradient(180deg,rgba(201,168,76,.025) 0%,transparent 100%);border-top:1px solid rgba(201,168,76,.07);margin-top:16px}
 .lp-lock-icon{color:var(--gold);opacity:.5;line-height:1}
 .lp-gate-desc{font-size:.75rem;color:var(--silver);margin:0;line-height:1.55;max-width:280px;opacity:.8}
-.btn-library{width:100%;padding:14px 20px;border:1px solid rgba(148,163,184,.2);background:rgba(148,163,184,.06);color:rgba(148,163,184,.8);font-family:var(--fb);font-size:.8rem;letter-spacing:.07em;border-radius:10px;cursor:pointer;transition:all .35s var(--ease);display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-library:hover{background:rgba(148,163,184,.1);border-color:rgba(148,163,184,.35);color:rgba(200,210,220,.95);transform:translateY(-1px)}
 .btn-unlock-gold{width:100%;padding:14px 20px;border:1px solid rgba(201,168,76,.28);background:linear-gradient(135deg,rgba(201,168,76,.1),rgba(201,168,76,.04));color:var(--gold);font-family:var(--fb);font-size:.8rem;letter-spacing:.09em;border-radius:10px;cursor:pointer;transition:all .35s var(--ease);display:flex;align-items:center;justify-content:center;gap:7px;text-transform:uppercase}
 .btn-unlock-gold:hover{background:linear-gradient(135deg,rgba(201,168,76,.18),rgba(201,168,76,.08));border-color:rgba(201,168,76,.5);transform:translateY(-1px);box-shadow:0 4px 28px rgba(201,168,76,.14)}
 
@@ -905,7 +917,7 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
 .card:hover p{color:var(--tx)}
 
 /* Mobile scroll-activation: mirror :hover styles when card is in viewport center band.
-   Class is toggled by IntersectionObserver in prototype-runtime.js (mobile only). */
+   Class is toggled by IntersectionObserver in app-runtime.js (mobile only). */
 @media(max-width:720px){
   .c.c-active::after,.card.c-active::after{opacity:1}
   .c.c-active,.card.c-active{border-color:rgba(201,168,76,.2);box-shadow:0 4px 20px rgba(201,168,76,.04),0 12px 40px rgba(201,168,76,.03)}

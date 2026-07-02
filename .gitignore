@@ -51,3 +51,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated runtime bundles (scripts/build-runtime.mjs, npm prebuild)
+/public/*.min.js
+/public/runtime-interp.min.json
+/public/runtime-manifest.json

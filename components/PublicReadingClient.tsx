@@ -1,6 +1,7 @@
 "use client";
 
 import Script from "next/script";
+import { RUNTIME_CORE_SRC } from "@/lib/runtime-src";
 import BodyContent from "@/components/BodyContent";
 import SettingsBridge from "@/components/SettingsBridge";
 import ReadingRenderer from "@/components/reading/ReadingRenderer";
@@ -99,7 +100,7 @@ export default function PublicReadingClient({ slug }: Props) {
   return (
     <>
       <BodyContent />
-      <Script src="/prototype-runtime.js" strategy="afterInteractive" />
+      <Script src={RUNTIME_CORE_SRC} strategy="afterInteractive" />
       <SettingsBridge />
       <ReadingSkeleton />
       <ReadingRenderer />
