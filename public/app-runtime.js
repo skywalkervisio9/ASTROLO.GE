@@ -3071,26 +3071,6 @@ function _buildAspect(asp) {
     '</div>';
 }
 
-var _LOCKED_OVERVIEW_LABELS = {
-  ka: ['თქვენი პლანეტური ხელნაწერი', 'თქვენი ელემენტური ნიმუში', 'თქვენი რუკის ხელმოწერა'],
-  en: ['Your Planetary Blueprint', 'Your Elemental Pattern', 'Your Chart Signature'],
-};
-
-function _buildLockedOverviewCards(lang) {
-  var titles = _LOCKED_OVERVIEW_LABELS[lang] || _LOCKED_OVERVIEW_LABELS.ka;
-  var html = '<div class="lock-preview" style="margin-top:16px">';
-  html += '<div class="b">' + _buildBadgeHtml(lang === 'ka' ? 'AI ანალიზი' : 'AI Analysis') + '</div>';
-  html += '<h3>' + _esc(titles[0]) + '</h3>';
-  html += '<div class="blur-lines">';
-  [100, 93, 97, 86, 91].forEach(function(w) { html += '<div class="blur-line" style="width:' + w + '%"></div>'; });
-  html += '</div>';
-  var bookSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
-  var libLabel = lang === 'ka' ? 'ბიბლიოთეკა' : 'Library';
-  html += '<a class="btn-library" href="/library" style="text-decoration:none">' + bookSvg + ' ' + libLabel + '</a>';
-  html += '</div>';
-  return html;
-}
-
 function _buildLockWrap(sectionKey, section, iconId) {
   var cards = section.coreCards || section.cards || [];
   var lang = _hydrateLang;
@@ -3245,13 +3225,13 @@ function _buildSectionContent(sectionKey, section) {
       }
       html += '</div>';
     }
-    // Core cards — locked for free/invited users without full reading
+    // Core cards — only for users with the full reading. Free/invited users
+    // get no overview teaser card (removed); the per-section lock-wraps with
+    // the unlock CTA still cover the upgrade path.
     var cards = section.coreCards || section.cards || [];
     var _hasFullReading = _currentUser && (_currentUser.account_type === 'premium' || _currentUser.natal_chart_unlocked);
     if (_hasFullReading && cards.length) {
       html += _buildCardsGrid(cards, sectionKey);
-    } else if (!_hasFullReading) {
-      html += _buildLockedOverviewCards(_hydrateLang);
     }
   } else {
     // Content sections (2-8) in 2-column grid
