@@ -1793,12 +1793,14 @@ document.addEventListener('mouseover', function(e) {
 // Helpers for converting reading planet data → chart format
 var _ZODIAC_EN = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
 var _PLANET_KA = { sun:'მზე', moon:'მთვარე', mercury:'მერკური', venus:'ვენერა', mars:'მარსი', jupiter:'იუპიტერი', saturn:'სატურნი', uranus:'ურანი', neptune:'ნეპტუნი', pluto:'პლუტონი' };
+// pd = glow pulse period (s) — scaled to how fast each body moves through the
+// zodiac: Moon breathes quickest, outer planets slowest.
 var _PLANET_META = {
-  sun:     { g:'☉', r:4.5, c:'#c9a84c' }, moon:    { g:'☽', r:4,   c:'#b8b8cc' },
-  mercury: { g:'☿', r:3,   c:'#8ab5d4' }, venus:   { g:'♀', r:3.5, c:'#c47a8a' },
-  mars:    { g:'♂', r:3,   c:'#d4644a' }, jupiter: { g:'♃', r:3,   c:'#8a7abf' },
-  saturn:  { g:'♄', r:3,   c:'#7a8a6e' }, uranus:  { g:'♅', r:3,   c:'#5a9ab5' },
-  neptune: { g:'♆', r:2.5, c:'#6b7baa' }, pluto:   { g:'♇', r:2.5, c:'#9a6b6b' }
+  sun:     { g:'☉', r:4.5, c:'#c9a84c', pd:3.4 }, moon:    { g:'☽', r:4,   c:'#b8b8cc', pd:2.2 },
+  mercury: { g:'☿', r:3,   c:'#8ab5d4', pd:2.6 }, venus:   { g:'♀', r:3.5, c:'#c47a8a', pd:3 },
+  mars:    { g:'♂', r:3,   c:'#d4644a', pd:3.8 }, jupiter: { g:'♃', r:3,   c:'#8a7abf', pd:4.4 },
+  saturn:  { g:'♄', r:3,   c:'#7a8a6e', pd:5 },   uranus:  { g:'♅', r:3,   c:'#5a9ab5', pd:5.6 },
+  neptune: { g:'♆', r:2.5, c:'#6b7baa', pd:6.2 }, pluto:   { g:'♇', r:2.5, c:'#9a6b6b', pd:7 }
 };
 
 function _signDegToEcl(sign, degStr) {
@@ -1824,23 +1826,24 @@ function _readingToChartPlanets(planetTable) {
       sd: (row.degree || '') + (row.retrograde ? '℞' : ''),
       h: row.house || '',
       r: meta.r,
-      c: meta.c
+      c: meta.c,
+      pd: meta.pd
     });
   });
   return out;
 }
 
 var _DEMO_PLANETS = [
-  { n: 'მზე', g: '☉', deg: 202.33, si: 6, sd: "22°20'", h: 'III', r: 4.5, c: '#c9a84c' },
-  { n: 'მთვარე', g: '☽', deg: 152.67, si: 5, sd: "2°40'", h: 'II', r: 4, c: '#b8b8cc' },
-  { n: 'მერკური', g: '☿', deg: 215.92, si: 7, sd: "5°55'", h: 'IV', r: 3, c: '#8ab5d4' },
-  { n: 'ვენერა', g: '♀', deg: 198.67, si: 6, sd: "18°40'", h: 'III', r: 3.5, c: '#c47a8a' },
-  { n: 'მარსი', g: '♂', deg: 155.12, si: 5, sd: "5°07'", h: 'II', r: 3, c: '#d4644a' },
-  { n: 'იუპიტერი', g: '♃', deg: 349.53, si: 11, sd: "19°32'℞", h: 'VIII', r: 3, c: '#8a7abf' },
-  { n: 'სატურნი', g: '♄', deg: 30.78, si: 1, sd: "0°47'℞", h: 'X', r: 3, c: '#7a8a6e' },
-  { n: 'ურანი', g: '♅', deg: 308.82, si: 10, sd: "8°49'℞", h: 'VII', r: 3, c: '#5a9ab5' },
-  { n: 'ნეპტუნი', g: '♆', deg: 299.4, si: 9, sd: "29°24'", h: 'VI', r: 2.5, c: '#6b7baa' },
-  { n: 'პლუტონი', g: '♇', deg: 246.3, si: 8, sd: "6°18'", h: 'V', r: 2.5, c: '#9a6b6b' }
+  { n: 'მზე', g: '☉', deg: 202.33, si: 6, sd: "22°20'", h: 'III', r: 4.5, c: '#c9a84c', pd: 3.4 },
+  { n: 'მთვარე', g: '☽', deg: 152.67, si: 5, sd: "2°40'", h: 'II', r: 4, c: '#b8b8cc', pd: 2.2 },
+  { n: 'მერკური', g: '☿', deg: 215.92, si: 7, sd: "5°55'", h: 'IV', r: 3, c: '#8ab5d4', pd: 2.6 },
+  { n: 'ვენერა', g: '♀', deg: 198.67, si: 6, sd: "18°40'", h: 'III', r: 3.5, c: '#c47a8a', pd: 3 },
+  { n: 'მარსი', g: '♂', deg: 155.12, si: 5, sd: "5°07'", h: 'II', r: 3, c: '#d4644a', pd: 3.8 },
+  { n: 'იუპიტერი', g: '♃', deg: 349.53, si: 11, sd: "19°32'℞", h: 'VIII', r: 3, c: '#8a7abf', pd: 4.4 },
+  { n: 'სატურნი', g: '♄', deg: 30.78, si: 1, sd: "0°47'℞", h: 'X', r: 3, c: '#7a8a6e', pd: 5 },
+  { n: 'ურანი', g: '♅', deg: 308.82, si: 10, sd: "8°49'℞", h: 'VII', r: 3, c: '#5a9ab5', pd: 5.6 },
+  { n: 'ნეპტუნი', g: '♆', deg: 299.4, si: 9, sd: "29°24'", h: 'VI', r: 2.5, c: '#6b7baa', pd: 6.2 },
+  { n: 'პლუტონი', g: '♇', deg: 246.3, si: 8, sd: "6°18'", h: 'V', r: 2.5, c: '#9a6b6b', pd: 7 }
 ];
 
 // ── Module-level sign constants (shared by mini-chart and planet table) ──
@@ -1996,8 +1999,16 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
     }
     placed.push({ i, deg: p.deg, pr });
     const pt = pos(p.deg, pr);
-    const d = 1.2 + i * .12;
-    h += '<g data-i="'+i+'" style="cursor:pointer;animation-delay:'+d+'s" class="mc-planet">';
+    const d = 1.2 + i * .15;
+    // --mdx/--mdy: offset from the planet's spot back to the chart center —
+    // the planetArrive keyframes pop the dot at the center, then fly it out.
+    const mdx = (CX - pt.x).toFixed(2), mdy = (CY - pt.y).toFixed(2);
+    h += '<g data-i="'+i+'" style="cursor:pointer;animation-delay:'+d+'s;--mdx:'+mdx+'px;--mdy:'+mdy+'px" class="mc-planet">';
+    // Multi-stop falloff: bright core, quick drop, long faint tail — reads as a
+    // blurred halo with no visible rim. Radius has a flat base so small planets
+    // still get a present glow (r2.5 → 9.5) while the Sun barely grows.
+    h += '<radialGradient id="mcpg'+i+'"><stop offset="0" stop-color="'+p.c+'" stop-opacity=".75"/><stop offset=".4" stop-color="'+p.c+'" stop-opacity=".3"/><stop offset=".75" stop-color="'+p.c+'" stop-opacity=".08"/><stop offset="1" stop-color="'+p.c+'" stop-opacity="0"/></radialGradient>';
+    h += '<circle class="p-glow" cx="'+pt.x+'" cy="'+pt.y+'" r="'+(p.r * 2 + 4.5).toFixed(1)+'" fill="url(#mcpg'+i+')" style="animation-delay:'+(d + 1)+'s;animation-duration:'+(p.pd || 3)+'s"/>';
     h += '<circle class="p-aura" cx="'+pt.x+'" cy="'+pt.y+'" r="14" fill="'+p.c+'" opacity="0"/>';
     h += '<circle class="p-core" cx="'+pt.x+'" cy="'+pt.y+'" r="'+p.r+'" fill="'+p.c+'" opacity=".8"/>';
     h += '</g>';

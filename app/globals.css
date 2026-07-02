@@ -224,10 +224,13 @@ body[data-public-view] .pn{color:#a6d9e4;max-width:180px;white-space:nowrap;over
 .mc-sign-btn[data-sign="1"]:hover .mc-sign,.mc-sign-btn[data-sign="5"]:hover .mc-sign,.mc-sign-btn[data-sign="9"]:hover .mc-sign{color:var(--earth)}
 .mc-sign-btn[data-sign="2"]:hover .mc-sign,.mc-sign-btn[data-sign="6"]:hover .mc-sign,.mc-sign-btn[data-sign="10"]:hover .mc-sign{color:var(--air)}
 .mc-sign-btn[data-sign="3"]:hover .mc-sign,.mc-sign-btn[data-sign="7"]:hover .mc-sign,.mc-sign-btn[data-sign="11"]:hover .mc-sign{color:var(--water)}
-.mc-planet{opacity:0;animation:popIn .5s cubic-bezier(.175,.885,.32,1.275) forwards}
+.mc-planet{opacity:0;transform-box:fill-box;transform-origin:center;animation:planetArrive 1s cubic-bezier(.25,.8,.35,1) forwards}
+/* Pop at the chart center (--mdx/--mdy set inline per planet), settle, then fly out to the natal position. */
+@keyframes planetArrive{0%{opacity:0;transform:translate(var(--mdx),var(--mdy)) scale(0)}25%{opacity:1;transform:translate(var(--mdx),var(--mdy)) scale(1.6)}40%{transform:translate(var(--mdx),var(--mdy)) scale(1)}100%{opacity:1;transform:translate(0,0) scale(1)}}
+.p-glow{opacity:0;transform-box:fill-box;transform-origin:center;animation:planetPulse 3s ease-in-out infinite}
+@keyframes planetPulse{0%,100%{opacity:.1;transform:scale(1)}50%{opacity:.25;transform:scale(1.12)}}
 .mc-label{opacity:0;animation:fadeIn .8s ease forwards}
 @keyframes fadeIn{to{opacity:1}}
-@keyframes popIn{0%{opacity:0;transform:scale(0)}100%{opacity:1;transform:scale(1)}}
 /* Tooltip */
 .chart-tip{position:absolute;pointer-events:none;background:rgba(17,17,24,.95);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:9px 13px;backdrop-filter:blur(12px);opacity:0;transition:opacity .2s,transform .2s;transform:translate(-50%,-110%) scale(.95);white-space:nowrap;z-index:10}
 .chart-tip.show{opacity:1;transform:translate(-50%,-110%) scale(1)}
