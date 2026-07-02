@@ -44,6 +44,11 @@ function startLoading(lang, durationMs) {
   // call's intervals keep running uncleared — two out-of-phase fact-rotation
   // timers, which shows up as the fun-fact box jumping again a second later.
   if (window._stopLoadingIntervals) window._stopLoadingIntervals();
+  // Same re-entry hazard for the parallax: a second call (Strict Mode dev,
+  // regeneration flows) must not leave the previous run's mousemove/gyro
+  // listeners and rAF loop alive — that permanently doubles the per-frame
+  // style/paint work and reads as "the loading screen lags".
+  if (window._stopLoadingParallax) window._stopLoadingParallax();
 
   _loadingLang = lang || 'ka';
   var loadMsgs = _loadingMsgs[_loadingLang] || _loadingMsgs.ka;
@@ -100,7 +105,7 @@ function startLoading(lang, durationMs) {
       // faint trail moves less (mid-ground), and untagged stars stay nearly
       // static (deep background). The container itself no longer translates;
       // CSS multiplies --csx/--csy by --depth per-star.
-      if (Math.random() < 0.45) {
+      if (Math.random() < 0.3) {
         s.classList.add('cs-trail');
         var r = Math.random();
         s.classList.add(r < 0.4 ? 'tg-fast' : r < 0.75 ? 'tg-med' : 'tg-slow');
@@ -207,6 +212,13 @@ function startLoading(lang, durationMs) {
   // register as motion. Final mmag has its own ease layer for extra smoothness.
   var sVx = 0, sVy = 0, prevX = 0, prevY = 0;
   var PARALLAX_RANGE = 24;
+  // The trail box-shadows are the expensive part of this screen: every --tN
+  // write invalidates style on every trail star, and each star repaints a
+  // 10-20-layer shadow (measured: 137→48 fps during mouse sweeps). The star
+  // POSITIONS (--csx/--csy, transform-only → composited) stay at full frame
+  // rate; the trail vars are written every 2nd frame, and not at all while
+  // the trails are invisible anyway (shadow opacity ∝ --mmag).
+  var trailFrame = 0, trailCleared = true;
   function applyParallax() {
     pxC += (pxT - pxC) * 0.08;
     pyC += (pyT - pyC) * 0.08;
@@ -216,20 +228,29 @@ function startLoading(lang, durationMs) {
       csEl.style.setProperty('--csy', curY.toFixed(2) + 'px');
       trailHist.unshift({ x: curX, y: curY });
       if (trailHist.length > BUF_MAX) trailHist.pop();
-      for (var i = 1; i <= WRITE_MAX; i++) {
-        var p = trailHist[i] || trailHist[trailHist.length - 1];
-        if (p) {
-          csEl.style.setProperty('--t' + i + 'x', (p.x - curX).toFixed(1) + 'px');
-          csEl.style.setProperty('--t' + i + 'y', (p.y - curY).toFixed(1) + 'px');
-        }
-      }
       var rawVx = curX - prevX, rawVy = curY - prevY;
       sVx += (rawVx - sVx) * 0.5; sVy += (rawVy - sVy) * 0.5;
       var d = Math.sqrt(sVx * sVx + sVy * sVy);
       var target = 1 - Math.exp(-d * 0.55);
       mmag += (target - mmag) * (target > mmag ? 0.32 : 0.05);
-      csEl.style.setProperty('--mmag', mmag.toFixed(3));
       prevX = curX; prevY = curY;
+      trailFrame ^= 1;
+      if (mmag >= 0.01) {
+        trailCleared = false;
+        if (trailFrame) {
+          for (var i = 1; i <= WRITE_MAX; i++) {
+            var p = trailHist[i] || trailHist[trailHist.length - 1];
+            if (p) {
+              csEl.style.setProperty('--t' + i + 'x', (p.x - curX).toFixed(1) + 'px');
+              csEl.style.setProperty('--t' + i + 'y', (p.y - curY).toFixed(1) + 'px');
+            }
+          }
+          csEl.style.setProperty('--mmag', mmag.toFixed(3));
+        }
+      } else if (!trailCleared) {
+        csEl.style.setProperty('--mmag', '0');
+        trailCleared = true;
+      }
     }
     if (Math.abs(pxT - pxC) > 0.001 || Math.abs(pyT - pyC) > 0.001 || mmag > 0.005) {
       prRaf = requestAnimationFrame(applyParallax);
@@ -260,7 +281,9 @@ function startLoading(lang, durationMs) {
     // grant, and without it on Android/desktop fallback path.
     window.removeEventListener('deviceorientation', onPrTilt, true);
     window.removeEventListener('deviceorientation', onPrTilt);
+    if (window._stopLoadingParallax === stopParallax) window._stopLoadingParallax = null;
   }
+  window._stopLoadingParallax = stopParallax;
   if (!prefersReducedMotion) {
     overlay.addEventListener('mousemove', onPrMouse);
     // iOS 13+ gates deviceorientation behind a permission prompt triggered by
