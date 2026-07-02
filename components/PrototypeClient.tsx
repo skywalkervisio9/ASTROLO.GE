@@ -1,6 +1,7 @@
 "use client";
 
 import Script from "next/script";
+import { RUNTIME_CORE_SRC } from "@/lib/runtime-src";
 import BodyContent from "@/components/BodyContent";
 import AuthBridge from "@/components/AuthBridge";
 import HydrationBridge from "@/components/HydrationBridge";
@@ -17,7 +18,7 @@ export default function PrototypeClient() {
   return (
     <>
       <BodyContent />
-      <Script src="/prototype-runtime.js" strategy="afterInteractive" />
+      <Script src={RUNTIME_CORE_SRC} strategy="afterInteractive" />
       <AuthBridge />
       <HydrationBridge />
       <SettingsBridge />

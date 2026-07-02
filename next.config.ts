@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,23 +15,66 @@ import { fileURLToPath } from "node:url";
 // pattern resolves consistently across Next's config-loader compilation modes.
 const PROJECT_ROOT = path.dirname(fileURLToPath(import.meta.url));
 
+// Content hash of the prototype-runtime assets, produced by the npm `prebuild`
+// step (scripts/build-runtime.mjs) into public/runtime-manifest.json. Empty
+// string = dev, or a build where prebuild didn't run — pages then reference the
+// raw must-revalidate sources instead of the hashed immutable artifacts
+// (degrades gracefully, never 404s). Reading the manifest instead of recomputing
+// keeps the ?v= URL and the __RUNTIME_V__ stamped inside the emitted core from
+// ever diverging.
+function runtimeV(): string {
+  try {
+    if (process.env.NODE_ENV !== "production") return "";
+    const manifest = path.join(PROJECT_ROOT, "public", "runtime-manifest.json");
+    const minCore = path.join(PROJECT_ROOT, "public", "prototype-runtime.min.js");
+    if (!existsSync(manifest) || !existsSync(minCore)) return "";
+    return String(JSON.parse(readFileSync(manifest, "utf8")).v ?? "");
+  } catch {
+    return "";
+  }
+}
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: PROJECT_ROOT,
   },
-  // prototype-runtime.js is served from /public at a fixed, unhashed URL and
-  // carries all the runtime/animation logic. Without explicit caching, browsers
-  // hold an old copy across deploys — so a perf fix shipped in this file silently
-  // doesn't reach users (new hashed CSS + stale JS = jank). Force a revalidation
-  // on every load: 304 when unchanged (cheap), fresh bytes the moment we redeploy.
+  env: {
+    NEXT_PUBLIC_RUNTIME_V: runtimeV(),
+  },
+  // Runtime assets live in /public at fixed URLs, so caching must be explicit.
+  //  - Raw sources: fallback for stale HTML from older deploys (and dev). A
+  //    browser holding an old copy across deploys silently misses fixes (new
+  //    hashed CSS + stale JS = jank), so force revalidation: 304 when
+  //    unchanged, fresh bytes the moment we redeploy.
+  //  - .min artifacts: only ever referenced with ?v=<content-hash> (headers()
+  //    source matching ignores query strings), so they may be cached forever —
+  //    a new deploy that changes them changes the URL.
   async headers() {
+    const raw = [
+      '/prototype-runtime.js',
+      '/runtime-extras.js',
+      '/runtime-loading.js',
+      '/runtime-interp.json',
+    ];
+    const hashed = [
+      '/prototype-runtime.min.js',
+      '/runtime-extras.min.js',
+      '/runtime-loading.min.js',
+      '/runtime-interp.min.json',
+    ];
     return [
-      {
-        source: '/prototype-runtime.js',
+      ...raw.map((source) => ({
+        source,
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
         ],
-      },
+      })),
+      ...hashed.map((source) => ({
+        source,
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      })),
     ];
   },
 };

@@ -429,69 +429,52 @@ function buildSlot2NavItem(afterEl, unlocked, occupied) {
   }
 }
 
-// ═══ DISCOUNT TOGGLE ═══
-function toggleDiscount(btn) {
-  discountOn = !discountOn;
-  btn.classList.toggle('active', discountOn);
-  // Update payment page prices
-  const oldPrice = document.getElementById('payOldPrice');
-  const amount = document.getElementById('payAmount');
-  const discBadge = document.getElementById('payDiscountBadge');
-  const ctaText = document.getElementById('payCtaText');
-  var pfx = document.body.classList.contains('lang-en') ? '✦ Unlock PREMIUM — ' : '✦ PREMIUM-ის განბლოკვა — ';
-  if (discountOn) {
-    if (oldPrice) oldPrice.style.display = '';
-    if (amount) amount.textContent = '₾10';
-    if (discBadge) discBadge.style.display = '';
-    if (ctaText) ctaText.textContent = pfx + '₾10';
-  } else {
-    if (oldPrice) oldPrice.style.display = 'none';
-    if (amount) amount.textContent = '₾15';
-    if (discBadge) discBadge.style.display = 'none';
-    if (ctaText) ctaText.textContent = pfx + '₾15';
+// ═══ LAZY CHUNK LOADER ═══
+// Injects a secondary classic script exactly once; on failure the promise
+// resets so the next call retries (e.g. the connection came back).
+var _chunkPromises = {};
+function _loadChunk(name) {
+  if (!_chunkPromises[name]) {
+    _chunkPromises[name] = new Promise(function(resolve, reject) {
+      var s = document.createElement('script');
+      s.src = _lazyAssetSrc(name, 'js');
+      s.onload = function() { resolve(); };
+      s.onerror = function() {
+        _chunkPromises[name] = null;
+        s.remove();
+        reject(new Error('[runtime] ' + name + ' failed to load'));
+      };
+      document.head.appendChild(s);
+    });
   }
+  return _chunkPromises[name];
 }
 
-// ═══ PAYMENT PAGES ═══
-function showPaymentPage(type) {
-  // Guests (public reading view) aren't logged in, so payment/promo calls
-  // would 401. Send them to /auth to sign in first — mirrors openSidebar.
-  if (window.__ASTROLO_PUBLIC_VIEW) {
-    window.location.href = '/auth';
-    return;
-  }
-  // Hide all payment sub-pages
-  document.getElementById('payPremium').style.display = 'none';
-  document.getElementById('payNatalUnlock').style.display = 'none';
-  document.getElementById('paySynastrySlot').style.display = 'none';
-  const ctaText = document.getElementById('payCtaText');
-
-  var isEn = document.body.classList.contains('lang-en');
-  if (type === 'premium') {
-    document.getElementById('payPremium').style.display = '';
-    // CTA text is driven by the React promo effect in BodyContent.tsx —
-    // don't overwrite it here, or it'll fall out of sync with the selected
-    // promo code (e.g. skywalker would still show ₾10).
-  } else if (type === 'natal-unlock') {
-    document.getElementById('payNatalUnlock').style.display = '';
-    ctaText.textContent = isEn ? '✦ Unlock natal chart — ₾5' : '✦ ნატალური რუკის განბლოკვა — ₾5';
-  } else if (type === 'synastry-slot') {
-    document.getElementById('paySynastrySlot').style.display = '';
-    ctaText.textContent = isEn ? '✦ Unlock slot — ₾5' : '✦ სლოტის განბლოკვა — ₾5';
-  }
-
-  // Expose the active sub-page so React's promo effect can apply the right
-  // base price + discount (premium ₾15 vs natal-unlock ₾5).
-  var payView = document.getElementById('paymentView');
-  if (payView) payView.setAttribute('data-pay-page', type);
-
-  switchView('payment');
-}
-
-function selectPayMethod(method, el) {
-  document.querySelectorAll('.pay-method').forEach(m => m.classList.remove('selected'));
-  el.classList.add('selected');
-}
+// ═══ PAYMENT / INVITE / SHARE (lazy: runtime-extras.js) ═══
+// The cluster lives in /runtime-extras.js, warmed at idle below. These are
+// self-replacing stubs: the chunk's top-level `function foo(){}` declarations
+// overwrite these window properties when it evaluates, and the stub forwards
+// the original call. Callers pass only strings/DOM elements (never Event
+// objects), so replaying the arguments after an async load is safe.
+// generateInviteLink is NOT stubbed — see its definition below (AuthBridge
+// overrides it on window, and the chunk must never clobber that).
+(function() {
+  ['toggleDiscount', 'showPaymentPage', 'selectPayMethod',
+   'openInviteModal', 'closeInviteModal', 'selectInviteType', 'copyInviteLink',
+   'showUpgrade', 'unlockFullReading', 'shareReading', 'shareToSocial'
+  ].forEach(function(name) {
+    function stub() {
+      var self = this, args = arguments;
+      _loadChunk('runtime-extras').then(function() {
+        if (window[name] !== stub) window[name].apply(self, args);
+        else console.error('[runtime] extras loaded but did not define ' + name);
+      }).catch(function(e) { console.error(e); });
+    }
+    window[name] = stub;
+  });
+})();
+// Warm the chunk at idle so the first CTA tap is usually synchronous.
+(window.requestIdleCallback || function(f) { setTimeout(f, 2500); })(function() { _loadChunk('runtime-extras').catch(function() {}); });
 
 // ═══ SIDEBAR ═══
 let ddOpen = false;
@@ -586,71 +569,17 @@ window.addEventListener('synastry-ready', function(e) {
   console.log('[DEV] Synastry ready:', name, _synastryRelType, _synastryConnectionId);
 });
 
-// ═══ INVITE MODAL ═══
+// ═══ INVITE MODAL (lazy: runtime-extras.js) ═══
+// openInviteModal / closeInviteModal / selectInviteType / copyInviteLink live
+// in the extras chunk (stubs above). Two things stay here on purpose:
+//  * selectedInviteType — the chunk assigns this via the shared global
+//    lexical binding, and generateInviteLink below reads it. Moving the
+//    declaration would silently split them into two different variables.
+//  * generateInviteLink — AuthBridge.tsx replaces it on window with the real
+//    backend implementation, and its re-wire polling stops ~8 s after mount.
+//    If the extras chunk carried a copy, a lazy load after that window would
+//    permanently clobber the override with this demo stub.
 let selectedInviteType = null;
-// `prepaid` = true when the caller is the slot 2+ "სინასტრია" CTA, where the
-// slot was already paid for. We show a "დამატებითი სინასტრია" label without
-// the ₾5 price (the user already paid for the extra slot).
-function openInviteModal(prepaid) {
-  closeSidebar();
-  selectedInviteType = null;
-  const modal = document.getElementById('inviteModal');
-  const optsWrap = document.getElementById('inviteOptsWrap');
-  const upgradeWrap = document.getElementById('inviteUpgrade');
-  const actions = document.getElementById('inviteActions');
-  const priceTag = document.getElementById('invitePriceTag');
-  const title = document.getElementById('inviteModalTitle');
-  const sub = document.getElementById('inviteModalSub');
-
-  document.querySelectorAll('.invite-opt').forEach(o => o.classList.remove('selected'));
-  document.getElementById('inviteLinkBox').classList.remove('show');
-  priceTag.classList.remove('show'); priceTag.textContent = '';
-
-  if (currentAccountType === 'free') {
-    // Free users go to premium payment page instead
-    closeInviteModal();
-    showPaymentPage('premium');
-    return;
-  } else {
-    title.textContent = 'ვის ეგზავნება ბმული?';
-    sub.textContent = 'აირჩიე კავშირის ტიპი — ბმული ავტომატურად გენერირდება';
-    optsWrap.style.display = 'flex';
-    upgradeWrap.style.display = 'none';
-    actions.style.display = 'flex';
-    document.getElementById('inviteGenBtn').disabled = true;
-    document.getElementById('inviteGenBtn').textContent = 'აირჩიე ტიპი';
-    // `needsPurchase` = an extra synastry slot the user hasn't paid for yet.
-    // In that state the CTA must lead to the ₾5 slot purchase, not link
-    // generation — React reads data-invite-mode to switch the button.
-    var needsPurchase = !prepaid && getSlot1Occupied();
-    if (prepaid) {
-      // Slot already purchased — label only, no price tag.
-      priceTag.textContent = 'დამატებითი სინასტრია';
-      priceTag.classList.add('show');
-    } else if (getSlot1Occupied()) {
-      // Slot 1 used and no prepaid slot → ₾5 price tag for the next one.
-      priceTag.textContent = '₾5 — დამატებითი სინასტრია';
-      priceTag.classList.add('show');
-    }
-    modal.setAttribute('data-invite-mode', needsPurchase ? 'purchase' : 'normal');
-  }
-  modal.classList.add('open');
-}
-function closeInviteModal() { document.getElementById('inviteModal').classList.remove('open'); }
-function selectInviteType(type, el) {
-  selectedInviteType = type;
-  document.querySelectorAll('.invite-opt').forEach(o => o.classList.remove('selected'));
-  el.classList.add('selected');
-  var genBtn = document.getElementById('inviteGenBtn');
-  genBtn.disabled = false;
-  // In purchase mode the React label/handler turn this into the ₾5 slot buy —
-  // don't clobber it with the link-generation copy.
-  var modal = document.getElementById('inviteModal');
-  if (!modal || modal.getAttribute('data-invite-mode') !== 'purchase') {
-    genBtn.textContent = type === 'couple' ? 'ბმულის შექმნა (მეწყვილე)' : 'ბმულის შექმნა (მეგობარი)';
-  }
-  document.getElementById('inviteLinkBox').classList.remove('show');
-}
 function generateInviteLink() {
   if (!selectedInviteType) return;
   const code = Math.random().toString(36).substring(2, 9);
@@ -661,32 +590,7 @@ function generateInviteLink() {
   document.getElementById('inviteGenBtn').textContent = '✓ დაკოპირდა!';
   document.getElementById('inviteGenBtn').disabled = true;
 }
-function copyInviteLink(btn) {
-  const url = document.getElementById('inviteLinkUrl').textContent;
-  navigator.clipboard?.writeText('https://' + url);
-  const orig = btn.textContent; btn.textContent = '✓'; setTimeout(() => btn.textContent = orig, 1500);
-}
-function showUpgrade() {
-  if (currentAccountType === 'free') {
-    showPaymentPage('premium');
-  } else {
-    // All paid tiers → open invite modal (handles slot purchase internally)
-    openInviteModal();
-  }
-}
-
-// "Unlock Full Analysis" CTA on locked natal sections. Only ever shown to
-// free + invited tiers (paid tiers already have the full natal chart). Invited
-// users were brought in by someone else's payment — their synastry slot is
-// already filled — so this CTA must open the standalone ₾5 natal unlock page,
-// NOT the synastry invite modal that showUpgrade() routes paid tiers to.
-function unlockFullReading() {
-  if (currentAccountType === 'invited') {
-    showPaymentPage('natal-unlock');
-  } else {
-    showPaymentPage('premium');
-  }
-}
+// copyInviteLink / showUpgrade / unlockFullReading → runtime-extras.js (stubs above).
 
 // ═══ LANGUAGE ═══
 var _currentUser = null; // stored by hydrateReading, used for lang switch re-hydration
@@ -963,70 +867,7 @@ function applyTranslations(l) {
   }
 }
 
-// ═══ SHARE ═══
-function _shareTitle() {
-  // Owner's name personalises the share, matching the /r/[slug] link-preview
-  // card ("ASTROLO.GE — {name}"). Falls back to a generic title when the
-  // name isn't known (e.g. guest view or profile not yet hydrated).
-  const u = _currentUser || {};
-  const name = ((u.full_name || '').trim()) || (u.email ? u.email.split('@')[0] : '');
-  if (name) return 'ASTROLO.GE — ' + name;
-  const view = document.body.getAttribute('data-view');
-  return view === 'synastry' ? 'ASTROLO.GE — სინასტრია' : 'ASTROLO.GE — ჩემი ნატალური რუკა';
-}
-function _doShareReading() {
-  const url = window.location.href;
-  const title = _shareTitle();
-  if (navigator.share) { navigator.share({ title, url }).catch(() => {}); }
-  else { navigator.clipboard?.writeText(url); }
-}
-function shareReading() {
-  // A private reading isn't viewable by anyone with the link, so sharing one
-  // is a dead end. Instead, send the owner to Settings and pulse the
-  // public/private toggle so they can flip it before sharing.
-  fetch('/api/reading/visibility', { credentials: 'include' })
-    .then(function(r) { return r.ok ? r.json() : { isPublic: true }; })
-    .then(function(d) {
-      if (d && d.isPublic === false && typeof window.openSettings === 'function') {
-        window.openSettings({ highlightPrivacy: true });
-        return;
-      }
-      _doShareReading();
-    })
-    .catch(function() { _doShareReading(); });
-}
-function _flashShareIcon(btn) {
-  // Brief ✓ confirmation, mirroring copyInviteLink's feedback.
-  if (!btn || btn._copied) return;
-  btn._copied = true;
-  const orig = btn.innerHTML;
-  btn.innerHTML = '<span style="font-size:13px;line-height:1;color:var(--gold)">✓</span>';
-  setTimeout(function() { btn.innerHTML = orig; btn._copied = false; }, 1500);
-}
-function shareToSocial(platform, btn) {
-  const rawUrl = window.location.href;
-  const url = encodeURIComponent(rawUrl);
-  const title = _shareTitle();
-  const text = encodeURIComponent(title);
-  if (platform === 'ig' || platform === 'tt') {
-    // Neither Instagram nor TikTok has a web link-share endpoint (unlike
-    // Facebook/Telegram). On devices with a native share sheet, let the user
-    // pick the app; otherwise copy the link so they can paste it into a
-    // story/bio/DM/profile.
-    if (navigator.share) {
-      navigator.share({ title: title, url: rawUrl }).catch(function() {});
-    } else {
-      navigator.clipboard?.writeText(rawUrl);
-      _flashShareIcon(btn);
-    }
-    return;
-  }
-  const urls = {
-    fb: 'https://www.facebook.com/sharer/sharer.php?u=' + url,
-    tg: 'https://t.me/share/url?url=' + url + '&text=' + text
-  };
-  window.open(urls[platform], '_blank', 'width=600,height=400');
-}
+// ═══ SHARE ═══ → runtime-extras.js (shareReading / shareToSocial stubs above).
 
 // ═══ NAVIGATION ═══
 function go(id) {
@@ -1412,91 +1253,42 @@ document.addEventListener('mousemove', e => {
   el.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
 });
 
-// ═══ ELEMENT POPUPS (NATAL) ═══
-const elData = {
-  ka: {
-    fire: { title: 'ცეცხლი', body: 'ინტუიცია, შთაგონება და სპონტანური მოქმედება. ცეცხლის ენერგია ქმნის, იწყებს და ანთებს — ეს არის ნების ძალა, თავდაჯერებულობა და სიცოცხლის წყურვილი. ჭარბად — იმპულსურობა, სიმწვავე. ნაკლებად — ენერგიის, მოტივაციის დეფიციტი.' },
-    earth: { title: 'მიწა', body: 'სტაბილურობა, პრაქტიკულობა და ფიზიკური სამყაროსთან კავშირი. მიწის ენერგია აშენებს, ამყარებს და ხელშესახებს ხდის — ეს არის მოთმინება, გამძლეობა და სენსორული სიბრძნე. ჭარბად — სიჯიუტე, ინერცია. ნაკლებად — დაუსაბუთებლობა, არასტაბილურობა.' },
-    air: { title: 'ჰაერი', body: 'ინტელექტი, კომუნიკაცია და კავშირები. ჰაერის ენერგია აანალიზებს, აკავშირებს და გადმოსცემს — ეს არის იდეების სამყარო, სოციალური ინტელექტი და ობიექტურობა. ჭარბად — ზედმეტი ინტელექტუალიზაცია. ნაკლებად — იზოლაცია, კომუნიკაციის სირთულე.' },
-    water: { title: 'წყალი', body: 'ემოციები, ინტუიცია და ფსიქიკური სიღრმე. წყლის ენერგია გრძნობს, კურნავს და გარდაქმნის — ეს არის ემპათია, წარმოსახვა და არაცნობიერთან კავშირი. ჭარბად — ემოციური დატბორვა. ნაკლებად — ემოციური სიცარიელე, გაუცხოება.' }
-  },
-  en: {
-    fire: { title: 'Fire', body: 'Intuition, inspiration, and spontaneous action. Fire energy creates, initiates, and ignites — willpower, confidence, and the thirst for life.' },
-    earth: { title: 'Earth', body: 'Stability, practicality, and connection to the physical world. Earth energy builds, grounds, and materialises — patience, endurance, and sensory wisdom.' },
-    air: { title: 'Air', body: 'Intellect, communication, and connections. Air energy analyses, links, and transmits — the world of ideas, social intelligence, and objectivity.' },
-    water: { title: 'Water', body: 'Emotions, intuition, and psychic depth. Water energy feels, heals, and transforms — empathy, imagination, and connection to the unconscious.' }
-  }
-};
+// ═══ RUNTIME ASSET VERSION ═══
+// scripts/build-runtime.mjs stamps the content hash into the emitted .min.js;
+// an unreplaced placeholder means dev / raw sources (must-revalidate paths).
+var RUNTIME_V = '__RUNTIME_V__';
+var _builtRuntime = RUNTIME_V.charAt(0) !== '_';
+function _lazyAssetSrc(name, ext) {
+  return _builtRuntime ? '/' + name + '.min.' + ext + '?v=' + RUNTIME_V
+                       : '/' + name + '.' + ext;
+}
 
-// Aspect popups (synastry)
-const aspectData = {
-  ka: {
-    harmony: { t: 'ჰარმონია — ტრინი / სექსტილი', b: 'მხარდამჭერი, მიმდინარე ენერგია ორ პლანეტას შორის. ნიჭი, რომელიც ბუნებრივად მოედინება — ძალისხმევის გარეშე.' },
-    tension: { t: 'დაძაბულობა — კვადრატი / ოპოზიცია', b: 'ფრიქცია და გამოწვევა ორ პლანეტას შორის. ეს არის ზრდის ძრავა — არაკომფორტული, მაგრამ ტრანსფორმაციული.' },
-    magnetic: { t: 'მაგნიტური — კონიუნქცია / კარმული', b: 'გაერთიანების, შერწყმის ენერგია. კონიუნქცია ორ პლანეტას ერთ ძალად აქცევს — ინტენსიური, განუყოფელი.' }
-  },
-  en: {
-    harmony: { t: 'Harmony — Trine / Sextile', b: 'Supportive, flowing energy between two planets. A natural gift that requires no effort.' },
-    tension: { t: 'Tension — Square / Opposition', b: 'Friction and challenge between two planets. This is the engine of growth — uncomfortable but transformational.' },
-    magnetic: { t: 'Magnetic — Conjunction / Karmic', b: 'Merging, unifying energy. Conjunction fuses two planets into one force — intense, inseparable.' }
+// ═══ INTERP POPUP DATA (lazy) ═══
+// The element/planet/chart-point/sign/house/aspect popup texts live in
+// /runtime-interp.json (elData, aspectData, _aspTypeBody, plData, cpData,
+// _SIGN_DATA, _HOUSE_DATA — that JSON is the source of truth now) so ~21 KB
+// stays off the critical path. Prefetched at idle; popup handlers go through
+// _withInterp, which is synchronous once the data is cached.
+var _interpData = null, _interpPromise = null;
+function _loadInterp() {
+  if (_interpData) return Promise.resolve(_interpData);
+  if (!_interpPromise) {
+    _interpPromise = fetch(_lazyAssetSrc('runtime-interp', 'json'))
+      .then(function(r) { if (!r.ok) throw new Error('interp HTTP ' + r.status); return r.json(); })
+      .then(function(d) { _interpData = d; return d; })
+      .catch(function(e) { _interpPromise = null; throw e; }); // next call retries
   }
-};
+  return _interpPromise;
+}
+function _withInterp(cb) {
+  if (_interpData) { cb(_interpData); return; }
+  _loadInterp().then(cb).catch(function(e) { console.error('[runtime] interp data unavailable', e); });
+}
+(window.requestIdleCallback || function(f) { setTimeout(f, 2000); })(function() { _loadInterp().catch(function() {}); });
 
-// Per-aspect-type explanations (natal aspect list). Keyed by the 5 major aspect
-// types; the popup title reuses _aspectGlyph + _aspTypeLabel, themed by nature
-// (harmony/tension/magnetic) via _aspNature below.
-const _aspTypeBody = {
-  ka: {
-    conjunction: 'ორი პლანეტა ერთ წერტილში ერწყმის — მათი ენერგია ერთ ძალად იქცევა. ინტენსიური, განუყოფელი შერწყმა, სადაც ერთი მეორეს აძლიერებს.',
-    trine: 'ჰარმონიული, თავისუფლად მოედინება ენერგია ორ პლანეტას შორის. ბუნებრივი ნიჭი, რომელიც ძალისხმევის გარეშე მუშაობს.',
-    sextile: 'ნაზი შესაძლებლობა და მხარდაჭერა. ნიჭი, რომელიც ცოტა ძალისხმევით აქტიურდება — კარი, რომელიც გელით, რომ გააღოთ.',
-    square: 'დაძაბულობა და ფრიქცია, რომელიც ქმედებისკენ გიბიძგებთ. შინაგანი კონფლიქტი, რომელიც ზრდის ძრავაა — არაკომფორტული, მაგრამ ნაყოფიერი.',
-    opposition: 'ორი საპირისპირო ძალის გადაზიდვა — ბალანსის ძიება. ხშირად სხვებში ან ურთიერთობებში ვლინდება, სანამ შიგნით არ შეერთდება.'
-  },
-  en: {
-    conjunction: 'Two planets merge at a single point — their energies fuse into one force. An intense, inseparable blend where each amplifies the other.',
-    trine: 'Harmonious, freely flowing energy between two planets. A natural gift that works without effort.',
-    sextile: 'A gentle opportunity and support. A talent that activates with a little effort — a door waiting for you to open it.',
-    square: 'Tension and friction that pushes you toward action. An inner conflict that is the engine of growth — uncomfortable but productive.',
-    opposition: 'A pull between two opposing forces, seeking balance. Often shows up in others or relationships until you integrate it within.'
-  }
-};
 // Aspect type → popup nature theme (matches .aspect-tag colors)
 const _aspNature = { conjunction: 'magnetic', trine: 'harmony', sextile: 'harmony', square: 'tension', opposition: 'tension' };
 
-// Planet popups (natal)
-const plData = {
-  ka: {
-    sun: { t: '☉ მზე', b: 'იდენტობა, ეგო და ცხოვრების ძირითადი ენერგია. მზე აჩვენებს ვინ ხარ შენს ბირთვში.' },
-    moon: { t: '☽ მთვარე', b: 'ემოციები, ინსტინქტები და შინაგანი სამყარო. მთვარე აჩვენებს როგორ გრძნობ, რა გჭირდება უსაფრთხოებისთვის.' },
-    mercury: { t: '☿ მერკური', b: 'გონება, კომუნიკაცია და აღქმის სტილი. მერკური აჩვენებს როგორ ფიქრობ, სწავლობ და გადმოსცემ ინფორმაციას.' },
-    venus: { t: '♀ ვენერა', b: 'სიყვარული, ესთეტიკა და ღირებულებები. ვენერა გვიჩვენებს, სად ეძებ ჰარმონიას, რა გიტაცებს სილამაზით და როგორ ეკიდები სიახლოვეს.' },
-    mars: { t: '♂ მარსი', b: 'სურვილი, ძალა და ქმედება. მარსი გვიჩვენებს, სად მიაქვს ენერგია, როგორ იბრძვი შენი მიზნებისთვის და სად ვლინდება შენი ნება.' },
-    jupiter: { t: '♃ იუპიტერი', b: 'ზრდა, სიუხვე და ოპტიმიზმი. იუპიტერი გვიჩვენებს, სად ვიზრდებით ბუნებრივად, სად გვიმართლებს ბედი და რა ფილოსოფია გვმართავს.' },
-    saturn: { t: '♄ სატურნი', b: 'სტრუქტურა, დისციპლინა და კარმული გაკვეთილები. სატურნი აჩვენებს სად არის შენი უდიდესი გამოწვევა.' },
-    uranus: { t: '♅ ურანი', b: 'თავისუფლება, გამოღვიძება და ინოვაცია. ურანი გვიჩვენებს, სად სცდები ჩვეულ ნორმებს, სად ეძებ ინდივიდუალობას და საიდან მოდის მოულოდნელი ცვლილება.' },
-    neptune: { t: '♆ ნეპტუნი', b: 'ოცნება, ინსპირაცია და სულიერება. ნეპტუნი გვიჩვენებს, სად ეძებ ტრანსცენდენტულს, სად იბინდდება საზღვრები და საიდან მოდის შენი ხილვა.' },
-    pluto: { t: '♇ პლუტონი', b: 'ტრანსფორმაცია, სიღრმე და განახლება. პლუტონი გვიჩვენებს, სად ხდება ყველაზე ღრმა ცვლილება, სად ეთხოვება ძველს და სად იბადება ახალი ძალა.' },
-    chiron: { t: '⚷ ქირონი', b: 'ჭრილობა და განკურნება. ქირონი აჩვენებს ღრმა, ძველ ტკივილს, რომელსაც ვატარებთ — და ზუსტად იქ, სადაც ვისწავლით სხვების განკურნებას. „დაჭრილი მკურნალი."' },
-    node: { t: '☊ ჩრდილოეთის კვანძი', b: 'სულის ზრდის მიმართულება. ჩრდილოეთის კვანძი აჩვენებს, რა თვისებებისკენ უნდა გავიზარდოთ ამ ცხოვრებაში — შენი კომფორტის ზონის მიღმა.' },
-    lilith: { t: '⚸ ლილითი', b: 'შავი მთვარე ლილითი — ჩრდილი, პირველადი ინსტინქტი და ტაბუ. აჩვენებს, სად ვართ ყველაზე ნედლი, თავისუფალი და დაუმორჩილებელი.' }
-  },
-  en: {
-    sun: { t: '☉ Sun', b: 'Identity, ego, and core life energy. The Sun reveals who you are at your essence.' },
-    moon: { t: '☽ Moon', b: 'Emotions, instincts, and inner world. The Moon reveals how you feel and what you need to feel safe.' },
-    mercury: { t: '☿ Mercury', b: 'Mind, communication, and perception style. Mercury reveals how you think, learn, and express ideas.' },
-    venus: { t: '♀ Venus', b: 'Love, beauty, and values. Venus reveals what you attract, how you love, and what you find beautiful.' },
-    mars: { t: '♂ Mars', b: 'Will, action, and desire. Mars reveals how you fight, what drives you, and where you direct your energy.' },
-    jupiter: { t: '♃ Jupiter', b: 'Expansion, wisdom, and abundance. Jupiter reveals where you grow and where fortune finds you.' },
-    saturn: { t: '♄ Saturn', b: 'Structure, discipline, and karmic lessons. Saturn reveals where your greatest challenge — and mastery — lies.' },
-    uranus: { t: '♅ Uranus', b: 'Freedom, innovation, and breakthrough. Uranus reveals where you rebel and where you seek originality.' },
-    neptune: { t: '♆ Neptune', b: 'Dreams, spirituality, and transcendence. Neptune reveals where you seek the divine and where illusion lives.' },
-    pluto: { t: '♇ Pluto', b: 'Transformation, power, and rebirth. Pluto reveals where deep psychological death and renewal take place.' },
-    chiron: { t: '⚷ Chiron', b: 'The wound and the healer. Chiron marks the deep, old hurt you carry — and the very place where you learn to heal others. The "wounded healer."' },
-    node: { t: '☊ North Node', b: 'The soul\'s growth direction. The North Node shows the qualities you\'re here to develop in this life — just beyond your comfort zone.' },
-    lilith: { t: '⚸ Lilith', b: 'Black Moon Lilith — shadow, raw instinct, and the taboo. It shows where you are most untamed, free, and unwilling to submit.' }
-  }
-};
 
 // Short planet tips for hover tooltips in card-body prose (one-liners).
 const PLANET_TIPS_KA = {
@@ -1520,22 +1312,6 @@ const PLANET_TIPS_EN = {
 // Bodies that have a click popup (plData) — used to gate .pl-btn triggers in aspect rows.
 const _PL_POPUP_KEYS = { sun:1, moon:1, mercury:1, venus:1, mars:1, jupiter:1, saturn:1, uranus:1, neptune:1, pluto:1, chiron:1, node:1, lilith:1 };
 
-// Chart-point (angle) popups — ASC / DSC / MC / IC. Rendered with the acronym as
-// the "glyph" (no SVG); shown via the .cp-btn handler in aspect rows/interps.
-const cpData = {
-  ka: {
-    asc: { acr: 'ASC', t: 'ასცენდენტი', b: 'აღმავალი ნიშანი — შენი გარეგანი ნიღაბი და პირველი შთაბეჭდილება. ასცენდენტი აჩვენებს, როგორ ხვდები სამყაროს, შენს სტილსა და ფიზიკურ მანერას.' },
-    dsc: { acr: 'DSC', t: 'დესცენდენტი', b: 'ასცენდენტის საპირისპირო წერტილი — პარტნიორობა და „სხვა". დესცენდენტი აჩვენებს, რას ეძებ მჭიდრო ურთიერთობებში და რას აპროექციებ პარტნიორზე.' },
-    mc:  { acr: 'MC',  t: 'ცის შუაწერტილი', b: 'ცის უმაღლესი წერტილი — კარიერა, საჯარო როლი და რეპუტაცია. MC აჩვენებს, რითი ხარ ცნობილი და რა მიმართულებით მიდიხარ ცხოვრებაში.' },
-    ic:  { acr: 'IC',  t: 'ცის ფსკერი', b: 'ცის ყველაზე დაბალი წერტილი — ფესვები, სახლი და შინაგანი სამყარო. IC აჩვენებს შენს საფუძველს, ოჯახსა და პირად, დაცულ თავს.' }
-  },
-  en: {
-    asc: { acr: 'ASC', t: 'Ascendant', b: 'The rising sign — your outer mask and first impression. The Ascendant shows how you meet the world, your style, and physical manner.' },
-    dsc: { acr: 'DSC', t: 'Descendant', b: 'The point opposite the Ascendant — partnership and the "other." The Descendant shows what you seek in close relationships and project onto a partner.' },
-    mc:  { acr: 'MC',  t: 'Midheaven', b: 'The highest point of the chart — career, public role, and reputation. The Midheaven shows what you are known for and your direction in life.' },
-    ic:  { acr: 'IC',  t: 'Imum Coeli', b: 'The lowest point of the chart — roots, home, and inner world. The IC shows your foundation, family, and private, protected self.' }
-  }
-};
 const _CHART_POINTS = { asc: 'asc', ascendant: 'asc', dsc: 'dsc', descendant: 'dsc', mc: 'mc', midheaven: 'mc', ic: 'ic', 'imum coeli': 'ic', imumcoeli: 'ic' };
 function _chartPointKey(name) {
   if (!name) return '';
@@ -1587,8 +1363,10 @@ document.addEventListener('click', e => {
     if (activeTag === etTag) { closePopup(); return; }
     const type = getElType(etTag); if (!type) return;
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-    const d = elData[lang][type];
-    _showPopup(etTag, type + '-pop', d.title, d.body);
+    _withInterp(function(D) {
+      const d = D.elData[lang][type];
+      _showPopup(etTag, type + '-pop', d.title, d.body);
+    });
     return;
   }
 
@@ -1599,13 +1377,15 @@ document.addEventListener('click', e => {
     const key = plBtn.getAttribute('data-pl'); if (!key) return;
     if (activeTag === plBtn) { closePopup(); return; }
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-    const d = plData[lang][key];
-    if (!d) return;
-    // Use the SAME SVG glyph as the planet table (data has a legacy Unicode
-    // symbol prefix in `t` — strip it so the table and popup never mismatch).
-    var plName = d.t.replace(/^\S+\s+/, '');
-    var plGlyph = '<svg class="pl-pop-gi" viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-' + key + '"/></svg>';
-    _showPopup(plBtn, 'planet-pop', plGlyph + plName, d.b);
+    _withInterp(function(D) {
+      const d = D.plData[lang][key];
+      if (!d) return;
+      // Use the SAME SVG glyph as the planet table (data has a legacy Unicode
+      // symbol prefix in `t` — strip it so the table and popup never mismatch).
+      var plName = d.t.replace(/^\S+\s+/, '');
+      var plGlyph = '<svg class="pl-pop-gi" viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-' + key + '"/></svg>';
+      _showPopup(plBtn, 'planet-pop', plGlyph + plName, d.b);
+    });
     return;
   }
 
@@ -1616,9 +1396,11 @@ document.addEventListener('click', e => {
     const key = cpBtn.getAttribute('data-cp'); if (!key) return;
     if (activeTag === cpBtn) { closePopup(); return; }
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-    const d = cpData[lang][key];
-    if (!d) return;
-    _showPopup(cpBtn, 'planet-pop', '<span class="cp-pop-acr">' + d.acr + '</span>' + d.t, d.b);
+    _withInterp(function(D) {
+      const d = D.cpData[lang][key];
+      if (!d) return;
+      _showPopup(cpBtn, 'planet-pop', '<span class="cp-pop-acr">' + d.acr + '</span>' + d.t, d.b);
+    });
     return;
   }
 
@@ -1630,11 +1412,13 @@ document.addEventListener('click', e => {
     const si = parseInt(signTd.getAttribute('data-si'), 10);
     if (isNaN(si)) return;
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-    const d = _SIGN_DATA[lang][si];
-    if (!d) return;
-    // Edge colour follows the sign's element (fire/earth/air/water cycle from Aries)
-    var _signEl = ['sf', 'se', 'sa', 'sw'][si % 4];
-    _showPopup(signTd, 'sign-pop ' + _signEl, _signPopupSvg(si) + d.t, d.b);
+    _withInterp(function(D) {
+      const d = D._SIGN_DATA[lang][si];
+      if (!d) return;
+      // Edge colour follows the sign's element (fire/earth/air/water cycle from Aries)
+      var _signEl = ['sf', 'se', 'sa', 'sw'][si % 4];
+      _showPopup(signTd, 'sign-pop ' + _signEl, _signPopupSvg(si) + d.t, d.b);
+    });
     return;
   }
 
@@ -1647,9 +1431,11 @@ document.addEventListener('click', e => {
     const houseIdx = _ROMAN_TO_INT[houseStr];
     if (!houseIdx) return;
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-    const d = _HOUSE_DATA[lang][houseIdx - 1];
-    if (!d) return;
-    _showPopup(houseTd, 'house-pop', _housePopupBadge(houseStr) + d.t, d.b);
+    _withInterp(function(D) {
+      const d = D._HOUSE_DATA[lang][houseIdx - 1];
+      if (!d) return;
+      _showPopup(houseTd, 'house-pop', _housePopupBadge(houseStr) + d.t, d.b);
+    });
     return;
   }
 
@@ -1664,8 +1450,10 @@ document.addEventListener('click', e => {
     else if (aspTag.classList.contains('magnetic')) type = 'magnetic';
     if (!type) return;
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-    const d = aspectData[lang][type];
-    _showPopup(aspTag, type + '-pop', d.t, d.b);
+    _withInterp(function(D) {
+      const d = D.aspectData[lang][type];
+      _showPopup(aspTag, type + '-pop', d.t, d.b);
+    });
     return;
   }
 
@@ -1678,9 +1466,11 @@ document.addEventListener('click', e => {
     if (activeTag === asyBtn) { closePopup(); return; }
     const type = asyBtn.getAttribute('data-asp-type'); if (!type) return;
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-    const body = (_aspTypeBody[lang] || _aspTypeBody.ka)[type]; if (!body) return;
-    const label = (_aspTypeLabel[lang] || _aspTypeLabel.ka)[type] || type;
-    _showPopup(asyBtn, (_aspNature[type] || 'magnetic') + '-pop', _aspectGlyph(type) + ' ' + label, body);
+    _withInterp(function(D) {
+      const body = (D._aspTypeBody[lang] || D._aspTypeBody.ka)[type]; if (!body) return;
+      const label = (_aspTypeLabel[lang] || _aspTypeLabel.ka)[type] || type;
+      _showPopup(asyBtn, (_aspNature[type] || 'magnetic') + '-pop', _aspectGlyph(type) + ' ' + label, body);
+    });
     return;
   }
 
@@ -1855,72 +1645,12 @@ function _signPopupSvg(si) {
   var color = _SIGN_EL_COLOR[si] || 'currentColor';
   return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:6px;color:' + color + '"><use href="#' + _SIGN_IDS[si] + '"/></svg>';
 }
-const _SIGN_DATA = {
-  ka: [
-    { t: 'ვერძი', b: 'პიონერი. ცეცხლის პირველი ნიშანი — იმპულსი, თამამობა, ახლის დაწყება. მარსი მართავს. ენერგია: „მე ვარ." ყველაფერი იწყება ვერძით — პირველი ნაბიჯი, პირველი სუნთქვა.' },
-    { t: 'კურო', b: 'მშენებელი. მიწის პირველი ნიშანი — სტაბილურობა, სენსორული სიამოვნება, ღირებულებები. ვენერა მართავს. ენერგია: „მე მაქვს." სხეული, ქონება, სილამაზე — ხელშესახები სამყარო.' },
-    { t: 'ტყუპი', b: 'კომუნიკატორი. ჰაერის პირველი ნიშანი — ცნობისმოყვარეობა, ადაპტაცია, ინფორმაციის გაცვლა. მერკური მართავს. ენერგია: „მე ვფიქრობ." ორადობა, სიჩქარე, კავშირები.' },
-    { t: 'კირჩხიბი', b: 'მზრუნველი. წყლის პირველი ნიშანი — ემოცია, ოჯახი, დაცვა. მთვარე მართავს. ენერგია: „მე ვგრძნობ." შინაგანი სამყარო, მეხსიერება, ინტუიცია.' },
-    { t: 'ლომი', b: 'შემოქმედი. ცეცხლის მეორე ნიშანი — თვითგამოხატვა, სიხარული, ლიდერობა. მზე მართავს. ენერგია: „მე ვქმნი." გულუხვობა, დრამა, ავთენტურობა.' },
-    { t: 'ქალწული', b: 'ანალიტიკოსი. მიწის მეორე ნიშანი — სიზუსტე, მსახურება, სრულყოფა. მერკური მართავს. ენერგია: „მე ვაანალიზებ." დეტალი, ხელობა, განკურნება.' },
-    { t: 'სასწორი', b: 'დიპლომატი. ჰაერის მეორე ნიშანი — ბალანსი, ურთიერთობა, სამართლიანობა. ვენერა მართავს. ენერგია: „მე ვაბალანსებ." ჰარმონია, ესთეტიკა, პარტნიორობა.' },
-    { t: 'მორიელი', b: 'ტრანსფორმატორი. წყლის მეორე ნიშანი — სიღრმე, ძალაუფლება, აღდგენა. პლუტონი მართავს. ენერგია: „მე ვარდაქმნი." ინტენსივობა, საიდუმლო, სიკვდილ-აღდგომა.' },
-    { t: 'მშვილდოსანი', b: 'მკვლევარი. ცეცხლის მესამე ნიშანი — ფილოსოფია, თავისუფლება, ჰორიზონტი. იუპიტერი მართავს. ენერგია: „მე ვეძებ." მოგზაურობა, სიბრძნე, ოპტიმიზმი.' },
-    { t: 'თხის რქა', b: 'არქიტექტორი. მიწის მესამე ნიშანი — ამბიცია, სტრუქტურა, მოწიფულობა. სატურნი მართავს. ენერგია: „მე ვაშენებ." დისციპლინა, დრო, მემკვიდრეობა.' },
-    { t: 'მერწყული', b: 'ინოვატორი. ჰაერის მესამე ნიშანი — თავისუფლება, ორიგინალობა, კოლექტივი. ურანი მართავს. ენერგია: „მე ვცვლი." მომავალი, ტექნოლოგია, ჰუმანიზმი.' },
-    { t: 'თევზები', b: 'მისტიკოსი. წყლის მესამე ნიშანი — ტრანსცენდენცია, თანაგრძნობა, ოცნება. ნეპტუნი მართავს. ენერგია: „მე ვწუხვარ." ხელოვნება, სულიერება, საზღვრების გაქრობა.' }
-  ],
-  en: [
-    { t: 'Aries', b: 'The Pioneer. First fire sign — impulse, courage, new beginnings. Ruled by Mars. Energy: "I am." Everything starts with Aries.' },
-    { t: 'Taurus', b: 'The Builder. First earth sign — stability, sensory pleasure, values. Ruled by Venus. Energy: "I have." The tangible world.' },
-    { t: 'Gemini', b: 'The Communicator. First air sign — curiosity, adaptation, information exchange. Ruled by Mercury. Energy: "I think."' },
-    { t: 'Cancer', b: 'The Nurturer. First water sign — emotion, family, protection. Ruled by the Moon. Energy: "I feel." Inner world, memory, intuition.' },
-    { t: 'Leo', b: 'The Creator. Second fire sign — self-expression, joy, leadership. Ruled by the Sun. Energy: "I create." Generosity, drama, authenticity.' },
-    { t: 'Virgo', b: 'The Analyst. Second earth sign — precision, service, refinement. Ruled by Mercury. Energy: "I analyze." Detail, craft, healing.' },
-    { t: 'Libra', b: 'The Diplomat. Second air sign — balance, relationship, justice. Ruled by Venus. Energy: "I balance." Harmony, aesthetics, partnership.' },
-    { t: 'Scorpio', b: 'The Transformer. Second water sign — depth, power, regeneration. Ruled by Pluto. Energy: "I transform." Intensity, secrets, death-rebirth.' },
-    { t: 'Sagittarius', b: 'The Explorer. Third fire sign — philosophy, freedom, horizon. Ruled by Jupiter. Energy: "I seek." Travel, wisdom, optimism.' },
-    { t: 'Capricorn', b: 'The Architect. Third earth sign — ambition, structure, maturity. Ruled by Saturn. Energy: "I build." Discipline, time, legacy.' },
-    { t: 'Aquarius', b: 'The Innovator. Third air sign — freedom, originality, collective. Ruled by Uranus. Energy: "I change." Future, technology, humanism.' },
-    { t: 'Pisces', b: 'The Mystic. Third water sign — transcendence, compassion, dreams. Ruled by Neptune. Energy: "I dream." Art, spirituality, dissolving boundaries.' }
-  ]
-};
 
 // ── House constants (12 houses) ──
 var _ROMAN_TO_INT = {I:1,II:2,III:3,IV:4,V:5,VI:6,VII:7,VIII:8,IX:9,X:10,XI:11,XII:12};
 function _housePopupBadge(houseStr) {
   return '<span style="display:inline-block;min-width:26px;height:18px;line-height:18px;text-align:center;padding:0 5px;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.25);border-radius:3px;font-size:.72rem;color:var(--gold);margin-right:8px;font-family:Outfit,sans-serif;letter-spacing:.06em;vertical-align:-2px">' + houseStr + '</span>';
 }
-const _HOUSE_DATA = {
-  ka: [
-    { t: 'სახლი — პიროვნება', b: 'ასცენდენტი. სხეული, გარეგნობა, ინდივიდუალობა — ვინ ხარ პირველი შეხვედრისას. თვითგამოხატვა, სტილი, ნიღაბი. ენერგია: „მე ვარ."' },
-    { t: 'სახლი — ქონება', b: 'ფინანსები, მატერიალური რესურსები, თვითშეფასება. ის, რაც გაქვს და გაძლევს კომფორტს. ფული, ხელშესახები სიამოვნება, ღირებულებათა სისტემა. ენერგია: „მე მაქვს."' },
-    { t: 'სახლი — კომუნიკაცია', b: 'გონება, და-ძმები, მეზობლები, ახლო მოგზაურობა. ყოველდღიური გაცვლა — სიტყვა, შეხვედრა, ინფორმაცია. ადვილი კავშირები. ენერგია: „მე ვფიქრობ."' },
-    { t: 'სახლი — სახლი & ფესვები', b: 'IC (ცის ფსკერი). ოჯახი, ბავშვობა, ფსიქოლოგიური ფუძე. სად გრძნობ თავს შინ — ფესვები, წინაპრები, ინტიმური სამყარო. ენერგია: „მე ვგრძნობ."' },
-    { t: 'სახლი — შემოქმედება', b: 'გართობა, რომანტიკა, ბავშვები, ხელოვნება, თამაში. სიხარული, პირველი სიყვარული, ავთენტური თვითგამოხატვა. ენერგია: „მე ვქმნი."' },
-    { t: 'სახლი — ჯანმრთელობა', b: 'ყოველდღიური რუტინა, სამსახური, ჯანმრთელობა, მსახურება. ეფექტური ყოფა, სხეულის მოვლა, პრაქტიკული ყოველდღიურობა. ენერგია: „მე ვემსახურები."' },
-    { t: 'სახლი — პარტნიორობა', b: 'DSC (დესცენდენტი). ქორწინება, ბიზნეს პარტნიორები, ღია მეტოქეები. ის, რასაც სხვაში ეძებ — სარკე, შემავსებელი, ურთიერთობა. ენერგია: „ჩვენ ვართ."' },
-    { t: 'სახლი — ტრანსფორმაცია', b: 'სიკვდილი, აღდგომა, სექსი, გაზიარებული ფინანსები, ოკულტი. სიღრმე, ფარული ძალა. ყველაფერი, რაც გარდაქმნის. ენერგია: „მე ვარდაქმნი."' },
-    { t: 'სახლი — ფილოსოფია', b: 'სარწმუნოება, უცხო კულტურა, შორი მოგზაურობა, უმაღლესი განათლება. ჰორიზონტი, იდეოლოგია, სიბრძნის ძიება. ენერგია: „მე ვეძებ."' },
-    { t: 'სახლი — კარიერა', b: 'MC (ცის შუაწერტილი). პროფესია, საჯარო ცხოვრება, რეპუტაცია, ავტორიტეტი. შენი ადგილი სამყაროში, ლეგასი. ენერგია: „მე ვაშენებ."' },
-    { t: 'სახლი — ოცნებები', b: 'მეგობრები, ჯგუფები, სოციალური წრე, კოლექტიური სასოება. ოცნება მომავლის შესახებ, სოლიდარობა, ჰუმანიზმი. ენერგია: „მე ვოცნებობ."' },
-    { t: 'სახლი — ფარული სამყარო', b: 'ქვეცნობიერი, სულიერება, მარტოობა, ფარული მტრები. ის, რაც ღრმად იმალება — უუნარობა, ტყვეობა, ან სულიერი ძიება. ენერგია: „მე ვატარებ."' }
-  ],
-  en: [
-    { t: 'House — Self', b: 'The Ascendant. Body, appearance, identity — who you are at first meeting. Your self-presentation, style, the mask. Energy: "I am."' },
-    { t: 'House — Possessions', b: 'Finances, material resources, self-worth. What you own and value for comfort. Money, tangible pleasures, your value system. Energy: "I have."' },
-    { t: 'House — Communication', b: 'Mind, siblings, neighbors, short journeys. Everyday exchange — words, meetings, information. Quick connections and local movement. Energy: "I think."' },
-    { t: 'House — Home & Roots', b: 'IC (Imum Coeli). Family, childhood, psychological foundation. Where you feel at home — roots, ancestry, the private self. Energy: "I feel."' },
-    { t: 'House — Creativity', b: 'Play, romance, children, art, pleasure. Joy, first love, authentic self-expression. The heart\'s delight. Energy: "I create."' },
-    { t: 'House — Health', b: 'Daily routines, work, health, service. Efficient living, body care, the practical realm. Craft and healing. Energy: "I serve."' },
-    { t: 'House — Partnership', b: 'DSC (Descendant). Marriage, business partners, open enemies. What you seek in others — the mirror, complement, relationship. Energy: "We are."' },
-    { t: 'House — Transformation', b: 'Death, rebirth, sex, shared resources, occult. Depth, hidden power. Everything that transforms you. Energy: "I transform."' },
-    { t: 'House — Philosophy', b: 'Beliefs, foreign cultures, long travel, higher education. Horizon, ideology, the pursuit of wisdom and meaning. Energy: "I seek."' },
-    { t: 'House — Career', b: 'MC (Midheaven). Profession, public life, reputation, authority. Your place in the world, legacy, ambition. Energy: "I build."' },
-    { t: 'House — Dreams', b: 'Friends, groups, social circle, collective hopes. Dreams about the future, solidarity, humanitarian causes. Energy: "I dream."' },
-    { t: 'House — Hidden Realm', b: 'Subconscious, spirituality, isolation, hidden enemies. What lies beneath — weakness, confinement, or deep spiritual seeking. Energy: "I surrender."' }
-  ]
-};
 
 function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
   const svg = document.getElementById('miniChart');
@@ -2128,8 +1858,10 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
     _wireMcPopup(g, () => {
       const si = +g.getAttribute('data-sign');
       const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-      const d = _SIGN_DATA[lang][si];
-      _showPopup(g, 'sign-pop', _signPopupSvg(si) + d.t, d.b);
+      _withInterp(function(D) {
+        const d = D._SIGN_DATA[lang][si];
+        _showPopup(g, 'sign-pop', _signPopupSvg(si) + d.t, d.b);
+      });
     });
   });
 
@@ -2138,9 +1870,11 @@ function renderMiniChart(planetsIn, ascEclIn, mcEclIn) {
     _wireMcPopup(g, () => {
       const key = g.getAttribute('data-cp');
       const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
-      const d = cpData[lang][key];
-      if (!d) return;
-      _showPopup(g, 'planet-pop', '<span class="cp-pop-acr">' + d.acr + '</span>' + d.t, d.b);
+      _withInterp(function(D) {
+        const d = D.cpData[lang][key];
+        if (!d) return;
+        _showPopup(g, 'planet-pop', '<span class="cp-pop-acr">' + d.acr + '</span>' + d.t, d.b);
+      });
     });
   });
 }
@@ -2632,7 +2366,7 @@ function handleBirthData() {
     lk:'შრი-ლანკა', bd:'ბანგლადეში', th:'თაილანდი', id:'ინდონეზია',
     my:'მალაიზია', ph:'ფილიპინები', vn:'ვიეტნამი', kh:'კამბოჯა',
     mn:'მონღოლეთი', tw:'ტაივანი', hk:'ჰონგ კონგი',
-    et:'ეთიოპია', sn:'სენეგალი', cd:'კონგოს დემ. რესპ.', sd:'სუდანი',
+    sn:'სენეგალი', cd:'კონგოს დემ. რესპ.', sd:'სუდანი',
     ao:'ანგოლა', ma:'მაროკო', tn:'ტუნისი', ly:'ლიბია', ug:'უგანდა',
     rw:'რუანდა', zw:'ზიმბაბვე', zm:'ზამბია', mz:'მოზამბიკი', tz:'ტანზანია',
     nz:'ახალი ზელანდია',
@@ -2850,332 +2584,20 @@ function handleBirthData() {
   })();
 })();
 
-// Loading screen
-var _loadingLang = 'ka';
-var _loadingMsgs = {
-  ka: ['ვარსკვლავური კოორდინატების გაანგარიშება…','პლანეტარული პოზიციების მოძიება…','ასპექტების ანალიზი…','სახლების სისტემის აგება…','ელემენტური ბალანსის შეფასება…','კარმული კვანძების ინტერპრეტაცია…','ჩრდილის ინტეგრაციის რუკა…','სულიერი გზის სინთეზი…','შენი ციური ნახაზი მზადდება…'],
-  en: ['Calculating stellar coordinates…','Locating planetary positions…','Analysing aspects…','Building house system…','Evaluating elemental balance…','Interpreting karmic nodes…','Mapping shadow integration…','Synthesising spiritual path…','Your celestial blueprint is being prepared…']
-};
-var _loadingFunFacts = {
-  ka: ['თევზები ზოდიაქოს ბოლო ნიშანია — ყველა წინა ნიშნის სიბრძნეს ატარებს.','სატურნის დაბრუნება ~29 წელიწადში ხდება და სიმწიფის ახალ ციკლს იწყებს.','მთვარის კვანძები 18.6 წელიწადში ასრულებენ სრულ ციკლს.','პლუტონი მერწყულში 2024-დან 2044-მდე დარჩება — თაობრივი ტრანსფორმაცია.','ვენერა ციურ სხეულებს შორის ყველაზე სრულყოფილ წრეს ხაზავს — ვარდის ნიმუშს.','ასცენდენტი ყოველ ~2 საათში იცვლება — შენი დაბადების ზუსტი დრო განსაზღვრავს მას.','მერკური წელიწადში 3-4-ჯერ გადადის რეტროგრადულ მოძრაობაში.','ზოდიაქოს 12 ნიშანი 4 ელემენტში იყოფა: ცეცხლი, მიწა, ჰაერი და წყალი.','მზის ნიშანი მხოლოდ ერთი ნაწილია რუკის — მთვარე და ასცენდენტი ერთნაირად მნიშვნელოვანია.','იუპიტერი თითოეულ ნიშანში დაახლოებით ერთ წელიწადს ატარებს.','მთვარის ფაზები 29.5 დღიან ციკლს ქმნიან — ახალი მთვარიდან სავსემდე.','ჩრდილის და თეთრი მთვარის კვანძები ყოველთვის ერთმანეთის ზუსტ საპირისპიროდ დგანან.','მარსი დაახლოებით 2 წელიწადში ერთხელ უბრუნდება რეტროგრადს.','სახლების სისტემა ცის 12 სექტორად ყოფს — თითოეული ცხოვრების სფეროს წარმოადგენს.','ურანი თითოეულ ნიშანში დაახლოებით 7 წელს რჩება.','ნეპტუნი ერთ ნიშანში დაახლოებით 14 წელიწადს ატარებს — თაობრივი გავლენა.'],
-  en: ['Pisces is the last sign of the zodiac — it carries the wisdom of all preceding signs.','Saturn return happens every ~29 years and begins a new cycle of maturity.','The lunar nodes complete a full cycle in 18.6 years.','Pluto stays in Aquarius from 2024 to 2044 — a generational transformation.','Venus traces the most perfect circle among celestial bodies — the rose pattern.','The ascendant changes roughly every 2 hours — your exact birth time determines it.','Mercury goes retrograde 3-4 times a year.','The 12 zodiac signs are divided into 4 elements: fire, earth, air, and water.','Your Sun sign is only one part of the chart — Moon and Ascendant matter just as much.','Jupiter spends about one year in each sign.',"The Moon's phases form a 29.5-day cycle — from new moon to full moon.",'The North and South Nodes always sit in exact opposition to each other.','Mars goes retrograde roughly once every two years.','The house system divides the sky into 12 sectors — each representing a different area of life.','Uranus stays in each sign for about 7 years.','Neptune spends about 14 years in each sign — a generational influence.']
-};
-var _loadingTitles = { ka: 'ვარსკვლავები ლაპარაკობენ…', en: 'The stars are speaking…' };
-var _loadingFactLabels = { ka: '✦ იცოდი?', en: '✦ Did you know?' };
-
-// Section picker labels for free tier
-var _sectionPickerLabels = {
-  ka: { title: 'აირჩიე შენი ბონუს თავი', subtitle: 'უფასო ანგარიშზე მიმოხილვისა და მისიის გარდა, ერთ დამატებით თავს იღებ საჩუქრად' },
-  en: { title: 'Choose your bonus chapter', subtitle: 'On a free account, besides Overview and Mission, you get one extra chapter as a gift' }
-};
-var _sectionPickerSections = {
-  ka: { characteristics: 'მახასიათებლები', relationships: 'ურთიერთობები', work: 'საქმე', shadow: 'ჩრდილი', spiritual: 'სამშვინველი', potential: 'სრულყოფილება' },
-  en: { characteristics: 'Characteristics', relationships: 'Relationships', work: 'Work', shadow: 'Shadow', spiritual: 'Spiritual', potential: 'Potential' }
-};
-var _sectionPickerIcons = { characteristics: 'gl-facet', relationships: 'gl-venus', work: 'gl-laurel', shadow: 'gl-moon', spiritual: 'gl-lotus', potential: 'gl-radiant' };
-var _selectedFreePick = 'shadow'; // default
-
-function startLoading(lang, durationMs) {
-  // Guard against duplicate calls (e.g. React Strict Mode double-invoking the
-  // /loading page's effect in dev). Without this, a second call's tickInt/
-  // zInt/factInt overwrite window.finishLoading's closure but the first
-  // call's intervals keep running uncleared — two out-of-phase fact-rotation
-  // timers, which shows up as the fun-fact box jumping again a second later.
-  if (window._stopLoadingIntervals) window._stopLoadingIntervals();
-
-  _loadingLang = lang || 'ka';
-  var loadMsgs = _loadingMsgs[_loadingLang] || _loadingMsgs.ka;
-  var funFacts = _loadingFunFacts[_loadingLang] || _loadingFunFacts.ka;
-
-  // If the app is doing real server-side generation, keep the loading overlay
-  // active until `window.finishLoading()` is called by the React layer.
-  const liveMode = !!window.__ASTROLO_LIVE_LOADING;
-  authStep = 3; updateAuthStepUI();
-  document.getElementById('authWrap').style.display = 'none';
-  const overlay = document.getElementById('loadingScreen');
-  overlay.classList.add('active');
-
-  // Set language-aware static text
-  var titleEl = document.querySelector('.loading-title');
-  if (titleEl) titleEl.textContent = _loadingTitles[_loadingLang] || _loadingTitles.ka;
-  var factLabel = document.querySelector('.fun-fact-label');
-  if (factLabel) factLabel.textContent = _loadingFactLabels[_loadingLang] || _loadingFactLabels.ka;
-
-  // Section picker removed
-
-  // Constellation particles
-  const con = document.getElementById('constellation'); con.innerHTML = '';
-  for (let i = 0; i < 30; i++) {
-    const d = document.createElement('div'); d.className = 'c-dot';
-    d.style.left = Math.random() * 100 + '%'; d.style.top = (80 + Math.random() * 40) + '%';
-    d.style.setProperty('--dur', (6 + Math.random() * 10) + 's');
-    d.style.animationDelay = Math.random() * 8 + 's'; con.appendChild(d);
+// ═══ LOADING SCREEN (lazy: runtime-loading.js) ═══
+// The whole loading screen lives in /runtime-loading.js. The /loading route
+// references that file directly (instead of this one); in the full app the
+// only caller is goAuthStep(3)'s demo path, which goes through this stub.
+(function() {
+  function stub() {
+    var args = arguments;
+    _loadChunk('runtime-loading').then(function() {
+      if (window.startLoading !== stub) window.startLoading.apply(null, args);
+      else console.error('[runtime] runtime-loading loaded but did not define startLoading');
+    }).catch(function(e) { console.error(e); });
   }
-
-  // Background star field (parallax target)
-  const csEl = document.getElementById('cosmicStars');
-  if (csEl) {
-    csEl.innerHTML = '';
-    for (let i = 0; i < 90; i++) {
-      const s = document.createElement('div'); s.className = 'cs-star';
-      s.style.left = Math.random() * 100 + '%';
-      s.style.top = Math.random() * 100 + '%';
-      s.style.setProperty('--sz', (Math.random() * 1.6 + 0.8).toFixed(2) + 'px');
-      s.style.setProperty('--gl', (3 + Math.random() * 6).toFixed(1) + 'px');
-      s.style.setProperty('--tdur', (4 + Math.random() * 6).toFixed(1) + 's');
-      s.style.setProperty('--td', (Math.random() * 5).toFixed(1) + 's');
-      s.style.setProperty('--td2', (Math.random() * 1.2).toFixed(2) + 's');
-      // Tag ~45% of stars with motion-trail. Trail shape reflects actual
-      // motion path (stride 1 = every frame back, no gaps to read as dots).
-      // Each star picks one of three groups (fast/med/slow) for tail length,
-      // and --trail-mult varies brightness so the field isn't uniform.
-      //
-      // --depth ties parallax magnitude to trail feedback: a star that leaves
-      // a strong trail also moves more (foreground), a star that leaves a
-      // faint trail moves less (mid-ground), and untagged stars stay nearly
-      // static (deep background). The container itself no longer translates;
-      // CSS multiplies --csx/--csy by --depth per-star.
-      if (Math.random() < 0.45) {
-        s.classList.add('cs-trail');
-        var r = Math.random();
-        s.classList.add(r < 0.4 ? 'tg-fast' : r < 0.75 ? 'tg-med' : 'tg-slow');
-        var mult = 0.55 + Math.random() * 0.85;
-        s.style.setProperty('--trail-mult', mult.toFixed(2));
-        s.style.setProperty('--depth', mult.toFixed(2));
-      } else {
-        // Background stars: tiny parallax so the depth pillow feels real
-        // but they don't compete with the trail stars for attention.
-        s.style.setProperty('--depth', (Math.random() * 0.25).toFixed(2));
-      }
-      csEl.appendChild(s);
-    }
-  }
-  // Zodiac ring — SVG glyphs
-  const signIds = ['gl-aries','gl-taurus','gl-gemini','gl-cancer','gl-leo','gl-virgo','gl-libra','gl-scorpio','gl-sagittarius','gl-capricorn','gl-aquarius','gl-pisces'];
-  const ring = document.getElementById('zodiacRing'); ring.innerHTML = '';
-  signIds.forEach((id, i) => {
-    const el = document.createElement('div'); el.className = 'z-sign';
-    el.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><use href="#' + id + '"/></svg>';
-    const angle = (i / 12) * 360; const r = 138;
-    el.style.left = (r + r * Math.cos((angle - 90) * Math.PI / 180)) + 'px';
-    el.style.top = (r + r * Math.sin((angle - 90) * Math.PI / 180)) + 'px';
-    el.style.transform = 'translate(-50%,-50%)'; ring.appendChild(el);
-  });
-  const zSigns = ring.querySelectorAll('.z-sign'); let zIdx = 0;
-  const zInt = setInterval(() => { zSigns.forEach(z => z.classList.remove('lit')); if (zIdx < zSigns.length) { zSigns[zIdx].classList.add('lit'); zIdx++; } else zIdx = 0; }, 800);
-
-  // Messages + progress bar — caller can pass explicit duration; defaults to 20s live / 252s demo
-  const TOTAL_DURATION = durationMs || (liveMode ? 20000 : 252000);
-  const MSG_INTERVAL = TOTAL_DURATION / loadMsgs.length;
-  const msgEl = document.getElementById('loadingMsg');
-  const fillEl = document.getElementById('loadingFill');
-  const startTime = Date.now();
-  let lastMsgIdx = -1;
-
-  document.getElementById('funFactText').textContent = funFacts[Math.floor(Math.random() * funFacts.length)];
-  const factInt = setInterval(() => {
-    const ff = document.getElementById('funFact'); ff.style.opacity = '0';
-    setTimeout(() => { document.getElementById('funFactText').textContent = funFacts[Math.floor(Math.random() * funFacts.length)]; ff.style.opacity = '1'; }, 400);
-  }, 8000);
-
-  function tick() {
-    var elapsed = Date.now() - startTime;
-    var pct = Math.min(100, elapsed / TOTAL_DURATION * 100);
-    fillEl.style.width = pct + '%';
-
-    // Advance message based on elapsed time
-    var targetIdx = Math.min(loadMsgs.length - 1, Math.floor(elapsed / MSG_INTERVAL));
-    if (liveMode && elapsed > TOTAL_DURATION) {
-      // In live mode, loop messages after full duration
-      targetIdx = Math.floor((elapsed % TOTAL_DURATION) / MSG_INTERVAL);
-      targetIdx = Math.min(loadMsgs.length - 1, targetIdx);
-    }
-    if (targetIdx !== lastMsgIdx) {
-      lastMsgIdx = targetIdx;
-      msgEl.style.opacity = '0';
-      setTimeout(function() { msgEl.textContent = loadMsgs[targetIdx]; msgEl.style.opacity = '1'; }, 300);
-    }
-
-    if (!liveMode && elapsed >= TOTAL_DURATION) {
-      clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
-      window._stopLoadingIntervals = null;
-      stopParallax();
-      setTimeout(() => {
-        overlay.style.opacity = '0';
-        setTimeout(() => {
-          overlay.classList.remove('active'); overlay.style.opacity = '';
-          document.getElementById('authWrap').style.display = 'flex';
-          switchView('natal', document.getElementById('devNatal'));
-          goAuthStep(1); showAuthPage('page-login');
-        }, 600);
-      }, 1500);
-    }
-  }
-  tick();
-  const tickInt = setInterval(tick, 1000);
-  window._stopLoadingIntervals = function() {
-    clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
-  };
-
-  // Parallax: stars shift opposite to cursor / device tilt, eased via rAF.
-  // Mouse drives desktop; deviceorientation drives mobile gyro.
-  const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let pxT = 0, pyT = 0, pxC = 0, pyC = 0, prRaf = 0;
-  // Particle trail state — push container offset every frame into a 60-deep
-  // ring buffer of past positions, then expose t1..t56 vars (delta from
-  // current to that-many-frames-ago) every frame. Each star's CSS chooses
-  // a *subset* of those vars to render as box-shadow ghosts; that subset
-  // determines whether the star reads as a snappy short streak, a medium
-  // tail, or a long lingering plume — giving the field per-star fluidity
-  // variety without anyone star losing the dynamic curving behaviour.
-  var trailHist = []; var BUF_MAX = 60;
-  // We sample every frame and write through t20 — that's the deepest index
-  // the slowest trail group reads (~333ms back, stride 1 throughout). Dense
-  // sampling with no gaps is what makes the trail read as a continuous
-  // streak instead of a dot pattern.
-  var WRITE_MAX = 20;
-  var mmag = 0;
-  // Smoothed velocity source — faster low-pass (0.5) so quick wiggles still
-  // register as motion. Final mmag has its own ease layer for extra smoothness.
-  var sVx = 0, sVy = 0, prevX = 0, prevY = 0;
-  var PARALLAX_RANGE = 24;
-  function applyParallax() {
-    pxC += (pxT - pxC) * 0.08;
-    pyC += (pyT - pyC) * 0.08;
-    if (csEl) {
-      var curX = -pxC * PARALLAX_RANGE, curY = -pyC * PARALLAX_RANGE;
-      csEl.style.setProperty('--csx', curX.toFixed(2) + 'px');
-      csEl.style.setProperty('--csy', curY.toFixed(2) + 'px');
-      trailHist.unshift({ x: curX, y: curY });
-      if (trailHist.length > BUF_MAX) trailHist.pop();
-      for (var i = 1; i <= WRITE_MAX; i++) {
-        var p = trailHist[i] || trailHist[trailHist.length - 1];
-        if (p) {
-          csEl.style.setProperty('--t' + i + 'x', (p.x - curX).toFixed(1) + 'px');
-          csEl.style.setProperty('--t' + i + 'y', (p.y - curY).toFixed(1) + 'px');
-        }
-      }
-      var rawVx = curX - prevX, rawVy = curY - prevY;
-      sVx += (rawVx - sVx) * 0.5; sVy += (rawVy - sVy) * 0.5;
-      var d = Math.sqrt(sVx * sVx + sVy * sVy);
-      var target = 1 - Math.exp(-d * 0.55);
-      mmag += (target - mmag) * (target > mmag ? 0.32 : 0.05);
-      csEl.style.setProperty('--mmag', mmag.toFixed(3));
-      prevX = curX; prevY = curY;
-    }
-    if (Math.abs(pxT - pxC) > 0.001 || Math.abs(pyT - pyC) > 0.001 || mmag > 0.005) {
-      prRaf = requestAnimationFrame(applyParallax);
-    } else { prRaf = 0; }
-  }
-  function schedulePr() { if (!prRaf) prRaf = requestAnimationFrame(applyParallax); }
-  function onPrMouse(e) {
-    if (prefersReducedMotion) return;
-    // Negated vs the gyro path: stars should follow the cursor on desktop
-    // (cursor right → stars shift right), not parallax-shift opposite.
-    // The gyro handler keeps the natural "head-fixed, world tilts" feel.
-    pxT = -((e.clientX / window.innerWidth) * 2 - 1);
-    pyT = -((e.clientY / window.innerHeight) * 2 - 1);
-    schedulePr();
-  }
-  function onPrTilt(e) {
-    if (prefersReducedMotion) return;
-    const g = e.gamma == null ? 0 : Math.max(-25, Math.min(25, e.gamma)) / 25;
-    const b = e.beta == null ? 0 : Math.max(-25, Math.min(25, e.beta - 20)) / 25;
-    pxT = g; pyT = b;
-    schedulePr();
-  }
-  function stopParallax() {
-    if (prRaf) cancelAnimationFrame(prRaf);
-    prRaf = 0;
-    overlay.removeEventListener('mousemove', onPrMouse);
-    // Match both phases — we attach with `true` (capture) after iOS permission
-    // grant, and without it on Android/desktop fallback path.
-    window.removeEventListener('deviceorientation', onPrTilt, true);
-    window.removeEventListener('deviceorientation', onPrTilt);
-  }
-  if (!prefersReducedMotion) {
-    overlay.addEventListener('mousemove', onPrMouse);
-    // iOS 13+ gates deviceorientation behind a permission prompt triggered by
-    // a user gesture — and only attaches AFTER the prompt resolves. Attaching
-    // before grant (the previous bug) means the listener silently never fires.
-    // Android/desktop don't gate, so the orientation listener attaches now.
-    const DOE = window.DeviceOrientationEvent;
-    if (DOE && typeof DOE.requestPermission === 'function') {
-      const askGyro = function() {
-        overlay.removeEventListener('touchstart', askGyro);
-        overlay.removeEventListener('click', askGyro);
-        DOE.requestPermission()
-          .then(function(state) {
-            if (state === 'granted') {
-              window.addEventListener('deviceorientation', onPrTilt, true);
-            }
-          })
-          .catch(function() { /* user denied — no parallax on mobile, still works on desktop */ });
-      };
-      overlay.addEventListener('touchstart', askGyro, { once: true, passive: true });
-      overlay.addEventListener('click', askGyro, { once: true });
-    } else {
-      window.addEventListener('deviceorientation', onPrTilt, true);
-    }
-  }
-
-  // Expose a completion hook for the React layer.
-  window.finishLoading = function finishLoading() {
-    try {
-      clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
-      window._stopLoadingIntervals = null;
-      stopParallax();
-      // Snap progress bar to 100%
-      fillEl.style.width = '100%';
-      overlay.style.opacity = '0';
-      setTimeout(() => {
-        overlay.classList.remove('active'); overlay.style.opacity = '';
-        document.getElementById('authWrap').style.display = 'flex';
-        switchView('natal', document.getElementById('devNatal'));
-      }, 600);
-    } catch (e) {
-      console.error('finishLoading failed', e);
-    } finally {
-      window.__ASTROLO_LIVE_LOADING = false;
-    }
-  };
-}
-
-// Build section picker inside loading overlay
-function _buildSectionPicker(liveMode) {
-  var container = document.getElementById('sectionPicker');
-  if (!container) return;
-  if (!liveMode) { container.style.display = 'none'; return; }
-
-  var lang = _loadingLang;
-  var labels = _sectionPickerLabels[lang] || _sectionPickerLabels.ka;
-  var sections = _sectionPickerSections[lang] || _sectionPickerSections.ka;
-  var keys = ['characteristics','relationships','work','shadow','spiritual','potential'];
-
-  var html = '<div class="sp-title">' + labels.title + '</div>';
-  html += '<div class="sp-subtitle">' + labels.subtitle + '</div>';
-  html += '<div class="sp-options">';
-  keys.forEach(function(key) {
-    var iconId = _sectionPickerIcons[key] || 'gl-sparkle';
-    var isSelected = key === _selectedFreePick;
-    html += '<button class="sp-btn' + (isSelected ? ' selected' : '') + '" data-pick="' + key + '">';
-    html += '<svg class="sp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><use href="#' + iconId + '"/></svg>';
-    html += '<span>' + sections[key] + '</span>';
-    html += '</button>';
-  });
-  html += '</div>';
-  container.innerHTML = html;
-  container.style.display = '';
-
-  // Bind click handlers
-  container.querySelectorAll('.sp-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      _selectedFreePick = btn.getAttribute('data-pick');
-      container.querySelectorAll('.sp-btn').forEach(function(b) { b.classList.remove('selected'); });
-      btn.classList.add('selected');
-    });
-  });
-}
+  window.startLoading = stub;
+})();
 
 // Auth panel mouse glow
 document.addEventListener('mousemove', e => {

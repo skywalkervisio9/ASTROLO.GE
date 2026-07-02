@@ -260,6 +260,17 @@ body.free-tier .nbtn.locked{opacity:.5}
 /* ═══ SECTIONS ═══ */
 section{margin-bottom:80px;opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease;scroll-margin-top:125px}
 section.vis{opacity:1;transform:translateY(0)}
+/* Skip layout/paint for below-fold reading sections until they near the
+   viewport (the browser renders them ~one viewport ahead, before the .vis
+   reveal observer's 10% threshold fires, so the fade-in is unaffected).
+   #s1 is excluded (visible right after the hero at load). `auto` in
+   contain-intrinsic-size keeps the last-rendered height once seen, so
+   go('sN') nav scrolling stays exact on repeat use; 900px is the placeholder
+   estimate for never-rendered sections. */
+@supports (content-visibility: auto) {
+  #view-natal section:not(#s1),
+  #view-natal .lock-wrap{content-visibility:auto;contain-intrinsic-size:auto 900px}
+}
 .sh{text-align:center;margin-bottom:32px}
 .sh .section-icon{width:48px;height:48px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
 .sh .section-icon svg{width:30px;height:30px;color:var(--gold)}

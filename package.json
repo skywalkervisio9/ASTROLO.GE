@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:auth": "tsx --test tests/auth/*.test.ts",
-    "test:generation": "tsx --test tests/generation/*.test.ts"
+    "test:generation": "tsx --test tests/generation/*.test.ts",
+    "prebuild": "node scripts/build-runtime.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
@@ -24,6 +25,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tsx": "^4.21.0",
