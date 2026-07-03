@@ -82,43 +82,89 @@ function startLoading(lang, durationMs) {
     d.style.animationDelay = Math.random() * 8 + 's'; con.appendChild(d);
   }
 
-  // Background star field (parallax target)
-  const csEl = document.getElementById('cosmicStars');
+  // Background star field — rendered on ONE <canvas> instead of ~90
+  // box-shadow-trailed DOM nodes. The old approach repainted every trail
+  // star's 10-20-layer box-shadow on each mousemove frame (measured
+  // 137→48 fps on desktop, while mobile — no mouse, gyro rarely granted —
+  // never paid it and stayed smooth). Canvas does one composited paint per
+  // frame regardless of star count, so desktop matches mobile.
+  var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var csEl = document.getElementById('cosmicStars');
+  var csCanvas = null, csCtx = null, csW = 0, csH = 0, csStars = [];
+  var haloSprite = null, ghostSprite = null;
+  // Desktop's wider canvas makes the same trail strength read as busy — halve
+  // it there (mirrors the old @media(min-width:768px){--mmag-scale:0.55}).
+  var mmagScale = (window.innerWidth >= 768) ? 0.55 : 1.0;
+  var resizeCsCanvas = null;
+  // Per-layer alpha falloff for the three trail groups — copied verbatim from
+  // the old box-shadow ghost stacks (globals.css .cs-trail.tg-*) so the trail
+  // reads identically. Length = ghost count. A matching radius grows so early
+  // ghosts are tight and crisp, later ones softer — mirroring the old
+  // blur/spread ramp.
+  var TRAIL_FAST = [0.72, 0.63, 0.55, 0.46, 0.38, 0.30, 0.22, 0.14, 0.08, 0.04];
+  var TRAIL_MED = [0.68, 0.60, 0.53, 0.47, 0.41, 0.35, 0.30, 0.25, 0.20, 0.16, 0.12, 0.09, 0.06, 0.03];
+  var TRAIL_SLOW = [0.60, 0.54, 0.48, 0.43, 0.38, 0.34, 0.30, 0.27, 0.24, 0.21, 0.18, 0.15, 0.13, 0.11, 0.09, 0.07, 0.05, 0.04, 0.03, 0.02];
+
+  // Build a soft radial sprite (white core → transparent) at a given tint.
+  // Blitting a cached sprite with a per-use alpha is far cheaper than a live
+  // gradient or shadow per star/ghost, and reproduces the box-shadow softness.
+  function makeGlowSprite(r, g, b) {
+    var S = 48, c = document.createElement('canvas');
+    c.width = S; c.height = S;
+    var gx = c.getContext('2d');
+    var grd = gx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    grd.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',1)');
+    grd.addColorStop(0.4, 'rgba(' + r + ',' + g + ',' + b + ',0.5)');
+    grd.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+    gx.fillStyle = grd; gx.fillRect(0, 0, S, S);
+    return c;
+  }
+
   if (csEl) {
     csEl.innerHTML = '';
-    for (let i = 0; i < 90; i++) {
-      const s = document.createElement('div'); s.className = 'cs-star';
-      s.style.left = Math.random() * 100 + '%';
-      s.style.top = Math.random() * 100 + '%';
-      s.style.setProperty('--sz', (Math.random() * 1.6 + 0.8).toFixed(2) + 'px');
-      s.style.setProperty('--gl', (3 + Math.random() * 6).toFixed(1) + 'px');
-      s.style.setProperty('--tdur', (4 + Math.random() * 6).toFixed(1) + 's');
-      s.style.setProperty('--td', (Math.random() * 5).toFixed(1) + 's');
-      s.style.setProperty('--td2', (Math.random() * 1.2).toFixed(2) + 's');
-      // Tag ~45% of stars with motion-trail. Trail shape reflects actual
-      // motion path (stride 1 = every frame back, no gaps to read as dots).
-      // Each star picks one of three groups (fast/med/slow) for tail length,
-      // and --trail-mult varies brightness so the field isn't uniform.
-      //
-      // --depth ties parallax magnitude to trail feedback: a star that leaves
-      // a strong trail also moves more (foreground), a star that leaves a
-      // faint trail moves less (mid-ground), and untagged stars stay nearly
-      // static (deep background). The container itself no longer translates;
-      // CSS multiplies --csx/--csy by --depth per-star.
-      if (Math.random() < 0.3) {
-        s.classList.add('cs-trail');
+    csCanvas = document.createElement('canvas');
+    csCanvas.style.cssText = 'width:100%;height:100%;display:block';
+    csEl.appendChild(csCanvas);
+    csCtx = csCanvas.getContext('2d');
+
+    haloSprite = makeGlowSprite(228, 212, 170);  // star glow (0 0 gl rgba(228,212,170,.28))
+    ghostSprite = makeGlowSprite(245, 235, 210); // trail ghosts (rgb(245 235 210))
+
+    for (var i = 0; i < 90; i++) {
+      // ~30% tagged as trail stars. `depth` ties parallax magnitude to trail
+      // feedback: strong-trail stars move more (foreground), untagged ones
+      // barely move (deep background). group picks the ghost falloff table.
+      var isTrail = Math.random() < 0.3;
+      var trailMult = 1, depth, group = null;
+      if (isTrail) {
         var r = Math.random();
-        s.classList.add(r < 0.4 ? 'tg-fast' : r < 0.75 ? 'tg-med' : 'tg-slow');
-        var mult = 0.55 + Math.random() * 0.85;
-        s.style.setProperty('--trail-mult', mult.toFixed(2));
-        s.style.setProperty('--depth', mult.toFixed(2));
+        group = r < 0.4 ? TRAIL_FAST : r < 0.75 ? TRAIL_MED : TRAIL_SLOW;
+        trailMult = 0.55 + Math.random() * 0.85;
+        depth = trailMult;
       } else {
-        // Background stars: tiny parallax so the depth pillow feels real
-        // but they don't compete with the trail stars for attention.
-        s.style.setProperty('--depth', (Math.random() * 0.25).toFixed(2));
+        depth = Math.random() * 0.25;
       }
-      csEl.appendChild(s);
+      csStars.push({
+        bx: Math.random(), by: Math.random(),
+        core: Math.random() * 1.6 + 0.8,   // --sz : crisp dot diameter (px)
+        glow: 3 + Math.random() * 6,       // --gl : glow blur radius (px)
+        depth: depth,
+        trail: isTrail, trailMult: trailMult, group: group,
+        // csTw twinkle: 0→.65→.65→0 over --tdur, ease-in-out, alternate.
+        twDur: (4 + Math.random() * 6) * 1000,
+        twDelay: Math.random() * 5000,
+      });
     }
+
+    resizeCsCanvas = function() {
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      csW = csEl.clientWidth; csH = csEl.clientHeight;
+      csCanvas.width = Math.max(1, Math.round(csW * dpr));
+      csCanvas.height = Math.max(1, Math.round(csH * dpr));
+      csCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resizeCsCanvas();
+    window.addEventListener('resize', resizeCsCanvas);
   }
   // Zodiac ring — SVG glyphs
   const signIds = ['gl-aries','gl-taurus','gl-gemini','gl-cancer','gl-leo','gl-virgo','gl-libra','gl-scorpio','gl-sagittarius','gl-capricorn','gl-aquarius','gl-pisces'];
@@ -142,10 +188,25 @@ function startLoading(lang, durationMs) {
   const startTime = Date.now();
   let lastMsgIdx = -1;
 
-  document.getElementById('funFactText').textContent = funFacts[Math.floor(Math.random() * funFacts.length)];
+  // Fun-fact rotation. The swap is a soft crossfade: the outgoing line eases
+  // down + blurs out, the text is replaced while invisible, then the new line
+  // rises into place (see `.fun-fact p` / `.swapping` in globals.css). The
+  // <p> carries a reserved min-height so a longer/shorter fact no longer
+  // reflows the box — that vertical pop was the "jump" that felt rough.
+  let factIdx = Math.floor(Math.random() * funFacts.length);
+  document.getElementById('funFactText').textContent = funFacts[factIdx];
   const factInt = setInterval(() => {
-    const ff = document.getElementById('funFact'); ff.style.opacity = '0';
-    setTimeout(() => { document.getElementById('funFactText').textContent = funFacts[Math.floor(Math.random() * funFacts.length)]; ff.style.opacity = '1'; }, 400);
+    const ft = document.getElementById('funFactText');
+    if (!ft) return;
+    ft.classList.add('swapping');
+    setTimeout(() => {
+      // Advance to a *different* fact so the fade always reveals a change.
+      let next = factIdx;
+      if (funFacts.length > 1) { while (next === factIdx) next = Math.floor(Math.random() * funFacts.length); }
+      factIdx = next;
+      ft.textContent = funFacts[factIdx];
+      ft.classList.remove('swapping');
+    }, 460);
   }, 8000);
 
   function tick() {
@@ -190,90 +251,122 @@ function startLoading(lang, durationMs) {
     clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
   };
 
-  // Parallax: stars shift opposite to cursor / device tilt, eased via rAF.
-  // Mouse drives desktop; deviceorientation drives mobile gyro.
-  const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Parallax + twinkle. Cursor / gyro sets a target offset; each star eases
+  // toward it (scaled by its --depth) and twinkles continuously. Motion
+  // magnitude (mmag) fades the trail streaks in only while moving. Everything
+  // is drawn to the canvas — one composited paint per frame — so this loop
+  // costs the same on desktop as it does on mobile.
   let pxT = 0, pyT = 0, pxC = 0, pyC = 0, prRaf = 0;
-  // Particle trail state — push container offset every frame into a 60-deep
-  // ring buffer of past positions, then expose t1..t56 vars (delta from
-  // current to that-many-frames-ago) every frame. Each star's CSS chooses
-  // a *subset* of those vars to render as box-shadow ghosts; that subset
-  // determines whether the star reads as a snappy short streak, a medium
-  // tail, or a long lingering plume — giving the field per-star fluidity
-  // variety without anyone star losing the dynamic curving behaviour.
   var trailHist = []; var BUF_MAX = 60;
-  // We sample every frame and write through t20 — that's the deepest index
-  // the slowest trail group reads (~333ms back, stride 1 throughout). Dense
-  // sampling with no gaps is what makes the trail read as a continuous
-  // streak instead of a dot pattern.
-  var WRITE_MAX = 20;
-  var mmag = 0;
-  // Smoothed velocity source — faster low-pass (0.5) so quick wiggles still
-  // register as motion. Final mmag has its own ease layer for extra smoothness.
-  var sVx = 0, sVy = 0, prevX = 0, prevY = 0;
+  var mmag = 0, sVx = 0, sVy = 0, prevX = 0, prevY = 0;
   var PARALLAX_RANGE = 24;
-  // The trail box-shadows are the expensive part of this screen: every --tN
-  // write invalidates style on every trail star, and each star repaints a
-  // 10-20-layer shadow (measured: 137→48 fps during mouse sweeps). The star
-  // POSITIONS (--csx/--csy, transform-only → composited) stay at full frame
-  // rate; the trail vars are written every 2nd frame, and not at all while
-  // the trails are invisible anyway (shadow opacity ∝ --mmag).
-  var trailFrame = 0, trailCleared = true;
+  var csAnimating = false;
+
+  // csTw twinkle reproduced exactly: keyframes 0→.65 (0-20%), hold .65
+  // (20-80%), .65→0 (80-100%), ease-in-out, `alternate` (so the timeline
+  // reflects every --tdur, full period 2·tdur). Peak opacity 0.65.
+  function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+  function twinkle(now, dur, delay) {
+    var u = (now + delay) / dur;          // cycles of length `dur`
+    var f = u - Math.floor(u / 2) * 2;    // 0..2
+    if (f > 1) f = 2 - f;                 // `alternate` fold → 0..1 triangle
+    if (f < 0.2) return 0.65 * easeInOut(f / 0.2);
+    if (f > 0.8) return 0.65 * easeInOut((1 - f) / 0.2);
+    return 0.65;
+  }
+
+  function renderStars(offX, offY, motion) {
+    if (!csCtx) return;
+    var now = (window.performance && performance.now) ? performance.now() : Date.now();
+    csCtx.clearRect(0, 0, csW, csH);
+
+    // Motion-feedback trails — dense ghost copies of each tagged star at the
+    // container's recent past offsets (base + pastOffset·depth), one per frame
+    // back (stride 1). Per-ghost alpha = mmag · mmag-scale · trail-mult · the
+    // group's falloff table; ghost radius grows so the tail softens. This is
+    // the box-shadow ghost stack from globals.css, drawn on canvas.
+    if (motion > 0.008) {
+      for (var i = 0; i < csStars.length; i++) {
+        var st = csStars[i];
+        if (!st.trail) continue;
+        var g = st.group, len = g.length;
+        var dep = st.depth, bx = st.bx * csW, by = st.by * csH;
+        var base = motion * mmagScale * st.trailMult;
+        for (var k = 1; k <= len; k++) {
+          var a = base * g[k - 1];
+          if (a <= 0.004) continue;
+          var p = trailHist[k] || trailHist[trailHist.length - 1];
+          if (!p) break;
+          // radius 0.9 → ~3.4px along the tail (mirrors the blur/spread ramp).
+          var rad = 0.9 + (k - 1) / len * 2.5;
+          csCtx.globalAlpha = a;
+          csCtx.drawImage(ghostSprite, bx + p.x * dep - rad, by + p.y * dep - rad, rad * 2, rad * 2);
+        }
+      }
+    }
+
+    // Stars: faint warm halo (0 0 gl rgba(228,212,170,.28)) + crisp core dot
+    // (rgba(245,235,210,.85), diameter --sz). Both scaled by the twinkle.
+    for (var j = 0; j < csStars.length; j++) {
+      var s = csStars[j];
+      var tw = twinkle(now, s.twDur, s.twDelay);
+      if (tw <= 0.002) continue;
+      var dx = s.bx * csW + offX * s.depth;
+      var dy = s.by * csH + offY * s.depth;
+      // Halo: a blurred box-shadow spreads its .28 source into a much fainter
+      // glow than a filled sprite would, so we draw the sprite at a lower alpha
+      // and slightly tighter radius to match that softness.
+      var hr = s.core / 2 + s.glow * 0.85;
+      csCtx.globalAlpha = 0.15 * tw;
+      csCtx.drawImage(haloSprite, dx - hr, dy - hr, hr * 2, hr * 2);
+      // Crisp core.
+      csCtx.globalAlpha = 0.85 * tw;
+      csCtx.fillStyle = 'rgb(245,235,210)';
+      csCtx.beginPath();
+      csCtx.arc(dx, dy, s.core / 2, 0, 6.2832);
+      csCtx.fill();
+    }
+    csCtx.globalAlpha = 1;
+  }
+
   function applyParallax() {
     pxC += (pxT - pxC) * 0.08;
     pyC += (pyT - pyC) * 0.08;
-    if (csEl) {
-      var curX = -pxC * PARALLAX_RANGE, curY = -pyC * PARALLAX_RANGE;
-      csEl.style.setProperty('--csx', curX.toFixed(2) + 'px');
-      csEl.style.setProperty('--csy', curY.toFixed(2) + 'px');
-      trailHist.unshift({ x: curX, y: curY });
-      if (trailHist.length > BUF_MAX) trailHist.pop();
-      var rawVx = curX - prevX, rawVy = curY - prevY;
-      sVx += (rawVx - sVx) * 0.5; sVy += (rawVy - sVy) * 0.5;
-      var d = Math.sqrt(sVx * sVx + sVy * sVy);
-      var target = 1 - Math.exp(-d * 0.55);
-      mmag += (target - mmag) * (target > mmag ? 0.32 : 0.05);
-      prevX = curX; prevY = curY;
-      trailFrame ^= 1;
-      if (mmag >= 0.01) {
-        trailCleared = false;
-        if (trailFrame) {
-          for (var i = 1; i <= WRITE_MAX; i++) {
-            var p = trailHist[i] || trailHist[trailHist.length - 1];
-            if (p) {
-              csEl.style.setProperty('--t' + i + 'x', (p.x - curX).toFixed(1) + 'px');
-              csEl.style.setProperty('--t' + i + 'y', (p.y - curY).toFixed(1) + 'px');
-            }
-          }
-          csEl.style.setProperty('--mmag', mmag.toFixed(3));
-        }
-      } else if (!trailCleared) {
-        csEl.style.setProperty('--mmag', '0');
-        trailCleared = true;
-      }
-    }
-    if (Math.abs(pxT - pxC) > 0.001 || Math.abs(pyT - pyC) > 0.001 || mmag > 0.005) {
-      prRaf = requestAnimationFrame(applyParallax);
-    } else { prRaf = 0; }
+    var curX = -pxC * PARALLAX_RANGE, curY = -pyC * PARALLAX_RANGE;
+    trailHist.unshift({ x: curX, y: curY });
+    if (trailHist.length > BUF_MAX) trailHist.pop();
+    var rawVx = curX - prevX, rawVy = curY - prevY;
+    sVx += (rawVx - sVx) * 0.5; sVy += (rawVy - sVy) * 0.5;
+    var d = Math.sqrt(sVx * sVx + sVy * sVy);
+    var target = 1 - Math.exp(-d * 0.55);
+    mmag += (target - mmag) * (target > mmag ? 0.32 : 0.05);
+    prevX = curX; prevY = curY;
+    renderStars(curX, curY, mmag);
+    // Twinkle needs a continuous loop (unlike the old CSS-animated twinkle),
+    // so keep rendering while the loader is active. rAF self-throttles when the
+    // tab is hidden.
+    prRaf = csAnimating ? requestAnimationFrame(applyParallax) : 0;
   }
-  function schedulePr() { if (!prRaf) prRaf = requestAnimationFrame(applyParallax); }
+  function startStarLoop() {
+    if (csAnimating || !csCtx) return;
+    csAnimating = true;
+    prRaf = requestAnimationFrame(applyParallax);
+  }
   function onPrMouse(e) {
     if (prefersReducedMotion) return;
-    // Negated vs the gyro path: stars should follow the cursor on desktop
-    // (cursor right → stars shift right), not parallax-shift opposite.
-    // The gyro handler keeps the natural "head-fixed, world tilts" feel.
+    // Negated so stars follow the cursor on desktop (cursor right → stars shift
+    // right); the gyro path keeps the natural "head-fixed, world tilts" feel.
     pxT = -((e.clientX / window.innerWidth) * 2 - 1);
     pyT = -((e.clientY / window.innerHeight) * 2 - 1);
-    schedulePr();
   }
   function onPrTilt(e) {
     if (prefersReducedMotion) return;
-    const g = e.gamma == null ? 0 : Math.max(-25, Math.min(25, e.gamma)) / 25;
-    const b = e.beta == null ? 0 : Math.max(-25, Math.min(25, e.beta - 20)) / 25;
+    var g = e.gamma == null ? 0 : Math.max(-25, Math.min(25, e.gamma)) / 25;
+    var b = e.beta == null ? 0 : Math.max(-25, Math.min(25, e.beta - 20)) / 25;
     pxT = g; pyT = b;
-    schedulePr();
   }
   function stopParallax() {
+    csAnimating = false;
     if (prRaf) cancelAnimationFrame(prRaf);
     prRaf = 0;
     overlay.removeEventListener('mousemove', onPrMouse);
@@ -281,18 +374,22 @@ function startLoading(lang, durationMs) {
     // grant, and without it on Android/desktop fallback path.
     window.removeEventListener('deviceorientation', onPrTilt, true);
     window.removeEventListener('deviceorientation', onPrTilt);
+    if (resizeCsCanvas) window.removeEventListener('resize', resizeCsCanvas);
     if (window._stopLoadingParallax === stopParallax) window._stopLoadingParallax = null;
   }
   window._stopLoadingParallax = stopParallax;
-  if (!prefersReducedMotion) {
+  if (prefersReducedMotion) {
+    // Static field: paint once, no loop, no input listeners.
+    renderStars(0, 0, 0);
+  } else {
     overlay.addEventListener('mousemove', onPrMouse);
     // iOS 13+ gates deviceorientation behind a permission prompt triggered by
     // a user gesture — and only attaches AFTER the prompt resolves. Attaching
     // before grant (the previous bug) means the listener silently never fires.
     // Android/desktop don't gate, so the orientation listener attaches now.
-    const DOE = window.DeviceOrientationEvent;
+    var DOE = window.DeviceOrientationEvent;
     if (DOE && typeof DOE.requestPermission === 'function') {
-      const askGyro = function() {
+      var askGyro = function() {
         overlay.removeEventListener('touchstart', askGyro);
         overlay.removeEventListener('click', askGyro);
         DOE.requestPermission()
@@ -308,6 +405,7 @@ function startLoading(lang, durationMs) {
     } else {
       window.addEventListener('deviceorientation', onPrTilt, true);
     }
+    startStarLoop();
   }
 
   // Expose a completion hook for the React layer.

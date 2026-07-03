@@ -340,8 +340,9 @@ export default function SynastryCosmicState({ mode, language, progressLabel, err
     return () => window.clearInterval(id);
   }, [mode, msgs.length]);
 
-  // Rotate fun-facts every 8s with a longer fade — matches the individual
-  // /loading screen's `funFact` cadence so the rhythm feels familiar.
+  // Rotate fun-facts every 8s with a soft crossfade — matches the individual
+  // /loading screen's `funFact` cadence and transition so the rhythm feels
+  // familiar. The fade drifts the line down + blurs it (see .sycos-fact-text).
   useEffect(() => {
     if (mode !== 'generating' && mode !== 'loading') return;
     const id = window.setInterval(() => {
@@ -349,7 +350,7 @@ export default function SynastryCosmicState({ mode, language, progressLabel, err
       window.setTimeout(() => {
         setFactIdx((i) => (i + 1) % facts.length);
         setFactFading(false);
-      }, 400);
+      }, 460);
     }, 8000);
     return () => window.clearInterval(id);
   }, [mode, facts.length]);
@@ -421,9 +422,9 @@ export default function SynastryCosmicState({ mode, language, progressLabel, err
           <>
             <div className={`sycos-msg${fading ? ' fade' : ''}`}>{currentMsg}</div>
             <div className="sycos-progress" aria-hidden />
-            <div className="sycos-fact" style={{ opacity: factFading ? 0 : 1 }}>
+            <div className="sycos-fact">
               <div className="sycos-fact-label">{FACT_LABELS[language]}</div>
-              <div className="sycos-fact-text">{facts[factIdx]}</div>
+              <div className={`sycos-fact-text${factFading ? ' swapping' : ''}`}>{facts[factIdx]}</div>
             </div>
           </>
         )}

@@ -1205,9 +1205,13 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .loading-progress{width:160px;height:2px;background:var(--sf2);border-radius:2px;margin:18px auto 0;overflow:hidden}
 .loading-fill{height:100%;background:linear-gradient(90deg,var(--gd),var(--gold));border-radius:2px;width:0%;transition:width .3s var(--ease)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.fun-fact{max-width:340px;margin:24px auto 0;padding:14px 18px;background:linear-gradient(135deg,rgba(201,168,76,.04),transparent);border:1px solid rgba(201,168,76,.06);border-radius:12px;text-align:center;opacity:0;animation:fadeUp .6s ease .8s forwards;transition:opacity .4s}
+.fun-fact{max-width:340px;margin:24px auto 0;padding:14px 18px;background:linear-gradient(135deg,rgba(201,168,76,.04),transparent);border:1px solid rgba(201,168,76,.06);border-radius:12px;text-align:center;opacity:0;animation:fadeUp .6s ease .8s forwards}
 .fun-fact-label{font-size:.58rem;letter-spacing:.16em;color:var(--gd);margin-bottom:4px}
-.fun-fact p{font-family:var(--fd);font-size:.84rem;font-style:italic;color:var(--silver);line-height:1.7}
+/* min-height reserves ~3 lines so a longer/shorter fact no longer reflows the
+   box (the old vertical pop). The swap eases opacity+translate+blur together:
+   old line drifts down & blurs out, new line rises into place. */
+.fun-fact p{font-family:var(--fd);font-size:.84rem;font-style:italic;color:var(--silver);line-height:1.7;min-height:4.3rem;display:flex;align-items:center;justify-content:center;transition:opacity .5s var(--ease),transform .5s var(--ease),filter .5s var(--ease)}
+.fun-fact p.swapping{opacity:0;transform:translateY(9px);filter:blur(4px)}
 .constellation{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .c-dot{position:absolute;width:3px;height:3px;background:rgba(201,168,76,.15);border-radius:50%;animation:drift var(--dur) linear infinite}
 @keyframes drift{0%{transform:translateY(0) scale(1);opacity:.1}50%{opacity:.4}100%{transform:translateY(-100vh) scale(.5);opacity:0}}
@@ -1692,9 +1696,13 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .sycos-progress::after{content:'';position:absolute;top:0;left:-40%;width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--gold-bright),transparent);animation:sycosSlide 2.4s ease-in-out infinite}
 @keyframes sycosSlide{0%{left:-40%}100%{left:100%}}
 .sycos-note{margin-top:22px;font-size:.7rem;color:var(--txd);opacity:.65;letter-spacing:.05em;animation:fadeUp .8s var(--ease) .25s both}
-.sycos-fact{max-width:340px;margin:26px auto 0;padding:14px 18px;background:linear-gradient(135deg,rgba(201,168,76,.04),transparent);border:1px solid rgba(201,168,76,.06);border-radius:12px;text-align:center;transition:opacity .4s ease;animation:fadeUp .8s var(--ease) .35s both}
+.sycos-fact{max-width:340px;margin:26px auto 0;padding:14px 18px;background:linear-gradient(135deg,rgba(201,168,76,.04),transparent);border:1px solid rgba(201,168,76,.06);border-radius:12px;text-align:center;animation:fadeUp .8s var(--ease) .35s both}
 .sycos-fact-label{font-size:.58rem;letter-spacing:.16em;color:var(--gd);margin-bottom:4px}
-.sycos-fact-text{font-family:var(--fd);font-size:.84rem;font-style:italic;color:var(--silver);line-height:1.7}
+/* Reserved min-height stops the box reflowing between facts of different
+   length; the swap eases opacity+translate+blur so the line drifts down & out,
+   then the new one rises into place (matches the /loading fun-fact). */
+.sycos-fact-text{font-family:var(--fd);font-size:.84rem;font-style:italic;color:var(--silver);line-height:1.7;min-height:4.3rem;display:flex;align-items:center;justify-content:center;transition:opacity .5s var(--ease),transform .5s var(--ease),filter .5s var(--ease)}
+.sycos-fact-text.swapping{opacity:0;transform:translateY(9px);filter:blur(4px)}
 .sycos-err{margin-top:14px;font-size:.82rem;color:#f6a89a;max-width:380px;text-align:center;line-height:1.6}
 @media (max-width:480px){
   .sycos-scene{width:200px;height:200px}

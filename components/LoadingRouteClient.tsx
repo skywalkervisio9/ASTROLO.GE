@@ -170,6 +170,7 @@ export default function LoadingRouteClient() {
 
       // Early exit: already complete. Skipped for fake-full — that mode is
       // explicitly a re-generation and must run regardless of existing rows.
+      let serverGenerating = false;
       if (!isFakeFull) {
         const earlyCheck = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (earlyCheck.ok) {
@@ -184,8 +185,24 @@ export default function LoadingRouteClient() {
             window.location.href = ownerReadingUrl(earlyStatus.shareSlug, Boolean(inviteFromUrl));
             return;
           }
+          // Generation is already in flight (a plain /loading reload, a
+          // cross-device login, or a server run that outlived its tab). The
+          // work is running — we must NOT re-fire it. `isResume` only gets set
+          // when routing THROUGH / or /auth, so a direct reload of /loading
+          // would otherwise fall into the initial-onboarding branch below and
+          // re-generate against the 20s free cap → time out / stuck. Deriving
+          // the watch-only decision from the server state instead of the URL
+          // makes every re-entry converge on: wait for the in-flight run, then
+          // navigate to the reading.
+          if (earlyStatus.status === 'generating') serverGenerating = true;
         }
       }
+
+      // Watch-only: only poll + navigate, never re-fire chart/AI generation.
+      // Explicit (re)generation modes are excluded — they are deliberate user
+      // actions (post-payment full reading, DOB-correction regen) that must run
+      // even when a partial row already exists.
+      const watchOnly = isResume || (serverGenerating && !isGenerateFull && !isRegenerate);
 
       // ── DEV CALL1 PREMIUM: real Call 1 + cloned Call 2 (no Call 2 spend) ──
       // Single round-trip — await the response and redirect with the returned
@@ -297,8 +314,8 @@ export default function LoadingRouteClient() {
           console.error('[loading] error starting full generation');
         }
         // Fall through to polling loop — it will detect DB completion regardless of HTTP timing
-      } else if (!isResume) {
-        // ── INITIAL ONBOARDING: chart/generate ── (skipped in resume mode:
+      } else if (!watchOnly) {
+        // ── INITIAL ONBOARDING: chart/generate ── (skipped in watch-only mode:
         // the work is already running elsewhere, we only watch and poll)
         let reqBody: GenerateChartRequest | null = null;
 
@@ -379,7 +396,10 @@ export default function LoadingRouteClient() {
 
       // ── POLLING LOOP ──
       // Free: max 20s (4 attempts × 5s). Invited/premium: max 5 min (80 attempts adaptive).
-      const maxAttempts = isFree ? FREE_MAX_ATTEMPTS : FULL_MAX_ATTEMPTS;
+      // Watch-only re-entry (reload / cross-device / crash recovery) always uses
+      // the long cap — remaining generation time is unknown and the short free
+      // cap would time out an in-flight run that's simply not done yet.
+      const maxAttempts = isFree && !watchOnly ? FREE_MAX_ATTEMPTS : FULL_MAX_ATTEMPTS;
       let attempts = 0;
 
       for (;;) {
