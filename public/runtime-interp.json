@@ -133,6 +133,10 @@
         "t": "☊ ჩრდილოეთის კვანძი",
         "b": "სულის ზრდის მიმართულება. ჩრდილოეთის კვანძი აჩვენებს, რა თვისებებისკენ უნდა გავიზარდოთ ამ ცხოვრებაში — შენი კომფორტის ზონის მიღმა."
       },
+      "south node": {
+        "t": "☋ სამხრეთის კვანძი",
+        "b": "კარმული წარსული და თანდაყოლილი ნიჭები. სამხრეთის კვანძი აჩვენებს გამოცდილებას, რომელიც წარსულიდან მოგაქვს — კომფორტის ზონას, საიდანაც ჩრდილოეთის კვანძისკენ იზრდები."
+      },
       "lilith": {
         "t": "⚸ ლილითი",
         "b": "შავი მთვარე ლილითი — ჩრდილი, პირველადი ინსტინქტი და ტაბუ. აჩვენებს, სად ვართ ყველაზე ნედლი, თავისუფალი და დაუმორჩილებელი."
@@ -186,6 +190,10 @@
       "node": {
         "t": "☊ North Node",
         "b": "The soul's growth direction. The North Node shows the qualities you're here to develop in this life — just beyond your comfort zone."
+      },
+      "south node": {
+        "t": "☋ South Node",
+        "b": "Karmic past and innate gifts. The South Node shows the experience you carry in from the past — the comfort zone you grow away from, toward the North Node."
       },
       "lilith": {
         "t": "⚸ Lilith",

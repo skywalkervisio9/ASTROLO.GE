@@ -1312,7 +1312,7 @@ const PLANET_TIPS_EN = {
   chiron: 'Chiron — the wound and the healing'
 };
 // Bodies that have a click popup (plData) — used to gate .pl-btn triggers in aspect rows.
-const _PL_POPUP_KEYS = { sun:1, moon:1, mercury:1, venus:1, mars:1, jupiter:1, saturn:1, uranus:1, neptune:1, pluto:1, chiron:1, node:1, lilith:1 };
+const _PL_POPUP_KEYS = { sun:1, moon:1, mercury:1, venus:1, mars:1, jupiter:1, saturn:1, uranus:1, neptune:1, pluto:1, chiron:1, node:1, 'north node':1, 'south node':1, lilith:1 };
 
 const _CHART_POINTS = { asc: 'asc', ascendant: 'asc', dsc: 'dsc', descendant: 'dsc', mc: 'mc', midheaven: 'mc', ic: 'ic', 'imum coeli': 'ic', imumcoeli: 'ic' };
 function _chartPointKey(name) {
@@ -1380,12 +1380,17 @@ document.addEventListener('click', e => {
     if (activeTag === plBtn) { closePopup(); return; }
     const lang = document.body.classList.contains('lang-en') ? 'en' : 'ka';
     _withInterp(function(D) {
-      const d = D.plData[lang][key];
+      // Node keys: 'north node' reads the shared 'node' entry; 'south node'
+      // has its OWN entry and renders the node glyph rotated 180° (gi-flip).
+      var isSouth = key === 'south node';
+      var dataKey = key === 'north node' ? 'node' : key;
+      var glyphId = (isSouth || dataKey === 'node') ? 'node' : dataKey;
+      const d = D.plData[lang][dataKey];
       if (!d) return;
       // Use the SAME SVG glyph as the planet table (data has a legacy Unicode
       // symbol prefix in `t` — strip it so the table and popup never mismatch).
       var plName = d.t.replace(/^\S+\s+/, '');
-      var plGlyph = '<svg class="pl-pop-gi" viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-' + key + '"/></svg>';
+      var plGlyph = '<svg class="pl-pop-gi' + (isSouth ? ' gi-flip' : '') + '" viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-' + glyphId + '"/></svg>';
       _showPopup(plBtn, 'planet-pop', plGlyph + plName, d.b);
     });
     return;
@@ -3031,10 +3036,14 @@ function _aspectGlyph(type) {
 }
 
 // Resolve a planet/point name (KA or EN) to its plData/glyph key (sun…pluto,
-// chiron, node, lilith). Mirrors _planetGlyph's resolution.
+// chiron, node, lilith). Mirrors _planetGlyph's resolution — except the South
+// Node stays a DISTINCT key ('south node'): it has its own plData popup entry
+// and renders as the node glyph rotated 180°. Collapsing it to 'node' (the old
+// behavior) made South Node chips open the North Node popup.
 function _planetKey(name) {
   if (!name) return '';
-  var key = (PLANET_KA_REV[name] || name).toLowerCase().replace('north node', 'node').replace('south node', 'node');
+  var key = (PLANET_KA_REV[name] || name).toLowerCase().replace('north node', 'node');
+  if (key === 'south node') return key; // before _GLYPH_ALIAS, which collapses it to 'node'
   return _GLYPH_ALIAS[key] || key;
 }
 // Wrap an aspect-row body (glyph + name) as a popup trigger: .pl-btn for planets
