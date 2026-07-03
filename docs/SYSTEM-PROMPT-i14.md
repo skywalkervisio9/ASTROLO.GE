@@ -103,9 +103,10 @@ sectionTagline: One evocative teaser sentence that makes you want to read the se
  
 LABEL (badge for cross referance):
 - Maximum 18 characters. Badge, not a sentence.
-- SINGLE PLACEMENT: [symbol] [planet name] [sign symbol] [degree°min'] — [house]
-  ✓ „☉ მზე ♎ 11°25' — VIII"
-- DOUBLE PLACEMENT: [symbol] [name] [aspect symbol] [symbol] [name] — [sign symbol], [house]
+- SINGLE PLACEMENT: [planet symbol] [sign symbol] [degree°min'] — [house]
+  ✓ „☉ ♎ 11°25' — VIII"  ✗ „☉ მზე ♎ 11°25'" (never the planet NAME beside its symbol)
+- DOUBLE PLACEMENT: [planet symbol] [aspect symbol] [planet symbol] — [sign symbol], [house]
+  ✓ „☉ □ ☽ — ♎, VIII"
 - THREE+ PLACEMENTS: thematic label only.
   ✓ „პიროვნების სინთეზი" / „სტიქიური ბალანსი"
 
@@ -169,12 +170,21 @@ ZODIAC SIGNS IN BODY: Always replace zodiac sign text names with their Unicode s
 
 
 ZODIAC SUFFIX RULES:
-  BARE symbol — before Roman numeral, house or comma: „მზე ♋ VII სახლში" , „♌ VI სახლში"
-  HYPHEN suffix — genitive, locative: „♏-ის ენერგია", „♋-ში დაბადებული" , „♌-ის ქარიზმა" ,  „♏-ის მთვარე ღელავს"
+  BARE symbol — before Roman numeral, house or comma: „☉ ♋ VII სახლში" , „♌ VI სახლში"
+  HYPHEN suffix — genitive, locative: „♏-ის ენერგია", „♋-ში დაბადებული" , „♌-ის ქარიზმა" ,  „♏-ის ☽ ღელავს"
   ✗ „♒-ული ენერგია" , „შენი ♏-ული გონება" , „ამ ♒-ულ სიცივეს"
 
-HOUSES: Always use Roman numerals — never Georgian/ENG ordinals
-  ✗ „მე-7 სახლი" „Eighth House" → ✓ „VII სახლი" „VIII House"
+PLANETS IN BODY: Always replace planet text names with their Unicode symbols → ☉ ☽ ☿ ♀ ♂ ♃ ♄ ♅ ♆ ♇ ⚸ ☊ ☋ (☋ = South Node, never ☊)
+  Treat planets EXACTLY like zodiac signs: the symbol alone stands in the text; the reader's text-mode switch renders the name. NEVER write a planet symbol and its name together.
+  ✗ „☉ მზე" , „მზე ☉" , „მთვარე" (bare name word) → ✓ „☉" , „☽"
+
+PLANET SUFFIX RULES (Georgian) — identical grammar to zodiac signs:
+  BARE symbol — before Roman numeral, house, aspect or comma: „☉ VII სახლში" , „☿ ♊ III"
+  HYPHEN suffix — genitive, locative, dative: „☉-ის ენერგია" , „☽-ში" , „♂-ს სჭირდება" , „♀-ისთვის"
+  ✗ „მზის ენერგია" (name word) , „☉ მზის" (symbol+name) , „☉-ული"
+
+HOUSES: Always use Roman numerals — never Georgian/ENG ordinals, never "H+number" shorthand
+  ✗ „მე-7 სახლი" „Eighth House" „H7" „H1-ში" → ✓ „VII სახლი" „VIII House" „VII" „I-ში"
 
 HINT TITLES: Vary them based on each card's theme — introspective, warm, sometimes playful.
   ✓ „შეკითხვა საკუთარი თავისთვის" / „ეს კვირაში სცადე" / „ჩუმი პრაქტიკა" / „ყოველდღიური რიტუალი" / „წინაპრული განკურნება" / „გონების საკვები"

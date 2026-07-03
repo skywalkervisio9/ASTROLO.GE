@@ -141,6 +141,79 @@ export function renderZodiacSignToken(key: string, suffix = '', nodeKey?: React.
   );
 }
 
+// ── Planet name tables (icon/name toggle, mirrors zodiac signs) ──
+// Planet symbol → name key (☊ / ☋ split into north/south node; other symbols
+// map straight through SYMBOL_TO_GLYPH otherwise).
+const PLANET_SYMBOL_TO_NAMEKEY: Record<string, string> = {
+  '☉':'sun','☽':'moon','☿':'mercury','♀':'venus','♂':'mars','♃':'jupiter',
+  '♄':'saturn','♅':'uranus','♆':'neptune','♇':'pluto','⚸':'lilith',
+  '☊':'north node','☋':'south node',
+};
+
+const PLANET_NAMES_EN: Record<string, string> = {
+  sun:'Sun', moon:'Moon', mercury:'Mercury', venus:'Venus', mars:'Mars', jupiter:'Jupiter',
+  saturn:'Saturn', uranus:'Uranus', neptune:'Neptune', pluto:'Pluto', lilith:'Lilith',
+  'north node':'North Node', 'south node':'South Node', chiron:'Chiron',
+};
+
+// Georgian planet declensions. The node axis carries a fixed genitive prefix
+// (ჩრდილოეთის / სამხრეთის) with the inflectable head word კვანძ-.
+const PLANET_NAMES_KA: Record<string, { nom: string; gen: string; loc: string; dat: string; inst: string; adv: string; for: string; with: string; voc: string }> = {
+  sun:{nom:'მზე',gen:'მზის',loc:'მზეში',dat:'მზეს',inst:'მზით',adv:'მზედ',for:'მზისთვის',with:'მზესთან',voc:'მზეო'},
+  moon:{nom:'მთვარე',gen:'მთვარის',loc:'მთვარეში',dat:'მთვარეს',inst:'მთვარით',adv:'მთვარედ',for:'მთვარისთვის',with:'მთვარესთან',voc:'მთვარეო'},
+  mercury:{nom:'მერკური',gen:'მერკურის',loc:'მერკურში',dat:'მერკურს',inst:'მერკურით',adv:'მერკურად',for:'მერკურისთვის',with:'მერკურთან',voc:'მერკურო'},
+  venus:{nom:'ვენერა',gen:'ვენერას',loc:'ვენერაში',dat:'ვენერას',inst:'ვენერათი',adv:'ვენერად',for:'ვენერასთვის',with:'ვენერასთან',voc:'ვენერავ'},
+  mars:{nom:'მარსი',gen:'მარსის',loc:'მარსში',dat:'მარსს',inst:'მარსით',adv:'მარსად',for:'მარსისთვის',with:'მარსთან',voc:'მარსო'},
+  jupiter:{nom:'იუპიტერი',gen:'იუპიტერის',loc:'იუპიტერში',dat:'იუპიტერს',inst:'იუპიტერით',adv:'იუპიტერად',for:'იუპიტერისთვის',with:'იუპიტერთან',voc:'იუპიტერო'},
+  saturn:{nom:'სატურნი',gen:'სატურნის',loc:'სატურნში',dat:'სატურნს',inst:'სატურნით',adv:'სატურნად',for:'სატურნისთვის',with:'სატურნთან',voc:'სატურნო'},
+  uranus:{nom:'ურანი',gen:'ურანის',loc:'ურანში',dat:'ურანს',inst:'ურანით',adv:'ურანად',for:'ურანისთვის',with:'ურანთან',voc:'ურანო'},
+  neptune:{nom:'ნეპტუნი',gen:'ნეპტუნის',loc:'ნეპტუნში',dat:'ნეპტუნს',inst:'ნეპტუნით',adv:'ნეპტუნად',for:'ნეპტუნისთვის',with:'ნეპტუნთან',voc:'ნეპტუნო'},
+  pluto:{nom:'პლუტონი',gen:'პლუტონის',loc:'პლუტონში',dat:'პლუტონს',inst:'პლუტონით',adv:'პლუტონად',for:'პლუტონისთვის',with:'პლუტონთან',voc:'პლუტონო'},
+  lilith:{nom:'ლილითი',gen:'ლილითის',loc:'ლილითში',dat:'ლილითს',inst:'ლილითით',adv:'ლილითად',for:'ლილითისთვის',with:'ლილითთან',voc:'ლილითო'},
+  'north node':{nom:'ჩრდილოეთის კვანძი',gen:'ჩრდილოეთის კვანძის',loc:'ჩრდილოეთის კვანძში',dat:'ჩრდილოეთის კვანძს',inst:'ჩრდილოეთის კვანძით',adv:'ჩრდილოეთის კვანძად',for:'ჩრდილოეთის კვანძისთვის',with:'ჩრდილოეთის კვანძთან',voc:'ჩრდილოეთის კვანძო'},
+  'south node':{nom:'სამხრეთის კვანძი',gen:'სამხრეთის კვანძის',loc:'სამხრეთის კვანძში',dat:'სამხრეთის კვანძს',inst:'სამხრეთის კვანძით',adv:'სამხრეთის კვანძად',for:'სამხრეთის კვანძისთვის',with:'სამხრეთის კვანძთან',voc:'სამხრეთის კვანძო'},
+  chiron:{nom:'ქირონი',gen:'ქირონის',loc:'ქირონში',dat:'ქირონს',inst:'ქირონით',adv:'ქირონად',for:'ქირონისთვის',with:'ქირონთან',voc:'ქირონო'},
+};
+
+function kaPlanetName(ch: string, suffix = '') {
+  const f = PLANET_NAMES_KA[PLANET_SYMBOL_TO_NAMEKEY[ch]];
+  if (!f) return ch;
+  const s = suffix.replace(/^-/, '');
+  if (s === 'ის') return f.gen;
+  if (s === 'ში') return f.loc;
+  if (s === 'ს') return f.dat;
+  if (s === 'ით') return f.inst;
+  if (s === 'ად') return f.adv;
+  if (s === 'ისთვის' || s === 'სთვის' || s === 'თვის') return f.for;
+  if (s === 'ისთან' || s === 'სთან' || s === 'თან') return f.with;
+  if (s === 'ო') return f.voc;
+  return f.nom;
+}
+
+// Planet SYMBOL → toggleable icon/name token (mirrors renderZodiacSignToken).
+// Icon form: glyph + Georgian case suffix; name form: inflected planet name.
+// Both carry the shared planet tooltip; ☋ South Node reuses the node glyph
+// rotated 180° (gi-flip).
+export function renderPlanetSymbolToken(ch: string, suffix = '', nodeKey?: React.Key): React.ReactNode {
+  const glyph = SYMBOL_TO_GLYPH[ch];
+  const isSouth = ch === '☋';
+  const tip = planetSymbolTip(ch);
+  const bubble = tip ? tipBubble(tip) : null;
+  const flip = isSouth ? ' gi-flip' : '';
+  const nameLabel = _renderLang === 'ka'
+    ? kaPlanetName(ch, suffix)
+    : (PLANET_NAMES_EN[PLANET_SYMBOL_TO_NAMEKEY[ch]] || ch);
+  return (
+    <React.Fragment key={nodeKey}>
+      <span className="zm-icon">
+        <span className={`gi gi-pl${flip}${tip ? ' tip2' : ''}`} style={{cursor:'help'}}><svg><use href={`#gl-${glyph}`}/></svg>{bubble}</span>
+        {suffix}
+      </span>
+      <span className={`zm-name zs${tip ? ' tip2' : ''}`} style={{cursor:'help'}}>{nameLabel}{bubble}</span>
+    </React.Fragment>
+  );
+}
+
 // Tokenizer: bold, italic, chart points (ASC/MC/IC), retrograde ℞, astro Unicode symbols,
 // and element words (Georgian stems + English) with optional trailing "(NN%)".
 //
@@ -149,18 +222,22 @@ export function renderZodiacSignToken(key: string, suffix = '', nodeKey?: React.
 //   2: _italic_
 //   3: ASC|MC|IC|DSC
 //   4: ℞ symbol
-//   5: astrological unicode glyph
-//   6: full element word match  (e.g. "ცეცხლი (48%)" or "Water")
-//   7: element word itself       (e.g. "ცეცხლი", "Water")
-//   8: optional percentage       (e.g. "48")
-//   9: retrograde word (English "retrograde" or Georgian core "რეტროგრად") → rendered as ℞; Georgian suffix stays as plain text
-//  10: AI-output "(R)" shorthand → rendered as ℞
+//   5: zodiac sign symbol
+//   6: sign case suffix (e.g. "-ის")
+//   7: planet symbol (☉☽…☊☋)
+//   8: planet case suffix (e.g. "-ის")
+//   9: other astro glyph (aspect symbols / ASC emoji variants)
+//  10: full element word match  (e.g. "ცეცხლი (48%)" or "Water")
+//  11: element word itself       (e.g. "ცეცხლი", "Water")
+//  12: optional percentage       (e.g. "48")
+//  13: retrograde word (English "retrograde" or Georgian core "რეტროგრად") → rendered as ℞; Georgian suffix stays as plain text
+//  14: AI-output "(R)" shorthand → rendered as ℞
 //
 // Georgian stems: ცეცხლ (fire) / მიწ (earth) / ჰაერ (air) / წყალ (water)
 // Matches any Georgian ending [ა-ჰ]* after the stem — so ცეცხლი / ცეცხლის / წყალში all work.
 // Water has two stems in Georgian: წყალ (nominative) and წყლ (genitive — წყლის, წყლისა, წყლით…)
 // Order matters: წყალ before წყლ so the longer match wins on "წყალისა".
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([♈♉♊♋♌♍♎♏♐♑♒♓])(-(?:სთვის|სთან|თვის|თან|ის|ში|ით|ად|ს|ო))?|([☉☽☿♀♂♃♄♅♆♇⚸☊☋☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)|(\(R\))/giu;
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([♈♉♊♋♌♍♎♏♐♑♒♓])(-(?:სთვის|სთან|თვის|თან|ის|ში|ით|ად|ს|ო))?|([☉☽☿♀♂♃♄♅♆♇⚸☊☋])(-(?:ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო))?|([☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)|(\(R\))/giu;
 /** Classify the stem of an element word to its CSS modifier */
 function getElementClass(word: string): string | null {
   const w = word.toLowerCase();
@@ -284,12 +361,24 @@ export function getRenderLang(): RenderLang {
   return _renderLang;
 }
 
+const HOUSE_ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+/**
+ * Defensive: rewrite stray "H1".."H12" house notation → Roman numerals. The
+ * spec mandates Roman houses, but occasional (and older, already-stored) AI
+ * output slips into "H7". Applied at render time so existing readings render
+ * correctly without regeneration. Word-boundary anchored so "H2O" is untouched.
+ */
+export function normalizeHouseNotation(text: string): string {
+  return text.replace(/\bH(1[0-2]|[1-9])\b/g, (_m, n) => HOUSE_ROMAN[+n]);
+}
+
 /**
  * Render rich text with bold, italic, astrological symbols, chart points, and retrograde markers.
  * Call setRenderLang() before rendering to set tooltip language.
  */
 export function renderText(text: string): React.ReactNode {
   if (!text) return null;
+  text = normalizeHouseNotation(text);
 
   const ptTips = _renderLang === 'ka' ? PT_TIPS_KA : PT_TIPS_EN;
   const retroTip = _renderLang === 'ka'
@@ -350,27 +439,25 @@ export function renderText(text: string): React.ReactNode {
       const signKey = SIGN_SYMBOL_TO_KEY[m[5]];
       nodes.push(renderZodiacSignToken(signKey, m[6] || '', k++));
     } else if (m[7] !== undefined) {
-      const ch = m[7];
+      // Planet symbol → toggleable icon/name token (symbol+suffix ⇄ name).
+      nodes.push(renderPlanetSymbolToken(m[7], m[8] || '', k++));
+    } else if (m[9] !== undefined) {
+      const ch = m[9];
       const glyph = SYMBOL_TO_GLYPH[ch];
 
       if (glyph) {
-        // Planet symbols get a hover tooltip; ☋ South Node reuses the node
-        // glyph rotated 180° (astro convention) with its own tooltip text.
-        const isSouth = ch === '☋';
-        const tip = planetSymbolTip(ch);
-        const cls = `gi gi-pl${isSouth ? ' gi-flip' : ''}${tip ? ' tip2' : ''}`;
+        // Aspect symbols / ASC emoji variants: plain gold glyph, no toggle.
         nodes.push(
-          <span key={k++} className={cls} {...(tip ? { style: { cursor: 'help' } } : {})}>
+          <span key={k++} className="gi gi-pl">
             <svg><use href={`#gl-${glyph}`}/></svg>
-            {tip ? tipBubble(tip) : null}
           </span>
         );
       } else {
         nodes.push(ch);
       }
-    } else if (m[8] !== undefined) {
-      const rawWord = (m[9] ?? '').trim();
-      const pct = m[10];
+    } else if (m[10] !== undefined) {
+      const rawWord = (m[11] ?? '').trim();
+      const pct = m[12];
       const el = getElementClass(rawWord);
 
       if (el) {
@@ -382,12 +469,12 @@ export function renderText(text: string): React.ReactNode {
           </span>
         );
       } else {
-        nodes.push(m[8]);
+        nodes.push(m[10]);
       }
-    } else if (m[11] !== undefined) {
+    } else if (m[13] !== undefined) {
       nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
       if (/[ა-ჰ]/u.test(text[m.index + m[0].length] ?? '')) nodes.push('-');
-    } else if (m[12] !== undefined) {
+    } else if (m[14] !== undefined) {
       nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
     }
 

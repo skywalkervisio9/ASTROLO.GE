@@ -10,7 +10,7 @@
 // ============================================================
 
 import React, { type ReactNode } from 'react';
-import { renderText, planetSymbolTip, tipBubble } from '@/lib/utils/renderText';
+import { renderText, renderPlanetSymbolToken, normalizeHouseNotation } from '@/lib/utils/renderText';
 
 // ── Label/badge renderer (mirrors prototype's _buildBadgeHtml) ──
 // Unicode astro symbols → SVG glyphs, ℞ stays plain, aspect symbols get
@@ -33,7 +33,7 @@ const LABEL_ASPECT_SET = new Set(['☌','△','□','☍','⚹']);
 
 export function renderLabel(label: string): ReactNode {
   if (!label) return null;
-  const chars = Array.from(label);
+  const chars = Array.from(normalizeHouseNotation(label));
   const out: ReactNode[] = [];
   let run = '';
   let k = 0;
@@ -46,19 +46,17 @@ export function renderLabel(label: string): ReactNode {
     if (LABEL_SYMBOL_TO_GLYPH[ch]) {
       flushRun();
       const glyph = LABEL_SYMBOL_TO_GLYPH[ch];
-      // Planet symbols carry the shared hover tooltip; ☋ South Node reuses
-      // the node glyph rotated 180° (gi-flip) — same as renderText/runtime.
-      const tip = LABEL_PLANET_SET.has(ch) ? planetSymbolTip(ch) : undefined;
-      const flip = ch === '☋' ? ' gi-flip' : '';
-      const cls = LABEL_PLANET_SET.has(ch)
-        ? `gi gi-pl${flip}${tip ? ' tip2' : ''}`
-        : `gi gi-${LABEL_SIGN_ELEMENT[glyph] || ''}`;
-      out.push(
-        <span key={k++} className={cls} {...(tip ? { style: { cursor: 'help' } } : {})}>
-          <svg><use href={`#gl-${glyph}`}/></svg>
-          {tip ? tipBubble(tip) : null}
-        </span>
-      );
+      if (LABEL_PLANET_SET.has(ch)) {
+        // Planet glyphs toggle icon⇄name with the zodiac switch (same token as
+        // body prose). Labels carry no case suffix — bare placement listing.
+        out.push(<React.Fragment key={k++}>{renderPlanetSymbolToken(ch)}</React.Fragment>);
+      } else {
+        out.push(
+          <span key={k++} className={`gi gi-${LABEL_SIGN_ELEMENT[glyph] || ''}`}>
+            <svg><use href={`#gl-${glyph}`}/></svg>
+          </span>
+        );
+      }
     } else if (ch === '℞') {
       run += ' ℞';
     } else if (LABEL_ASPECT_SET.has(ch)) {

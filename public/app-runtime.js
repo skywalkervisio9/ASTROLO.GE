@@ -2733,6 +2733,69 @@ function _kaSignName(key, suffix) {
   return f.nom;
 }
 
+// Planet in-text display data (icon/name toggle + tooltips). Mirrors
+// lib/utils/renderText.tsx (PLANET_NAMES_*/renderPlanetSymbolToken).
+const PLANET_SYMBOL_TO_NAMEKEY = {
+  '☉':'sun','☽':'moon','☿':'mercury','♀':'venus','♂':'mars','♃':'jupiter',
+  '♄':'saturn','♅':'uranus','♆':'neptune','♇':'pluto','⚸':'lilith',
+  '☊':'north node','☋':'south node'
+};
+const PLANET_NAMES_EN_INF = {
+  sun:'Sun', moon:'Moon', mercury:'Mercury', venus:'Venus', mars:'Mars', jupiter:'Jupiter',
+  saturn:'Saturn', uranus:'Uranus', neptune:'Neptune', pluto:'Pluto', lilith:'Lilith',
+  'north node':'North Node', 'south node':'South Node', chiron:'Chiron'
+};
+const PLANET_NAMES_KA_INF = {
+  sun:{nom:'მზე',gen:'მზის',loc:'მზეში',dat:'მზეს',inst:'მზით',adv:'მზედ',for:'მზისთვის',with:'მზესთან',voc:'მზეო'},
+  moon:{nom:'მთვარე',gen:'მთვარის',loc:'მთვარეში',dat:'მთვარეს',inst:'მთვარით',adv:'მთვარედ',for:'მთვარისთვის',with:'მთვარესთან',voc:'მთვარეო'},
+  mercury:{nom:'მერკური',gen:'მერკურის',loc:'მერკურში',dat:'მერკურს',inst:'მერკურით',adv:'მერკურად',for:'მერკურისთვის',with:'მერკურთან',voc:'მერკურო'},
+  venus:{nom:'ვენერა',gen:'ვენერას',loc:'ვენერაში',dat:'ვენერას',inst:'ვენერათი',adv:'ვენერად',for:'ვენერასთვის',with:'ვენერასთან',voc:'ვენერავ'},
+  mars:{nom:'მარსი',gen:'მარსის',loc:'მარსში',dat:'მარსს',inst:'მარსით',adv:'მარსად',for:'მარსისთვის',with:'მარსთან',voc:'მარსო'},
+  jupiter:{nom:'იუპიტერი',gen:'იუპიტერის',loc:'იუპიტერში',dat:'იუპიტერს',inst:'იუპიტერით',adv:'იუპიტერად',for:'იუპიტერისთვის',with:'იუპიტერთან',voc:'იუპიტერო'},
+  saturn:{nom:'სატურნი',gen:'სატურნის',loc:'სატურნში',dat:'სატურნს',inst:'სატურნით',adv:'სატურნად',for:'სატურნისთვის',with:'სატურნთან',voc:'სატურნო'},
+  uranus:{nom:'ურანი',gen:'ურანის',loc:'ურანში',dat:'ურანს',inst:'ურანით',adv:'ურანად',for:'ურანისთვის',with:'ურანთან',voc:'ურანო'},
+  neptune:{nom:'ნეპტუნი',gen:'ნეპტუნის',loc:'ნეპტუნში',dat:'ნეპტუნს',inst:'ნეპტუნით',adv:'ნეპტუნად',for:'ნეპტუნისთვის',with:'ნეპტუნთან',voc:'ნეპტუნო'},
+  pluto:{nom:'პლუტონი',gen:'პლუტონის',loc:'პლუტონში',dat:'პლუტონს',inst:'პლუტონით',adv:'პლუტონად',for:'პლუტონისთვის',with:'პლუტონთან',voc:'პლუტონო'},
+  lilith:{nom:'ლილითი',gen:'ლილითის',loc:'ლილითში',dat:'ლილითს',inst:'ლილითით',adv:'ლილითად',for:'ლილითისთვის',with:'ლილითთან',voc:'ლილითო'},
+  'north node':{nom:'ჩრდილოეთის კვანძი',gen:'ჩრდილოეთის კვანძის',loc:'ჩრდილოეთის კვანძში',dat:'ჩრდილოეთის კვანძს',inst:'ჩრდილოეთის კვანძით',adv:'ჩრდილოეთის კვანძად',for:'ჩრდილოეთის კვანძისთვის',with:'ჩრდილოეთის კვანძთან',voc:'ჩრდილოეთის კვანძო'},
+  'south node':{nom:'სამხრეთის კვანძი',gen:'სამხრეთის კვანძის',loc:'სამხრეთის კვანძში',dat:'სამხრეთის კვანძს',inst:'სამხრეთის კვანძით',adv:'სამხრეთის კვანძად',for:'სამხრეთის კვანძისთვის',with:'სამხრეთის კვანძთან',voc:'სამხრეთის კვანძო'},
+  chiron:{nom:'ქირონი',gen:'ქირონის',loc:'ქირონში',dat:'ქირონს',inst:'ქირონით',adv:'ქირონად',for:'ქირონისთვის',with:'ქირონთან',voc:'ქირონო'}
+};
+function _kaPlanetName(sym, suffix) {
+  var f = PLANET_NAMES_KA_INF[PLANET_SYMBOL_TO_NAMEKEY[sym]]; if (!f) return sym;
+  var s = (suffix || '').replace(/^-/, '');
+  if (s === 'ის') return f.gen;
+  if (s === 'ში') return f.loc;
+  if (s === 'ს') return f.dat;
+  if (s === 'ით') return f.inst;
+  if (s === 'ად') return f.adv;
+  if (s === 'ისთვის' || s === 'სთვის' || s === 'თვის') return f.for;
+  if (s === 'ისთან' || s === 'სთან' || s === 'თან') return f.with;
+  if (s === 'ო') return f.voc;
+  return f.nom;
+}
+// Emit the toggleable icon/name planet token (mirrors renderPlanetSymbolToken).
+function _planetTokenHtml(sym, suffix) {
+  var glyph = SYMBOL_TO_GLYPH[sym];
+  var isSouth = sym === '☋';
+  var tip = (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[isSouth ? 'south node' : glyph] || '';
+  var tipHtml = tip ? _tip2Html(tip) : '';
+  var tipCls = tip ? ' tip2' : '';
+  var flipCls = isSouth ? ' gi-flip' : '';
+  var nameLabel = _hydrateLang === 'ka' ? _kaPlanetName(sym, suffix) : (PLANET_NAMES_EN_INF[PLANET_SYMBOL_TO_NAMEKEY[sym]] || sym);
+  return '<span class="zm-icon"><span class="gi gi-pl' + flipCls + tipCls + '" style="cursor:help"><svg><use href="#gl-' + glyph + '"/></svg>' + tipHtml + '</span>' + (suffix ? '-' + suffix : '') + '</span>' +
+    '<span class="zm-name zs' + tipCls + '" style="cursor:help">' + nameLabel + tipHtml + '</span>';
+}
+
+// Defensive: rewrite stray "H1".."H12" house notation → Roman numerals
+// (mirrors normalizeHouseNotation in renderText.tsx). Spec mandates Roman
+// houses, but older/occasional AI output slips into "H7"; fixed at render time
+// so stored readings render correctly. "\b" anchors keep "H2O" untouched.
+var _HOUSE_ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+function _normalizeHouseNotation(s) {
+  return String(s).replace(/\bH(1[0-2]|[1-9])\b/g, function(_m, n) { return _HOUSE_ROMAN[+n]; });
+}
+
 // Collapse LLM <b>/<strong> in prose to ** before escape + markdown pass
 function _normalizeLlmHtmlEmphasisToMarkdown(s) {
   if (s == null || typeof s !== 'string') return s;
@@ -2762,7 +2825,7 @@ function _tip2Html(text, headClass) {
 // Render rich text: converts Unicode astro symbols to SVG glyphs + basic markdown (bold/italic)
 function _renderRichText(text) {
   if (!text) return '';
-  text = _normalizeLlmHtmlEmphasisToMarkdown(String(text));
+  text = _normalizeHouseNotation(_normalizeLlmHtmlEmphasisToMarkdown(String(text)));
   // First, escape HTML but preserve our markers
   var escaped = _esc(text);
   // Convert **bold** to <strong>
@@ -2876,6 +2939,14 @@ function _renderRichText(text) {
         '<span class="zm-name zs zs-' + el + tipCls + '" style="cursor:help">' + nameLabel + tipHtml + '</span>';
     }
   );
+  // Planet symbols → toggleable icon/name token with tooltip + Georgian case
+  // inflection (mirrors renderText.tsx renderPlanetSymbolToken). Runs before the
+  // char-by-char pass so planets become dual icon/name spans (which the zodiac
+  // switch flips) instead of a bare, untoggleable glyph.
+  escaped = escaped.replace(
+    /([☉☽☿♀♂♃♄♅♆♇⚸☊☋])(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო))?/g,
+    function(_m, sym, suffix) { return _planetTokenHtml(sym, suffix); }
+  );
   // Now replace Unicode astro symbols with SVG glyphs
   var chars = Array.from(escaped);
   var result = '';
@@ -2911,21 +2982,19 @@ function _renderRichText(text) {
 function _buildBadgeHtml(label) {
   if (!label) return '';
   var result = '';
-  var chars = Array.from(label);
+  var chars = Array.from(_normalizeHouseNotation(label));
   var i = 0;
   while (i < chars.length) {
     var ch = chars[i];
     if (SYMBOL_TO_GLYPH[ch]) {
       var glyphName = SYMBOL_TO_GLYPH[ch];
-      if (PLANET_SYMBOLS.has(ch)) {
-        // Same tooltip + South-Node rotation as _renderRichText's prose pass —
-        // badges are the most visible planet symbols in a card.
-        var _bSouth = ch === '☋';
-        var _bTip = (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[_bSouth ? 'south node' : glyphName] || '';
-        var _bFlip = _bSouth ? ' gi-flip' : '';
-        result += _bTip
-          ? '<span class="gi gi-pl' + _bFlip + ' tip2" style="cursor:help"><svg><use href="#gl-' + glyphName + '"/></svg>' + _tip2Html(_bTip) + '</span>'
-          : '<span class="gi gi-pl' + _bFlip + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+      if (PLANET_SYMBOL_TO_NAMEKEY[ch]) {
+        // Toggleable icon/name token — badges ride the zodiac switch too (same
+        // token as _renderRichText's prose pass). Labels carry no case suffix.
+        result += _planetTokenHtml(ch, '');
+      } else if (PLANET_SYMBOLS.has(ch)) {
+        // Non-toggle planet-class glyph (⚷ chiron): plain gold glyph.
+        result += '<span class="gi gi-pl"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
       } else if (SIGN_SYMBOLS.has(ch)) {
         var el = SIGN_ELEMENT[glyphName] || '';
         result += '<span class="gi gi-' + el + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
@@ -3071,7 +3140,12 @@ function _planetKey(name) {
 function _aspPlanet(glyph, name, rawName) {
   var pk = _planetKey(rawName);
   if (_PL_POPUP_KEYS[pk]) {
-    return '<span class="al-p pl-btn" data-pl="' + pk + '">' + glyph + name + '</span>';
+    // Short hover tooltip (tip2) alongside the click popup — restores the
+    // planet one-liner on aspect rows & the interpretation table.
+    var tip = (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[pk] || '';
+    var tipHtml = tip ? _tip2Html(tip) : '';
+    var tipCls = tip ? ' tip2' : '';
+    return '<span class="al-p pl-btn' + tipCls + '" data-pl="' + pk + '">' + glyph + name + tipHtml + '</span>';
   }
   var cp = _chartPointKey(rawName);
   if (cp) {

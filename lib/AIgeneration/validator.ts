@@ -168,6 +168,75 @@ const KA_PT_STEM_TO_ABBR: Record<string, 'ASC' | 'DSC' | 'MC' | 'IC'> = {
   'ცის ფსკერ': 'IC',
 };
 
+// ── Planet suffix validator (mirrors the chart-point sanitizer for zodiac-like
+// planet handling). Any inflected Georgian planet word → canonical "symbol" or
+// "symbol-suffix" so the renderer's icon/name toggle owns the display. Node
+// forms carry a fixed genitive prefix; bare "კვანძი" defaults to North Node. ──
+const KA_PLANET_DECL: Array<{ sym: string; forms: Record<string, string> }> = [
+  { sym:'☉', forms:{nom:'მზე',gen:'მზის',loc:'მზეში',dat:'მზეს',inst:'მზით',adv:'მზედ',for:'მზისთვის',with:'მზესთან',voc:'მზეო'} },
+  { sym:'☽', forms:{nom:'მთვარე',gen:'მთვარის',loc:'მთვარეში',dat:'მთვარეს',inst:'მთვარით',adv:'მთვარედ',for:'მთვარისთვის',with:'მთვარესთან',voc:'მთვარეო'} },
+  { sym:'☿', forms:{nom:'მერკური',gen:'მერკურის',loc:'მერკურში',dat:'მერკურს',inst:'მერკურით',adv:'მერკურად',for:'მერკურისთვის',with:'მერკურთან',voc:'მერკურო'} },
+  { sym:'♀', forms:{nom:'ვენერა',gen:'ვენერას',loc:'ვენერაში',dat:'ვენერას',inst:'ვენერათი',adv:'ვენერად',for:'ვენერასთვის',with:'ვენერასთან',voc:'ვენერავ'} },
+  { sym:'♂', forms:{nom:'მარსი',gen:'მარსის',loc:'მარსში',dat:'მარსს',inst:'მარსით',adv:'მარსად',for:'მარსისთვის',with:'მარსთან',voc:'მარსო'} },
+  { sym:'♃', forms:{nom:'იუპიტერი',gen:'იუპიტერის',loc:'იუპიტერში',dat:'იუპიტერს',inst:'იუპიტერით',adv:'იუპიტერად',for:'იუპიტერისთვის',with:'იუპიტერთან',voc:'იუპიტერო'} },
+  { sym:'♄', forms:{nom:'სატურნი',gen:'სატურნის',loc:'სატურნში',dat:'სატურნს',inst:'სატურნით',adv:'სატურნად',for:'სატურნისთვის',with:'სატურნთან',voc:'სატურნო'} },
+  { sym:'♅', forms:{nom:'ურანი',gen:'ურანის',loc:'ურანში',dat:'ურანს',inst:'ურანით',adv:'ურანად',for:'ურანისთვის',with:'ურანთან',voc:'ურანო'} },
+  { sym:'♆', forms:{nom:'ნეპტუნი',gen:'ნეპტუნის',loc:'ნეპტუნში',dat:'ნეპტუნს',inst:'ნეპტუნით',adv:'ნეპტუნად',for:'ნეპტუნისთვის',with:'ნეპტუნთან',voc:'ნეპტუნო'} },
+  { sym:'♇', forms:{nom:'პლუტონი',gen:'პლუტონის',loc:'პლუტონში',dat:'პლუტონს',inst:'პლუტონით',adv:'პლუტონად',for:'პლუტონისთვის',with:'პლუტონთან',voc:'პლუტონო'} },
+  { sym:'⚸', forms:{nom:'ლილითი',gen:'ლილითის',loc:'ლილითში',dat:'ლილითს',inst:'ლილითით',adv:'ლილითად',for:'ლილითისთვის',with:'ლილითთან',voc:'ლილითო'} },
+  { sym:'☊', forms:{nom:'ჩრდილოეთის კვანძი',gen:'ჩრდილოეთის კვანძის',loc:'ჩრდილოეთის კვანძში',dat:'ჩრდილოეთის კვანძს',inst:'ჩრდილოეთის კვანძით',for:'ჩრდილოეთის კვანძისთვის',with:'ჩრდილოეთის კვანძთან'} },
+  { sym:'☋', forms:{nom:'სამხრეთის კვანძი',gen:'სამხრეთის კვანძის',loc:'სამხრეთის კვანძში',dat:'სამხრეთის კვანძს',inst:'სამხრეთის კვანძით',for:'სამხრეთის კვანძისთვის',with:'სამხრეთის კვანძთან'} },
+  // Bare "კვანძი" (no prefix) → North Node.
+  { sym:'☊', forms:{nom:'კვანძი',gen:'კვანძის',loc:'კვანძში',dat:'კვანძს',inst:'კვანძით',for:'კვანძისთვის',with:'კვანძთან'} },
+];
+// case → canonical hyphen suffix emitted after the symbol (nom = bare symbol).
+const KA_PLANET_CASE_SUFFIX: Record<string, string> = {
+  nom:'', gen:'ის', loc:'ში', dat:'ს', inst:'ით', adv:'ად', for:'ისთვის', with:'თან', voc:'ო',
+};
+// word → "symbol" | "symbol-suffix". Longest words first so oblique forms win
+// over the nominative prefix (e.g. მზისთვის before მზის before მზ…).
+const KA_PLANET_WORD_TO_TOKEN: Array<[string, string]> = (() => {
+  const pairs: Array<[string, string]> = [];
+  for (const { sym, forms } of KA_PLANET_DECL) {
+    for (const [c, word] of Object.entries(forms)) {
+      const suf = KA_PLANET_CASE_SUFFIX[c];
+      pairs.push([word, suf ? `${sym}-${suf}` : sym]);
+    }
+  }
+  return pairs.sort((a, b) => b[0].length - a[0].length);
+})();
+const KA_PLANET_WORD_RE = new RegExp(
+  '(?<![ა-ჰ])(' + KA_PLANET_WORD_TO_TOKEN.map(([w]) => w).join('|') + ')(?![ა-ჰ])',
+  'g'
+);
+const KA_PLANET_WORD_MAP = new Map(KA_PLANET_WORD_TO_TOKEN);
+// Any planet symbol, optionally already carrying a "-suffix".
+const PLANET_SYM_CLASS = '[☉☽☿♀♂♃♄♅♆♇⚸☊☋]';
+const PLANET_SUFFIX_ALT = 'ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო';
+
+function sanitizePlanetTerminology(p: string): string {
+  if (typeof p !== 'string') return p;
+  // 1. Inflected planet words → canonical symbol(-suffix).
+  let t = p.replace(KA_PLANET_WORD_RE, (w) => KA_PLANET_WORD_MAP.get(w) ?? w);
+  // 2. Collapse a symbol immediately followed by the same symbol — the old
+  //    "☉ მზე" pairing becomes "☉ ☉" after step 1. Keep the second token's
+  //    suffix if it has one (the word carried the case), else keep the first.
+  t = t.replace(
+    new RegExp(`(${PLANET_SYM_CLASS})(?:-(?:${PLANET_SUFFIX_ALT}))?\\s*(\\1(?:-(?:${PLANET_SUFFIX_ALT}))?)`, 'g'),
+    (_full, _first, second) => second
+  );
+  return t;
+}
+
+// Defensive: "H1".."H12" house notation → Roman numerals (spec mandates Roman
+// houses; catches AI slips at generation time — the renderer does the same at
+// display time for already-stored readings). "\b" anchors keep "H2O" untouched.
+const HOUSE_ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+function normalizeHouseNotation(p: string): string {
+  if (typeof p !== 'string') return p;
+  return p.replace(/\bH(1[0-2]|[1-9])\b/g, (_m, n) => HOUSE_ROMAN[+n]);
+}
+
 /** Replace verbose English terms with standard abbreviations (i12) */
 function sanitizeTerminology(p: string): string {
   if (typeof p !== 'string') return p;
@@ -213,14 +282,19 @@ function normalizeCards(cards: unknown[]): unknown[] {
     // Coerce expandedContent to string array
     if (typeof c.expandedContent === 'string') c.expandedContent = [c.expandedContent];
     else if (c.expandedContent && !Array.isArray(c.expandedContent)) c.expandedContent = [];
-    // Normalize terminology: Ascendant/Descendant/Midheaven → ASC/DSC/MC (i12)
-    c.body = (c.body as string[]).map(sanitizeTerminology);
+    // Normalize terminology: chart points (Ascendant→ASC, i12) + planet words
+    // (მზის→☉-ის) so the renderer's icon/name toggle owns every planet.
+    const sanitizeText = (s: string) => normalizeHouseNotation(sanitizePlanetTerminology(sanitizeTerminology(s)));
+    c.body = (c.body as string[]).map(sanitizeText);
     if (Array.isArray(c.expandedContent)) {
       // expandedContent: sanitize terms + split inline lists + number bold-colon items
       c.expandedContent = numberBoldColonItems(
-        splitInlineLists((c.expandedContent as string[]).map(sanitizeTerminology))
+        splitInlineLists((c.expandedContent as string[]).map(sanitizeText))
       );
     }
+    // Label + crossReferences carry the same planet symbols/words as the badge.
+    if (typeof c.label === 'string') c.label = sanitizeText(c.label);
+    if (Array.isArray(c.crossReferences)) c.crossReferences = (c.crossReferences as unknown[]).map((r) => (typeof r === 'string' ? sanitizeText(r) : r));
     // Drop legacy bullets from hint (removed in i10 — content is prose now)
     if (c.hint && typeof c.hint === 'object') {
       const h = c.hint as Record<string, unknown>;
