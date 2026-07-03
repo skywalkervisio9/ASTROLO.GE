@@ -1573,10 +1573,11 @@ if (typeof window !== 'undefined' && window.matchMedia &&
 }
 
 
-// Nudge .tip tooltip left/right to stay within viewport edges
+// Nudge .tip/.tip2 tooltips left/right to stay within viewport edges
 document.addEventListener('mouseover', function(e) {
-  var tip = _closest(e.target, '.tip');
-  if (!tip || !tip.hasAttribute('data-tip')) return;
+  var tip = _closest(e.target, '.tip,.tip2');
+  if (!tip) return;
+  if (!tip.hasAttribute('data-tip') && !tip.querySelector('.tt')) return;
   var r = tip.getBoundingClientRect();
   var mid = r.left + r.width / 2;
   var vw = window.innerWidth;
@@ -2747,6 +2748,17 @@ function _normalizeLlmHtmlEmphasisToMarkdown(s) {
   return t;
 }
 
+// Two-part hover tooltip: tip strings follow "<headline> — <rest>", and the
+// headline renders colored (gold by default, tt-fire/… for zodiac signs)
+// while the rest stays soft white. The trigger element gets class "tip2"
+// (NOT "tip" — that CSS path is attr()-based and single-colored).
+function _tip2Html(text, headClass) {
+  var i = text.indexOf(' — ');
+  var head = i === -1 ? text : text.slice(0, i);
+  var rest = i === -1 ? '' : text.slice(i);
+  return '<span class="tt"><span class="tt-t' + (headClass ? ' ' + headClass : '') + '">' + head + '</span>' + rest + '</span>';
+}
+
 // Render rich text: converts Unicode astro symbols to SVG glyphs + basic markdown (bold/italic)
 function _renderRichText(text) {
   if (!text) return '';
@@ -2795,9 +2807,10 @@ function _renderRichText(text) {
       var nameLabel = _hydrateLang === 'ka'
         ? _kaPtInflect(key, suffix || '')
         : (ptNamesEn[key] || key);
-      return '<span class="pt tip" data-tip="' + ptTips[key] + '">' +
+      return '<span class="pt tip2">' +
         '<span class="zm-icon">' + iconLabel + '</span>' +
         '<span class="zm-name">' + nameLabel + '</span>' +
+        _tip2Html(ptTips[key]) +
       '</span>';
     }
   );
@@ -2856,9 +2869,11 @@ function _renderRichText(text) {
       var el = SIGN_ELEMENT[key] || '';
       var tip = (_hydrateLang === 'ka' ? SIGN_TIPS_KA : SIGN_TIPS_EN)[key] || '';
       var nameLabel = _hydrateLang === 'ka' ? _kaSignName(key, suffix) : (SIGN_NAMES_EN[key] || key);
-      var tipAttr = tip ? ' data-tip="' + tip + '"' : '';
-      return '<span class="zm-icon"><span class="gi gi-' + el + ' tip"' + tipAttr + ' style="cursor:help"><svg><use href="#gl-' + key + '"/></svg></span>' + (suffix ? '-' + suffix : '') + '</span>' +
-        '<span class="zm-name zs zs-' + el + ' tip"' + tipAttr + ' style="cursor:help">' + nameLabel + '</span>';
+      // Sign tooltips: headline in the sign's element color, rest soft white.
+      var tipHtml = tip ? _tip2Html(tip, 'tt-' + el) : '';
+      var tipCls = tip ? ' tip2' : '';
+      return '<span class="zm-icon"><span class="gi gi-' + el + tipCls + '" style="cursor:help"><svg><use href="#gl-' + key + '"/></svg>' + tipHtml + '</span>' + (suffix ? '-' + suffix : '') + '</span>' +
+        '<span class="zm-name zs zs-' + el + tipCls + '" style="cursor:help">' + nameLabel + tipHtml + '</span>';
     }
   );
   // Now replace Unicode astro symbols with SVG glyphs
@@ -2874,8 +2889,10 @@ function _renderRichText(text) {
         var _isSouth = ch === '☋';
         var _tipKey = _isSouth ? 'south node' : glyphName;
         var _ptip = (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[_tipKey] || '';
-        var _ptipAttr = _ptip ? ' tip" data-tip="' + _ptip + '" style="cursor:help"' : '"';
-        result += '<span class="gi gi-pl' + (_isSouth ? ' gi-flip' : '') + _ptipAttr + '><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+        var _flipCls = _isSouth ? ' gi-flip' : '';
+        result += _ptip
+          ? '<span class="gi gi-pl' + _flipCls + ' tip2" style="cursor:help"><svg><use href="#gl-' + glyphName + '"/></svg>' + _tip2Html(_ptip) + '</span>'
+          : '<span class="gi gi-pl' + _flipCls + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
       } else if (SIGN_SYMBOLS.has(ch)) {
         var el = SIGN_ELEMENT[glyphName] || '';
         result += '<span class="gi gi-' + el + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
@@ -2905,8 +2922,10 @@ function _buildBadgeHtml(label) {
         // badges are the most visible planet symbols in a card.
         var _bSouth = ch === '☋';
         var _bTip = (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[_bSouth ? 'south node' : glyphName] || '';
-        var _bTipAttr = _bTip ? ' tip" data-tip="' + _bTip + '" style="cursor:help"' : '"';
-        result += '<span class="gi gi-pl' + (_bSouth ? ' gi-flip' : '') + _bTipAttr + '><svg><use href="#gl-' + glyphName + '"/></svg></span>';
+        var _bFlip = _bSouth ? ' gi-flip' : '';
+        result += _bTip
+          ? '<span class="gi gi-pl' + _bFlip + ' tip2" style="cursor:help"><svg><use href="#gl-' + glyphName + '"/></svg>' + _tip2Html(_bTip) + '</span>'
+          : '<span class="gi gi-pl' + _bFlip + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
       } else if (SIGN_SYMBOLS.has(ch)) {
         var el = SIGN_ELEMENT[glyphName] || '';
         result += '<span class="gi gi-' + el + '"><svg><use href="#gl-' + glyphName + '"/></svg></span>';
@@ -3198,8 +3217,8 @@ function _buildSectionContent(sectionKey, section) {
         if (pts.ascendant) html += '<span class="pb2">ASC ' + _signGlyph(pts.ascendant.sign) + ' ' + _esc(pts.ascendant.degree) + '</span>';
         if (pts.midheaven) html += '<span class="pb2">MC ' + _signGlyph(pts.midheaven.sign) + ' ' + _esc(pts.midheaven.degree) + '</span>';
         var _ptsTips = _hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN;
-        if (pts.northNode) html += '<span class="pb2 tip" data-tip="' + _ptsTips.node + '" style="cursor:help">' + _planetGlyph('node') + ' ' + _signGlyph(pts.northNode.sign) + ' ' + _esc(pts.northNode.degree) + '</span>';
-        if (pts.lilith) html += '<span class="pb2 tip" data-tip="' + _ptsTips.lilith + '" style="cursor:help">' + _planetGlyph('lilith') + ' ' + _signGlyph(pts.lilith.sign) + ' ' + _esc(pts.lilith.degree) + '</span>';
+        if (pts.northNode) html += '<span class="pb2 tip2" style="cursor:help">' + _planetGlyph('node') + ' ' + _signGlyph(pts.northNode.sign) + ' ' + _esc(pts.northNode.degree) + _tip2Html(_ptsTips.node) + '</span>';
+        if (pts.lilith) html += '<span class="pb2 tip2" style="cursor:help">' + _planetGlyph('lilith') + ' ' + _signGlyph(pts.lilith.sign) + ' ' + _esc(pts.lilith.degree) + _tip2Html(_ptsTips.lilith) + '</span>';
         html += '</div>';
       }
       html += '</div>';

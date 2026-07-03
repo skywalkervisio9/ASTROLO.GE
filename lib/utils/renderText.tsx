@@ -51,6 +51,22 @@ export function planetSymbolTip(ch: string): string | undefined {
   const key = ch === '☋' ? 'south node' : glyph;
   return (_renderLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[key];
 }
+
+/** Two-part tooltip bubble: tip strings follow "<headline> — <rest>"; the
+ *  headline renders colored (gold by default, tt-fire/… for zodiac signs)
+ *  and the rest soft white. Place inside a trigger with class "tip2"
+ *  (mirrors _tip2Html in public/app-runtime.js). */
+export function tipBubble(text: string, headClass?: string): React.ReactNode {
+  const i = text.indexOf(' — ');
+  const head = i === -1 ? text : text.slice(0, i);
+  const rest = i === -1 ? '' : text.slice(i);
+  return (
+    <span className="tt">
+      <span className={`tt-t${headClass ? ' ' + headClass : ''}`}>{head}</span>
+      {rest}
+    </span>
+  );
+}
 // Aspect symbols rendered in the same gold tone as planets
 const ASPECT_SET = new Set(['☌','☍','△','□','⚹']);
 const SIGN_ELEMENT: Record<string, string> = {
@@ -112,13 +128,15 @@ export function renderZodiacSignToken(key: string, suffix = '', nodeKey?: React.
   const tip = signTips[key];
   const nameLabel = _renderLang === 'ka' ? kaSignName(key, suffix) : SIGN_NAMES_EN[key] || key;
 
+  // Sign tooltips: headline in the sign's element color, rest soft white.
+  const bubble = tip ? tipBubble(tip, `tt-${elKey}`) : null;
   return (
     <React.Fragment key={nodeKey}>
       <span className="zm-icon">
-        <span className={`gi gi-${elKey} tip`} data-tip={tip} style={{cursor:'help'}}><svg><use href={`#gl-${key}`}/></svg></span>
+        <span className={`gi gi-${elKey}${tip ? ' tip2' : ''}`} style={{cursor:'help'}}><svg><use href={`#gl-${key}`}/></svg>{bubble}</span>
         {suffix}
       </span>
-      <span className={`zm-name zs zs-${elKey} tip`} data-tip={tip} style={{cursor:'help'}}>{nameLabel}</span>
+      <span className={`zm-name zs zs-${elKey}${tip ? ' tip2' : ''}`} style={{cursor:'help'}}>{nameLabel}{bubble}</span>
     </React.Fragment>
   );
 }
@@ -314,9 +332,10 @@ export function renderText(text: string): React.ReactNode {
         ? kaChartPointInflect(ptKey, suffix)
         : (PT_NAMES_EN[ptKey] || ptKey);
       nodes.push(
-        <span key={k++} className="pt tip" data-tip={ptTips[ptKey]}>
+        <span key={k++} className="pt tip2">
           <span className="zm-icon">{iconLabel}</span>
           <span className="zm-name">{nameLabel}</span>
+          {tipBubble(ptTips[ptKey])}
         </span>
       );
 
@@ -339,10 +358,11 @@ export function renderText(text: string): React.ReactNode {
         // glyph rotated 180° (astro convention) with its own tooltip text.
         const isSouth = ch === '☋';
         const tip = planetSymbolTip(ch);
-        const cls = `gi gi-pl${isSouth ? ' gi-flip' : ''}${tip ? ' tip' : ''}`;
+        const cls = `gi gi-pl${isSouth ? ' gi-flip' : ''}${tip ? ' tip2' : ''}`;
         nodes.push(
-          <span key={k++} className={cls} {...(tip ? { 'data-tip': tip, style: { cursor: 'help' } } : {})}>
+          <span key={k++} className={cls} {...(tip ? { style: { cursor: 'help' } } : {})}>
             <svg><use href={`#gl-${glyph}`}/></svg>
+            {tip ? tipBubble(tip) : null}
           </span>
         );
       } else {
