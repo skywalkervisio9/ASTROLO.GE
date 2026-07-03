@@ -92,31 +92,39 @@ function startLoading(lang, durationMs) {
   var csEl = document.getElementById('cosmicStars');
   var csCanvas = null, csCtx = null, csW = 0, csH = 0, csStars = [];
   var haloSprite = null, ghostSprite = null;
-  // Desktop's wider canvas makes the same trail strength read as busy — halve
-  // it there (mirrors the old @media(min-width:768px){--mmag-scale:0.55}).
-  var mmagScale = (window.innerWidth >= 768) ? 0.55 : 1.0;
+  // Desktop's wider canvas makes the same trail strength read as busy — scale
+  // it down there, but keep the trails clearly feelable.
+  var mmagScale = (window.innerWidth >= 768) ? 0.72 : 1.0;
   var resizeCsCanvas = null;
-  // Per-layer alpha falloff for the three trail groups — copied verbatim from
-  // the old box-shadow ghost stacks (globals.css .cs-trail.tg-*) so the trail
-  // reads identically. Length = ghost count. A matching radius grows so early
-  // ghosts are tight and crisp, later ones softer — mirroring the old
-  // blur/spread ramp.
-  var TRAIL_FAST = [0.72, 0.63, 0.55, 0.46, 0.38, 0.30, 0.22, 0.14, 0.08, 0.04];
-  var TRAIL_MED = [0.68, 0.60, 0.53, 0.47, 0.41, 0.35, 0.30, 0.25, 0.20, 0.16, 0.12, 0.09, 0.06, 0.03];
-  var TRAIL_SLOW = [0.60, 0.54, 0.48, 0.43, 0.38, 0.34, 0.30, 0.27, 0.24, 0.21, 0.18, 0.15, 0.13, 0.11, 0.09, 0.07, 0.05, 0.04, 0.03, 0.02];
+  // Per-layer alpha falloff for the three trail groups (fast / med / slow),
+  // derived from the old box-shadow ghost stacks (globals.css .cs-trail.tg-*)
+  // then lengthened and gentled for longer, smoother tails. Length = ghost
+  // count; a matching radius grows down the tail so later ghosts overlap into
+  // one continuous streak instead of a chain of dots.
+  var TRAIL_FAST = [0.72, 0.66, 0.60, 0.54, 0.48, 0.42, 0.36, 0.30, 0.25, 0.20, 0.15, 0.11, 0.07, 0.03];
+  var TRAIL_MED = [0.68, 0.63, 0.58, 0.53, 0.49, 0.45, 0.41, 0.37, 0.33, 0.29, 0.25, 0.22, 0.19, 0.16, 0.13, 0.10, 0.08, 0.06, 0.04, 0.02];
+  var TRAIL_SLOW = [0.60, 0.57, 0.54, 0.51, 0.48, 0.45, 0.42, 0.39, 0.36, 0.33, 0.30, 0.28, 0.26, 0.24, 0.22, 0.20, 0.18, 0.16, 0.14, 0.12, 0.10, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03];
 
   // Build a soft radial sprite (white core → transparent) at a given tint.
   // Blitting a cached sprite with a per-use alpha is far cheaper than a live
-  // gradient or shadow per star/ghost, and reproduces the box-shadow softness.
+  // gradient or shadow per star/ghost. A feathered gradient plus a light blur
+  // pass gives genuinely soft, diffuse edges (used for both the star glow and
+  // the trail ghosts, so it smooths the trails too).
   function makeGlowSprite(r, g, b) {
-    var S = 48, c = document.createElement('canvas');
+    var S = 64, c = document.createElement('canvas');
     c.width = S; c.height = S;
     var gx = c.getContext('2d');
+    var rgba = function (a) { return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; };
     var grd = gx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
-    grd.addColorStop(0, 'rgba(' + r + ',' + g + ',' + b + ',1)');
-    grd.addColorStop(0.4, 'rgba(' + r + ',' + g + ',' + b + ',0.5)');
-    grd.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',0)');
+    grd.addColorStop(0, rgba(1));
+    grd.addColorStop(0.18, rgba(0.72));
+    grd.addColorStop(0.42, rgba(0.30));
+    grd.addColorStop(0.7, rgba(0.08));
+    grd.addColorStop(1, rgba(0));
+    // Light blur feathers the edge further (ignored where unsupported).
+    gx.filter = 'blur(2px)';
     gx.fillStyle = grd; gx.fillRect(0, 0, S, S);
+    gx.filter = 'none';
     return c;
   }
 
@@ -147,7 +155,10 @@ function startLoading(lang, durationMs) {
       csStars.push({
         bx: Math.random(), by: Math.random(),
         core: Math.random() * 1.6 + 0.8,   // --sz : crisp dot diameter (px)
-        glow: 3 + Math.random() * 6,       // --gl : glow blur radius (px)
+        glow: 2.5 + Math.random() * 10,    // --gl : glow radius (px) — wider spread
+        // Per-star glow strength so some stars bloom brightly and others barely
+        // glow, instead of every halo sharing one alpha.
+        glowMult: 0.4 + Math.random() * 1.4,
         depth: depth,
         trail: isTrail, trailMult: trailMult, group: group,
         // csTw twinkle: 0→.65→.65→0 over --tdur, ease-in-out, alternate.
@@ -259,7 +270,7 @@ function startLoading(lang, durationMs) {
   let pxT = 0, pyT = 0, pxC = 0, pyC = 0, prRaf = 0;
   var trailHist = []; var BUF_MAX = 60;
   var mmag = 0, sVx = 0, sVy = 0, prevX = 0, prevY = 0;
-  var PARALLAX_RANGE = 24;
+  var PARALLAX_RANGE = 34;
   var csAnimating = false;
 
   // csTw twinkle reproduced exactly: keyframes 0→.65 (0-20%), hold .65
@@ -297,8 +308,9 @@ function startLoading(lang, durationMs) {
           if (a <= 0.004) continue;
           var p = trailHist[k] || trailHist[trailHist.length - 1];
           if (!p) break;
-          // radius 0.9 → ~3.4px along the tail (mirrors the blur/spread ramp).
-          var rad = 0.9 + (k - 1) / len * 2.5;
+          // radius grows along the tail so later ghosts overlap into a smooth
+          // continuous streak rather than a chain of dots.
+          var rad = 1.0 + (k - 1) / len * 3.6;
           csCtx.globalAlpha = a;
           csCtx.drawImage(ghostSprite, bx + p.x * dep - rad, by + p.y * dep - rad, rad * 2, rad * 2);
         }
@@ -313,11 +325,10 @@ function startLoading(lang, durationMs) {
       if (tw <= 0.002) continue;
       var dx = s.bx * csW + offX * s.depth;
       var dy = s.by * csH + offY * s.depth;
-      // Halo: a blurred box-shadow spreads its .28 source into a much fainter
-      // glow than a filled sprite would, so we draw the sprite at a lower alpha
-      // and slightly tighter radius to match that softness.
-      var hr = s.core / 2 + s.glow * 0.85;
-      csCtx.globalAlpha = 0.15 * tw;
+      // Halo: soft glow sprite, sized by --gl and scaled per-star (glowMult)
+      // so glow strength varies star to star. Low base alpha keeps it faint.
+      var hr = s.core / 2 + s.glow * 0.9;
+      csCtx.globalAlpha = 0.15 * s.glowMult * tw;
       csCtx.drawImage(haloSprite, dx - hr, dy - hr, hr * 2, hr * 2);
       // Crisp core.
       csCtx.globalAlpha = 0.85 * tw;
@@ -330,8 +341,10 @@ function startLoading(lang, durationMs) {
   }
 
   function applyParallax() {
-    pxC += (pxT - pxC) * 0.08;
-    pyC += (pyT - pyC) * 0.08;
+    // Lower ease = floatier, smoother glide (stars trail the cursor gently
+    // rather than snapping to it).
+    pxC += (pxT - pxC) * 0.065;
+    pyC += (pyT - pyC) * 0.065;
     var curX = -pxC * PARALLAX_RANGE, curY = -pyC * PARALLAX_RANGE;
     trailHist.unshift({ x: curX, y: curY });
     if (trailHist.length > BUF_MAX) trailHist.pop();
@@ -339,7 +352,9 @@ function startLoading(lang, durationMs) {
     sVx += (rawVx - sVx) * 0.5; sVy += (rawVy - sVy) * 0.5;
     var d = Math.sqrt(sVx * sVx + sVy * sVy);
     var target = 1 - Math.exp(-d * 0.55);
-    mmag += (target - mmag) * (target > mmag ? 0.32 : 0.05);
+    // Fast attack (trails appear at once), gentler decay so they linger and
+    // fade out smoothly rather than snapping off.
+    mmag += (target - mmag) * (target > mmag ? 0.32 : 0.04);
     prevX = curX; prevY = curY;
     renderStars(curX, curY, mmag);
     // Twinkle needs a continuous loop (unlike the old CSS-animated twinkle),
