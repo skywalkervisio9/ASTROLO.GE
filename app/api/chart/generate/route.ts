@@ -82,6 +82,7 @@ const POINT_SUBJECT_KEYS: Array<[string, string]> = [
   ['true_north_lunar_node', 'northNode'],
   ['true_south_lunar_node', 'southNode'],
   ['mean_lilith', 'lilith'],
+  ['chiron', 'chiron'],
 ];
 
 // Astrologer v5 subject keys for the 12 house cusps, in order 1..12

@@ -124,6 +124,8 @@ BODY (paragraphs):
 - CONCISE & HIGH-IMPACT. Every sentence must earn its place. No restating the same insight in different words.
 - Weave placements subtly into sentences — don't frontload degrees and houses.
   ✓ „შენი იდენტობის ცენტრში მედიატორის არქეტიპი დგას — კომუნიკაცია შენთვის არა უბრალოდ უნარია, არამედ არსებობის გზა."
+- ORBS & DEGREES stay in crossReferences ONLY — never inside body paragraphs or aspectInterpretations. Convey aspect strength with plain words: ზუსტი / მჭიდრო / ფართო / სუსტი.
+  ✗ „(2°06' ორბით)" / „(orb 2°06')" inside prose   ✓ „მჭიდრო, თითქმის ზუსტი შერწყმა" / „ფართო, ნაზი ელფერი"
 - ANTI-FILLER: A 4-sentence card that lands is better than a 4-paragraph card that wanders.
 
 expandedContent[] — STRUCTURED FORMAT:
@@ -200,7 +202,7 @@ HINT (golden box at bottom of card):
 
 ── SECTION 1: OVERVIEW ──
 
-ASPECTS: Write interpretations for 2-5 most important provided aspects in the top-level `aspectInterpretations` array (see PART D schema).
+ASPECTS: Write interpretations for 2-5 most important provided aspects in the top-level `aspectInterpretations` array (see PART D schema). Convey aspect strength with words (მჭიდრო / ზუსტი / სუსტი) — NEVER embed the numeric orb like „(2°06' ორბით)" in the interpretation text; the orb already renders in the aspect table.
 
 CORE CARDS (exactly 3):
 - SUN: identity centre, chart ruler connection, degree significance. Cross-ref: Moon, ASC, Venus, North Node.

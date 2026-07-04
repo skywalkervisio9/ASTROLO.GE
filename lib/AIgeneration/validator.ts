@@ -156,7 +156,7 @@ function numberBoldColonItems(paragraphs: string[]): string[] {
 
 // Georgian case suffixes attached to chart-point words. Ordered longest-first so
 // the regex prefers სთვის over თვის, ისთვის over სთვის, etc.
-const KA_PT_SUFFIX_RE_SRC = '(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო|ი)';
+const KA_PT_SUFFIX_RE_SRC = '(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო|ია|ა|ი)';
 
 // Stems for ASC/DSC/MC/IC in Georgian. The "ცის " prefix on MC/IC stays fixed —
 // only the head word inflects. Stems intentionally exclude the final ი of the
@@ -212,7 +212,7 @@ const KA_PLANET_WORD_RE = new RegExp(
 const KA_PLANET_WORD_MAP = new Map(KA_PLANET_WORD_TO_TOKEN);
 // Any planet symbol, optionally already carrying a "-suffix".
 const PLANET_SYM_CLASS = '[☉☽☿♀♂♃♄♅♆♇⚸☊☋]';
-const PLANET_SUFFIX_ALT = 'ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო';
+const PLANET_SUFFIX_ALT = 'ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო|ია|ა';
 
 function sanitizePlanetTerminology(p: string): string {
   if (typeof p !== 'string') return p;

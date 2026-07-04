@@ -381,7 +381,10 @@ section.vis{opacity:1;transform:translateY(0)}
 .af .dn{color:var(--fire)}.ae .dn{color:var(--earth)}.aa .dn{color:var(--air)}.aw .dn{color:var(--water)}
 /* Chart point labels: ASC / MC / IC */
 span.pt{color:var(--gold);font-family:'Outfit',var(--fb),sans-serif;letter-spacing:.07em;font-weight:500;font-size:.88em;cursor:help;position:relative}
-html[lang="ka"] body.zodiac-names span.pt{font-family:var(--fb);letter-spacing:.02em}
+/* Name mode: the full chart-point word reads as prose (the .88em/spacing suits
+   only the icon-mode acronym like "ASC"). */
+body.zodiac-names span.pt{font-size:1em;font-weight:400;letter-spacing:.02em}
+html[lang="ka"] body.zodiac-names span.pt{font-family:var(--fb)}
 /* Zodiac/chart-point swap: renderers emit both .zm-icon and .zm-name; body.zodiac-names flips visibility. No re-render on toggle. body-prefixed for specificity over .hero-chips span{display:flex}. */
 body .zm-name{display:none}
 body.zodiac-names .zm-icon{display:none}
@@ -401,6 +404,7 @@ body.zodiac-names .zm-name{display:inline}
 .tt .tt-t.tt-earth{color:var(--earth)}
 .tt .tt-t.tt-air{color:var(--air)}
 .tt .tt-t.tt-water{color:var(--water)}
+.tt .tt-t.tt-silver{color:var(--silver)}
 .tip2.tip--el .tt{left:0;transform:none}
 .tip2.tip--er .tt{left:auto;right:0;transform:none}
 .tip--el::after{left:0;transform:none}
@@ -411,7 +415,12 @@ body.zodiac-names .zm-name{display:inline}
 .b-i{width:11px;height:11px;margin-left:4px;opacity:.65;flex-shrink:0;vertical-align:middle}
 .tip--er::after{left:auto;right:0;transform:none}
 .pt.tip::after{color:var(--gold)}
-.retro.tip::after{color:var(--gold)}
+/* Retrograde marker ℞ renders silver (not gold); its two-tone tooltip has a
+   silver headline + soft-white body via .tt-silver. */
+.retro{color:var(--silver)}
+.retro.tip::after{color:var(--silver)}
+/* Inline degree token — subtle, tabular tint so numerals/°/′ read as data. */
+.deg{font-family:'Outfit',sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.01em;color:var(--silver);opacity:.85}
 /* Element pills: single-line tooltip tinted to element color */
 .gel.tip::after{font-weight:500}
 .gel-fire.tip::after{color:var(--fire);border-color:rgba(212,100,74,.3)}
@@ -483,7 +492,7 @@ body.zodiac-names .zm-name{display:inline}
 table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 .pt th{font-size:.6rem;letter-spacing:.14em;color:var(--gd);text-align:left;padding:6px 9px;border-bottom:1px solid rgba(201,168,76,.08);font-weight:400;vertical-align:middle}
 .pt td{font-size:.8rem;padding:7px 9px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--silver);transition:all .2s;vertical-align:middle}
-.pt tr:hover td{background:rgba(201,168,76,.02)}.pt .retro{color:var(--gd);font-style:italic}.c:hover .retro{color:var(--gold);transition:color .2s}
+.pt tr:hover td{background:rgba(201,168,76,.02)}.pt .retro{color:var(--silver);font-style:italic}.c:hover .retro{color:#d6d6e6;transition:color .2s}
 /* Column widths — desktop */
 .pt td:nth-child(1),.pt th:nth-child(1){width:24%;text-align:left}
 .pt td:nth-child(2),.pt th:nth-child(2){width:21%;text-align:left}
@@ -505,6 +514,7 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 }
 .pb2{display:inline-flex;align-items:center;gap:4px;font-size:.74rem;color:var(--gd);background:rgba(201,168,76,.05);padding:3px 9px;border-radius:6px;margin-right:4px;margin-bottom:4px}
 .pb2 .gi{vertical-align:middle;width:1em;height:1em;flex-shrink:0}
+.pb2-pt{display:inline-flex;align-items:center}
 /* Aspect list in overview section */
 .aspects-grid{display:flex;flex-direction:column;gap:0;margin:12px 0 18px}
 /* Aspect rows */
@@ -524,6 +534,8 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 /* Clickable aspect symbol → opens aspect-type popup (like planet/sign glyphs) */
 .asy.asy-btn{cursor:pointer;padding:2px 3px;margin:-2px 6px -2px -3px;border-radius:6px;transition:background .15s}
 .asy.asy-btn:hover{background:rgba(201,168,76,.10)}
+/* Aspect glyph inside a card label/badge (replaces the old raw Unicode char) */
+.asy-lbl{margin:0 3px}
 /* Planet names */
 .al-p{color:var(--silver)}
 .al-p .gi{vertical-align:middle;width:1em;height:1em}
@@ -578,7 +590,7 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 @keyframes ai-pulse-kf{0%,100%{background:var(--sf2)}50%{background:rgba(201,168,76,.14)}}
 .ai-pulse .al,.ai-pulse .ai-body{animation:ai-pulse-kf 1s ease-in-out 2}
 /* Acronym badge for points without SVG (MC, IC, DSC, ASC) */
-.gi-acr{display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;color:var(--gold);min-width:1.4em;font-weight:600;letter-spacing:.04em;vertical-align:middle;font-family:'Outfit',sans-serif}
+.gi-acr{display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--gold);min-width:1.4em;font-weight:600;letter-spacing:.03em;vertical-align:middle}
 .pq{text-align:center;padding:36px 28px;background:linear-gradient(135deg,var(--sf),var(--sf2));border-radius:16px;border:1px solid rgba(201,168,76,.06);margin:18px 0;transition:all .5s var(--ease)}
 .pq:hover{border-color:rgba(201,168,76,.15);box-shadow:0 4px 24px rgba(201,168,76,.04)}
 .pq p{font-family:var(--fd);font-size:1.1rem;font-style:italic;color:var(--gold);line-height:1.85;max-width:560px;margin:0 auto}
@@ -598,6 +610,11 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 .b .gi{width:12px;height:12px;flex-shrink:0;min-width:12px}
 /* Neutralise span.pt size/spacing overrides inside label badge */
 .b span.pt{font-size:inherit;letter-spacing:inherit;font-family:inherit;font-weight:inherit;line-height:inherit;display:inline-flex;align-items:center}
+/* Label headlines carry their own click popup — suppress the per-token hover
+   tooltips (planet/sign one-liners) so they don't overlap/clutter the label. */
+.b .tt{display:none}
+.b .tip::after{display:none}
+.b .tip2,.b .tip{cursor:default}
 .c p .gi,.c h3 .gi{width:1.1em;height:1.1em}
 
 /* ═══ LOCKED SECTIONS ═══ */
@@ -944,7 +961,7 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
   .c.c-active strong,.card.c-active strong{color:var(--gold)}
   .c.c-active .h strong,.card.c-active .h strong{color:inherit}
   .c.c-active .dn{font-size:.75em;opacity:.85}
-  .c.c-active .retro{color:var(--gold);transition:color .2s}
+  .c.c-active .retro{color:#d6d6e6;transition:color .2s}
   .c.c-active p,.card.c-active p{color:var(--tx)}
 }
 

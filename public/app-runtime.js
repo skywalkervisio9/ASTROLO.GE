@@ -2682,6 +2682,9 @@ const SYMBOL_TO_GLYPH = {
 };
 const SIGN_SYMBOLS = new Set(['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓']);
 const PLANET_SYMBOLS = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋','⚷']);
+// Aspect Unicode char → SVG glyph id (mirrors the aspect-table glyph set so
+// labels/badges render the polished glyphs, not the raw Unicode char).
+const _ASPECT_SYMBOL_TO_GLYPH = { '☌':'conjunction','△':'trine','□':'square','☍':'opposition','⚹':'sextile' };
 
 // Zodiac sign in-text display data (icon/name toggle + tooltips). Mirrors
 // lib/utils/renderText.tsx so the hydrated reading matches the React renderer.
@@ -2730,6 +2733,7 @@ function _kaSignName(key, suffix) {
   if (s === 'სთვის' || s === 'თვის') return f.for;
   if (s === 'სთან' || s === 'თან') return f.with;
   if (s === 'ო') return f.voc;
+  if (s === 'ია' || s === 'ა') return f.nom + 'ა'; // copula "is"
   return f.nom;
 }
 
@@ -2737,7 +2741,7 @@ function _kaSignName(key, suffix) {
 // lib/utils/renderText.tsx (PLANET_NAMES_*/renderPlanetSymbolToken).
 const PLANET_SYMBOL_TO_NAMEKEY = {
   '☉':'sun','☽':'moon','☿':'mercury','♀':'venus','♂':'mars','♃':'jupiter',
-  '♄':'saturn','♅':'uranus','♆':'neptune','♇':'pluto','⚸':'lilith',
+  '♄':'saturn','♅':'uranus','♆':'neptune','♇':'pluto','⚸':'lilith','⚷':'chiron',
   '☊':'north node','☋':'south node'
 };
 const PLANET_NAMES_EN_INF = {
@@ -2772,6 +2776,7 @@ function _kaPlanetName(sym, suffix) {
   if (s === 'ისთვის' || s === 'სთვის' || s === 'თვის') return f.for;
   if (s === 'ისთან' || s === 'სთან' || s === 'თან') return f.with;
   if (s === 'ო') return f.voc;
+  if (s === 'ია' || s === 'ა') return f.nom + 'ა'; // copula "is"
   return f.nom;
 }
 // Emit the toggleable icon/name planet token (mirrors renderPlanetSymbolToken).
@@ -2860,11 +2865,12 @@ function _renderRichText(text) {
     if (s === 'სთვის' || s === 'თვის' || s === 'ისთვის') return p + st + 'ისთვის';
     if (s === 'სთან' || s === 'თან' || s === 'ისთან') return p + st + 'თან';
     if (s === 'ო') return p + st + 'ო';
+    if (s === 'ია' || s === 'ა') return p + st + 'ია'; // copula "is"
     return p + st + 'ი';
   };
   // Emit both forms; CSS toggles via body.zodiac-names. No re-render on switch.
   escaped = escaped.replace(
-    /\b(ASC|MC|IC|DSC)(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო))?/g,
+    /\b(ASC|MC|IC|DSC)(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო|ია|ა))?/g,
     function(_m, key, suffix) {
       var iconLabel = suffix ? (key + '-' + suffix) : key;
       var nameLabel = _hydrateLang === 'ka'
@@ -2877,12 +2883,19 @@ function _renderRichText(text) {
       '</span>';
     }
   );
-  // Retrograde symbol → tooltip
+  // Retrograde marker → silver ℞ with a two-tone tooltip (silver headline,
+  // soft-white body). Mirrors renderText.tsx's retroNode.
   var retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
-  escaped = escaped.replace(/℞/g, '<span class="retro tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>');
+  var _retroSpan = '<span class="retro tip2" style="cursor:help">℞' + _tip2Html(retroTip, 'tt-silver') + '</span>';
+  escaped = escaped.replace(/℞/g, _retroSpan);
   escaped = escaped.replace(/\bretrograde\b|(?<![ა-ჰ])რეტროგრად/giu, function(m, offset, str) {
-    var span = '<span class="retro tip" data-tip="' + retroTip + '" style="cursor:help">℞</span>';
-    return /[ა-ჰ]/u.test(str[offset + m.length] || '') ? span + '-' : span;
+    return /[ა-ჰ]/u.test(str[offset + m.length] || '') ? _retroSpan + '-' : _retroSpan;
+  });
+  // Inline degree tokens → tinted .deg span so numerals/°/′ read as data; a
+  // trailing "R" (e.g. 8°32'R) becomes the silver ℞ marker. Runs after the ℞
+  // pass so the emitted marker isn't re-wrapped.
+  escaped = escaped.replace(/(?<!\d)(\d{1,2}[°º](?:\d{1,2}['′]?)?)(?:\s*(R))?(?![\w°])/gi, function(_m, core, r) {
+    return '<span class="deg">' + core + '</span>' + (r ? _retroSpan : '');
   });
   // Element words → colored inline pills (Characteristics core card).
   // Matches: ცეცხლ- / მიწ- / ჰაერ- / წყალ- / წყლ- (genitive: წყლის, წყლისა) with any
@@ -2926,7 +2939,7 @@ function _renderRichText(text) {
   // the char-by-char pass below so signs become dual icon/name spans (which the
   // zodiac switch can flip) instead of a bare, untoggleable glyph.
   escaped = escaped.replace(
-    /([♈♉♊♋♌♍♎♏♐♑♒♓])(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო))?/g,
+    /([♈♉♊♋♌♍♎♏♐♑♒♓])(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო|ია|ა))?/g,
     function(_m, sym, suffix) {
       var key = SYMBOL_TO_GLYPH[sym];
       var el = SIGN_ELEMENT[key] || '';
@@ -2944,7 +2957,7 @@ function _renderRichText(text) {
   // char-by-char pass so planets become dual icon/name spans (which the zodiac
   // switch flips) instead of a bare, untoggleable glyph.
   escaped = escaped.replace(
-    /([☉☽☿♀♂♃♄♅♆♇⚸☊☋])(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო))?/g,
+    /([☉☽☿♀♂♃♄♅♆♇⚸☊☋⚷])(?:-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო|ია|ა))?/g,
     function(_m, sym, suffix) { return _planetTokenHtml(sym, suffix); }
   );
   // Now replace Unicode astro symbols with SVG glyphs
@@ -3001,10 +3014,12 @@ function _buildBadgeHtml(label) {
       }
       i++;
     } else if (ch === '℞') {
-      result += ' ℞';
+      result += ' <span class="retro">&#8478;</span>';
       i++;
-    } else if (ch === '☌' || ch === '△' || ch === '□' || ch === '☍' || ch === '⚹') {
-      result += ' ' + _esc(ch) + ' ';
+    } else if (_ASPECT_SYMBOL_TO_GLYPH[ch]) {
+      // Aspect symbols render as the polished SVG glyphs (same set as the
+      // aspect table) instead of the raw Unicode char.
+      result += '<span class="gi gi-pl asy-lbl"><svg><use href="#gl-' + _ASPECT_SYMBOL_TO_GLYPH[ch] + '"/></svg></span>';
       i++;
     } else {
       // Regular character — collect a run of plain text
@@ -3079,6 +3094,20 @@ function _signGlyph(signName, element) {
   return '<span class="gi gi-' + elLow + '"><svg><use href="#' + id + '"/></svg></span>';
 }
 
+// Sign glyph carrying its own two-tone hover tooltip + element color. Used in
+// the points row, where the zodiac is a separate hover target from the point.
+function _signGlyphTipped(signName) {
+  var lower = (signName || '').toLowerCase();
+  var key = Object.prototype.hasOwnProperty.call(_SIGN_IDX, lower) ? lower : '';
+  if (!key) { for (var k in _SIGN_IDX) { if (lower.indexOf(k) !== -1 || k.indexOf(lower) !== -1) { key = k; break; } } }
+  if (!key) return _esc(signName);
+  var el = SIGN_ELEMENT[key] || '';
+  var tip = (_hydrateLang === 'ka' ? SIGN_TIPS_KA : SIGN_TIPS_EN)[key] || '';
+  var tipHtml = tip ? _tip2Html(tip, 'tt-' + el) : '';
+  var tipCls = tip ? ' tip2' : '';
+  return '<span class="gi gi-' + el + tipCls + '" style="cursor:help"><svg><use href="#gl-' + key + '"/></svg>' + tipHtml + '</span>';
+}
+
 function _buildPlanetRow(row) {
   const planet = row.planet || row.name || '';
   // Resolve to English key for glyph lookup + data attribute
@@ -3087,7 +3116,7 @@ function _buildPlanetRow(row) {
   const signKa = _tr(SIGN_KA, row.sign);
   const retro = row.retrograde ? ' class="retro"' : '';
   const retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
-  const retroBadge = row.retrograde ? ' <span class="tip" data-tip="' + retroTip + '" style="cursor:help">&#8478;</span>' : '';
+  const retroBadge = row.retrograde ? ' <span class="retro tip2" style="cursor:help">&#8478;' + _tip2Html(retroTip, 'tt-silver') + '</span>' : '';
   const elLower = (row.element || '').toLowerCase();
   const elClass = ELEMENT_LABEL_CLASS[elLower] || '';
   const elLabel = { fire: 'ცეცხლი', earth: 'მიწა', air: 'ჰაერი', water: 'წყალი' };
@@ -3115,6 +3144,11 @@ var _aspTypeLabel = {
   ka: { conjunction: 'კონიუნქცია', trine: 'ტრინი', square: 'კვადრატი', opposition: 'ოპოზიცია', sextile: 'სექსტილი' },
   en: { conjunction: 'conjunction', trine: 'trine', square: 'square', opposition: 'opposition', sextile: 'sextile' }
 };
+// Short two-tone hover tooltips for the aspect-type label on aspect rows.
+var _aspTypeTip = {
+  ka: { conjunction: 'კონიუნქცია — შერწყმა, ენერგიების გაძლიერება', trine: 'ტრინი — ჰარმონია, ბუნებრივი ნიჭი', square: 'კვადრატი — დაძაბულობა, ზრდის ბიძგი', opposition: 'ოპოზიცია — პოლარობა, ბალანსის ძიება', sextile: 'სექსტილი — შესაძლებლობა, თანამშრომლობა' },
+  en: { conjunction: 'Conjunction — fusion, intensified energy', trine: 'Trine — harmony, natural talent', square: 'Square — tension, growth push', opposition: 'Opposition — polarity, seeking balance', sextile: 'Sextile — opportunity, cooperation' }
+};
 
 function _aspectGlyph(type) {
   var ids = { conjunction: 'gl-conjunction', trine: 'gl-trine', square: 'gl-square', sextile: 'gl-sextile', opposition: 'gl-opposition' };
@@ -3137,12 +3171,15 @@ function _planetKey(name) {
 // Wrap an aspect-row body (glyph + name) as a popup trigger: .pl-btn for planets
 // with an extended plData entry, .cp-btn for chart points (ASC/DSC/MC/IC);
 // otherwise render it plain.
-function _aspPlanet(glyph, name, rawName) {
+// noTip=true suppresses the hover bubble (keeps the click popup) — used in the
+// interpretation table where the headline sits directly above the body and the
+// bubble would overlap the row above it.
+function _aspPlanet(glyph, name, rawName, noTip) {
   var pk = _planetKey(rawName);
   if (_PL_POPUP_KEYS[pk]) {
     // Short hover tooltip (tip2) alongside the click popup — restores the
-    // planet one-liner on aspect rows & the interpretation table.
-    var tip = (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[pk] || '';
+    // planet one-liner on aspect rows. Skipped in the interpretation table.
+    var tip = noTip ? '' : (_hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[pk] || '';
     var tipHtml = tip ? _tip2Html(tip) : '';
     var tipCls = tip ? ' tip2' : '';
     return '<span class="al-p pl-btn' + tipCls + '" data-pl="' + pk + '">' + glyph + name + tipHtml + '</span>';
@@ -3175,12 +3212,15 @@ function _buildAspect(asp) {
   var g2 = _planetGlyph(p2Name);
   var isAcr1 = g1.indexOf('gi-acr') !== -1;
   var isAcr2 = g2.indexOf('gi-acr') !== -1;
+  var typeTip = (_aspTypeTip[_hydrateLang] || _aspTypeTip.ka)[aspectType] || '';
+  var typeTipHtml = typeTip ? _tip2Html(typeTip) : '';
+  var typeTipCls = typeTip ? ' tip2' : '';
   return '<div class="' + cls + '"' + clickAttr + '>' +
     '<span class="asy asy-btn" data-asp-type="' + _esc(aspectType) + '">' + (_aspectGlyph(aspectType) || _esc(asp.aspectSymbol || '')) + '</span>' +
     _aspPlanet(g1, isAcr1 ? '' : ' ' + _esc(p1), p1Name) +
     _aspPlanet(g2, isAcr2 ? '' : ' ' + _esc(p2), p2Name) +
     '<span class="alb">' +
-    '<span class="al-type">' + _esc(typeLbl) + '</span>' +
+    '<span class="al-type' + typeTipCls + '"' + (typeTip ? ' style="cursor:help"' : '') + '>' + _esc(typeLbl) + typeTipHtml + '</span>' +
     '<span class="al-orb">' + _esc(orbStr) + '</span>' +
     (hasInterp ? '<span class="al-star">★</span>' : '') +
     '</span>' +
@@ -3288,11 +3328,18 @@ function _buildSectionContent(sectionKey, section) {
       if (section.points && typeof section.points === 'object') {
         var pts = section.points;
         html += '<div class="pts-row" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:4px">';
-        if (pts.ascendant) html += '<span class="pb2">ASC ' + _signGlyph(pts.ascendant.sign) + ' ' + _esc(pts.ascendant.degree) + '</span>';
-        if (pts.midheaven) html += '<span class="pb2">MC ' + _signGlyph(pts.midheaven.sign) + ' ' + _esc(pts.midheaven.degree) + '</span>';
         var _ptsTips = _hydrateLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN;
-        if (pts.northNode) html += '<span class="pb2 tip2" style="cursor:help">' + _planetGlyph('node') + ' ' + _signGlyph(pts.northNode.sign) + ' ' + _esc(pts.northNode.degree) + _tip2Html(_ptsTips.node) + '</span>';
-        if (pts.lilith) html += '<span class="pb2 tip2" style="cursor:help">' + _planetGlyph('lilith') + ' ' + _signGlyph(pts.lilith.sign) + ' ' + _esc(pts.lilith.degree) + _tip2Html(_ptsTips.lilith) + '</span>';
+        // Each badge: [point] [degree] [zodiac]. The point and the zodiac each
+        // carry their own hover tooltip, separated by the degree so the two
+        // hover targets don't overlap. ASC/MC live in the hero chips, not here.
+        var _pointBadge = function(glyphKey, tipKey, p) {
+          if (!p) return '';
+          return '<span class="pb2"><span class="pb2-pt tip2" style="cursor:help">' + _planetGlyph(glyphKey) + _tip2Html(_ptsTips[tipKey]) + '</span> ' + _esc(p.degree) + ' ' + _signGlyphTipped(p.sign) + '</span>';
+        };
+        html += _pointBadge('node', 'node', pts.northNode);
+        html += _pointBadge('south node', 'south node', pts.southNode);
+        html += _pointBadge('lilith', 'lilith', pts.lilith);
+        html += _pointBadge('chiron', 'chiron', pts.chiron);
         html += '</div>';
       }
       html += '</div>';
@@ -3328,8 +3375,8 @@ function _buildSectionContent(sectionKey, section) {
           html += '<div class="ai-entry ' + _nc + '" data-asp-key="' + _aspKey + '">' +
             '<div class="al ' + _nc + '">' +
               '<span class="asy asy-btn" data-asp-type="' + _esc(_aType) + '">' + (_aspectGlyph(_aType) || _esc(a.aspectSymbol || '')) + '</span>' +
-              _aspPlanet(_g1, _isAcr1 ? '' : ' ' + _esc(_p1), _p1Name) +
-              _aspPlanet(_g2, _isAcr2 ? '' : ' ' + _esc(_p2), _p2Name) +
+              _aspPlanet(_g1, _isAcr1 ? '' : ' ' + _esc(_p1), _p1Name, true) +
+              _aspPlanet(_g2, _isAcr2 ? '' : ' ' + _esc(_p2), _p2Name, true) +
               '<span class="alb">' +
                 '<span class="al-type">' + _esc(_typeLbl) + '</span>' +
                 '<span class="al-orb">' + _esc(_orbStr) + '</span>' +

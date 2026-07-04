@@ -20,16 +20,20 @@ import { renderText, renderPlanetSymbolToken, normalizeHouseNotation } from '@/l
 const LABEL_SYMBOL_TO_GLYPH: Record<string, string> = {
   '☉':'sun','☽':'moon','☿':'mercury','♀':'venus','♂':'mars',
   '♃':'jupiter','♄':'saturn','♅':'uranus','♆':'neptune','♇':'pluto',
-  '⚸':'lilith','☊':'node','☋':'node',
+  '⚸':'lilith','☊':'node','☋':'node','⚷':'chiron',
   '♈':'aries','♉':'taurus','♊':'gemini','♋':'cancer','♌':'leo','♍':'virgo',
   '♎':'libra','♏':'scorpio','♐':'sagittarius','♑':'capricorn','♒':'aquarius','♓':'pisces',
 };
-const LABEL_PLANET_SET = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋']);
+const LABEL_PLANET_SET = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋','⚷']);
 const LABEL_SIGN_ELEMENT: Record<string, string> = {
   aries:'fire',taurus:'earth',gemini:'air',cancer:'water',leo:'fire',virgo:'earth',
   libra:'air',scorpio:'water',sagittarius:'fire',capricorn:'earth',aquarius:'air',pisces:'water',
 };
-const LABEL_ASPECT_SET = new Set(['☌','△','□','☍','⚹']);
+// Aspect symbols render as the polished SVG glyphs (same set as the aspect
+// table) instead of the raw Unicode chars.
+const LABEL_ASPECT_TO_GLYPH: Record<string, string> = {
+  '☌':'conjunction','△':'trine','□':'square','☍':'opposition','⚹':'sextile',
+};
 
 export function renderLabel(label: string): ReactNode {
   if (!label) return null;
@@ -58,9 +62,15 @@ export function renderLabel(label: string): ReactNode {
         );
       }
     } else if (ch === '℞') {
-      run += ' ℞';
-    } else if (LABEL_ASPECT_SET.has(ch)) {
-      run += ` ${ch} `;
+      flushRun();
+      out.push(<span key={k++} className="retro"> ℞</span>);
+    } else if (LABEL_ASPECT_TO_GLYPH[ch]) {
+      flushRun();
+      out.push(
+        <span key={k++} className="gi gi-pl asy-lbl">
+          <svg><use href={`#gl-${LABEL_ASPECT_TO_GLYPH[ch]}`}/></svg>
+        </span>
+      );
     } else {
       run += ch;
     }

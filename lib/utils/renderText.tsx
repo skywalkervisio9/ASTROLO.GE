@@ -10,7 +10,7 @@ import React from 'react';
 const SYMBOL_TO_GLYPH: Record<string, string> = {
   '☉':'sun','☽':'moon','☿':'mercury','♀':'venus','♂':'mars',
   '♃':'jupiter','♄':'saturn','♅':'uranus','♆':'neptune','♇':'pluto',
-  '⚸':'lilith','☊':'node','☋':'node',
+  '⚸':'lilith','☊':'node','☋':'node','⚷':'chiron',
   '♈':'aries','♉':'taurus','♊':'gemini','♋':'cancer','♌':'leo','♍':'virgo',
   '♎':'libra','♏':'scorpio','♐':'sagittarius','♑':'capricorn','♒':'aquarius','♓':'pisces',
   // Aspect symbols
@@ -18,7 +18,7 @@ const SYMBOL_TO_GLYPH: Record<string, string> = {
   // AI-generated emoji variants → mapped to existing glyphs
   '🔱':'asc','⬆':'asc','↑':'asc',
 };
-const PLANET_SET = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋']);
+const PLANET_SET = new Set(['☉','☽','☿','♀','♂','♃','♄','♅','♆','♇','⚸','☊','☋','⚷']);
 // Short planet one-liners for hover tooltips on in-text planet symbols.
 // Mirrors PLANET_TIPS_KA/EN in public/app-runtime.js — keep in sync.
 const PLANET_TIPS_KA: Record<string, string> = {
@@ -119,6 +119,7 @@ function kaSignName(key: string, suffix = '') {
   if (s === 'სთვის' || s === 'თვის') return f.for;
   if (s === 'სთან' || s === 'თან') return f.with;
   if (s === 'ო') return f.voc;
+  if (s === 'ია' || s === 'ა') return f.nom + 'ა'; // copula "is" → nominative + ა
   return f.nom;
 }
 
@@ -146,7 +147,7 @@ export function renderZodiacSignToken(key: string, suffix = '', nodeKey?: React.
 // map straight through SYMBOL_TO_GLYPH otherwise).
 const PLANET_SYMBOL_TO_NAMEKEY: Record<string, string> = {
   '☉':'sun','☽':'moon','☿':'mercury','♀':'venus','♂':'mars','♃':'jupiter',
-  '♄':'saturn','♅':'uranus','♆':'neptune','♇':'pluto','⚸':'lilith',
+  '♄':'saturn','♅':'uranus','♆':'neptune','♇':'pluto','⚸':'lilith','⚷':'chiron',
   '☊':'north node','☋':'south node',
 };
 
@@ -187,6 +188,7 @@ function kaPlanetName(ch: string, suffix = '') {
   if (s === 'ისთვის' || s === 'სთვის' || s === 'თვის') return f.for;
   if (s === 'ისთან' || s === 'სთან' || s === 'თან') return f.with;
   if (s === 'ო') return f.voc;
+  if (s === 'ია' || s === 'ა') return f.nom + 'ა'; // copula "is" → nominative + ა
   return f.nom;
 }
 
@@ -224,7 +226,7 @@ export function renderPlanetSymbolToken(ch: string, suffix = '', nodeKey?: React
 //   4: ℞ symbol
 //   5: zodiac sign symbol
 //   6: sign case suffix (e.g. "-ის")
-//   7: planet symbol (☉☽…☊☋)
+//   7: planet symbol (☉☽…☊☋⚷)
 //   8: planet case suffix (e.g. "-ის")
 //   9: other astro glyph (aspect symbols / ASC emoji variants)
 //  10: full element word match  (e.g. "ცეცხლი (48%)" or "Water")
@@ -232,12 +234,14 @@ export function renderPlanetSymbolToken(ch: string, suffix = '', nodeKey?: React
 //  12: optional percentage       (e.g. "48")
 //  13: retrograde word (English "retrograde" or Georgian core "რეტროგრად") → rendered as ℞; Georgian suffix stays as plain text
 //  14: AI-output "(R)" shorthand → rendered as ℞
+//  15: degree token core (e.g. "29°27'", "28°", "8°32") → tinted .deg span
+//  16: trailing retrograde "R" on a degree (e.g. "8°32'R" or "8°32' R") → rendered as ℞
 //
 // Georgian stems: ცეცხლ (fire) / მიწ (earth) / ჰაერ (air) / წყალ (water)
 // Matches any Georgian ending [ა-ჰ]* after the stem — so ცეცხლი / ცეცხლის / წყალში all work.
 // Water has two stems in Georgian: წყალ (nominative) and წყლ (genitive — წყლის, წყლისა, წყლით…)
 // Order matters: წყალ before წყლ so the longer match wins on "წყალისა".
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([♈♉♊♋♌♍♎♏♐♑♒♓])(-(?:სთვის|სთან|თვის|თან|ის|ში|ით|ად|ს|ო))?|([☉☽☿♀♂♃♄♅♆♇⚸☊☋])(-(?:ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო))?|([☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)|(\(R\))/giu;
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([♈♉♊♋♌♍♎♏♐♑♒♓])(-(?:სთვის|სთან|თვის|თან|ის|ში|ით|ად|ს|ო|ია|ა))?|([☉☽☿♀♂♃♄♅♆♇⚸☊☋⚷])(-(?:ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო|ია|ა))?|([☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)|(\(R\))|(?<!\d)(\d{1,2}[°º](?:\d{1,2}['′]?)?)(?:\s*(R))?(?![\w°])/giu;
 /** Classify the stem of an element word to its CSS modifier */
 function getElementClass(word: string): string | null {
   const w = word.toLowerCase();
@@ -314,10 +318,13 @@ function kaChartPointInflect(key: string, suffix: string): string {
   if (s === 'სთვის' || s === 'თვის' || s === 'ისთვის') return prefix + stem + 'ისთვის';
   if (s === 'სთან' || s === 'თან' || s === 'ისთან') return prefix + stem + 'თან';
   if (s === 'ო') return prefix + stem + 'ო';
+  if (s === 'ია' || s === 'ა') return prefix + stem + 'ია'; // copula "is" → nominative + ა
   return prefix + stem + 'ი';
 }
 
-const PT_SUFFIX_LOOKAHEAD_RE = /^-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო)(?![ა-ჰ])/u;
+// Group 1 = case suffix (incl. bare copula ია/ა); group 2 = optional trailing
+// copula/clitic (ა/ც/ცა) after a case form, e.g. "MC-ისა" → "ცის შუაწერტილისა".
+const PT_SUFFIX_LOOKAHEAD_RE = /^-(ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|მან|მა|ის|ს|ო|ია|ა)(აა|ა|ცა|ც)?(?![ა-ჰ])/u;
 
 const SIGN_TIPS_EN: Record<string, string> = {
   aries:       'Aries — initiative, courage, raw drive',
@@ -384,6 +391,10 @@ export function renderText(text: string): React.ReactNode {
   const retroTip = _renderLang === 'ka'
     ? 'რეტროგრადული — ინტერნალიზებული ენერგია'
     : 'Retrograde — internalized energy';
+  // Silver ℞ marker with a two-tone tooltip (silver headline, soft-white body).
+  const retroNode = (key: number): React.ReactNode => (
+    <span key={key} className="retro tip2" style={{ cursor: 'help' }}>℞{tipBubble(retroTip, 'tt-silver')}</span>
+  );
 
   const nodes: React.ReactNode[] = [];
   let last = 0;
@@ -414,11 +425,13 @@ export function renderText(text: string): React.ReactNode {
       const tail = text.slice(m.index + m[0].length);
       const sufMatch = tail.match(PT_SUFFIX_LOOKAHEAD_RE);
       const suffix = sufMatch ? sufMatch[1] : '';
+      // Trailing copula/clitic after a case form (e.g. "MC-ისა" → gen + "ა").
+      const extra = sufMatch && sufMatch[2] ? sufMatch[2] : '';
       const consumed = m[0].length + (sufMatch ? sufMatch[0].length : 0);
 
-      const iconLabel = suffix ? `${ptKey}-${suffix}` : ptKey;
+      const iconLabel = suffix ? `${ptKey}-${suffix}${extra}` : ptKey;
       const nameLabel = _renderLang === 'ka'
-        ? kaChartPointInflect(ptKey, suffix)
+        ? kaChartPointInflect(ptKey, suffix) + extra
         : (PT_NAMES_EN[ptKey] || ptKey);
       nodes.push(
         <span key={k++} className="pt tip2">
@@ -434,7 +447,7 @@ export function renderText(text: string): React.ReactNode {
         continue;
       }
     } else if (m[4] !== undefined) {
-      nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
+      nodes.push(retroNode(k++));
     } else if (m[5] !== undefined) {
       const signKey = SIGN_SYMBOL_TO_KEY[m[5]];
       nodes.push(renderZodiacSignToken(signKey, m[6] || '', k++));
@@ -472,10 +485,14 @@ export function renderText(text: string): React.ReactNode {
         nodes.push(m[10]);
       }
     } else if (m[13] !== undefined) {
-      nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
+      nodes.push(retroNode(k++));
       if (/[ა-ჰ]/u.test(text[m.index + m[0].length] ?? '')) nodes.push('-');
     } else if (m[14] !== undefined) {
-      nodes.push(<span key={k++} className="retro tip" data-tip={retroTip} style={{cursor:'help'}}>℞</span>);
+      nodes.push(retroNode(k++));
+    } else if (m[15] !== undefined) {
+      // Degree token: tinted numerals; trailing "R" becomes the silver ℞ marker.
+      nodes.push(<span key={k++} className="deg">{m[15]}</span>);
+      if (m[16] !== undefined) nodes.push(retroNode(k++));
     }
 
     last = m.index + m[0].length;
