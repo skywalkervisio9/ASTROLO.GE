@@ -52,6 +52,28 @@ export function planetSymbolTip(ch: string): string | undefined {
   return (_renderLang === 'ka' ? PLANET_TIPS_KA : PLANET_TIPS_EN)[key];
 }
 
+// Short two-tone hover tooltips for aspect symbols in body prose.
+// Mirrors _aspTypeTip in public/app-runtime.js — keep in sync.
+const ASPECT_TIPS_KA: Record<string, string> = {
+  conjunction: 'კონიუნქცია — შერწყმა, ენერგიების გაძლიერება',
+  trine: 'ტრინი — ჰარმონია, ბუნებრივი ნიჭი',
+  square: 'კვადრატი — დაძაბულობა, ზრდის ბიძგი',
+  opposition: 'ოპოზიცია — პოლარობა, ბალანსის ძიება',
+  sextile: 'სექსტილი — შესაძლებლობა, თანამშრომლობა',
+};
+const ASPECT_TIPS_EN: Record<string, string> = {
+  conjunction: 'Conjunction — fusion, intensified energy',
+  trine: 'Trine — harmony, natural talent',
+  square: 'Square — tension, growth push',
+  opposition: 'Opposition — polarity, seeking balance',
+  sextile: 'Sextile — opportunity, cooperation',
+};
+
+/** Tooltip text for an aspect SYMBOL glyph name in the current render language. */
+export function aspectSymbolTip(glyph: string): string | undefined {
+  return (_renderLang === 'ka' ? ASPECT_TIPS_KA : ASPECT_TIPS_EN)[glyph];
+}
+
 /** Two-part tooltip bubble: tip strings follow "<headline> — <rest>"; the
  *  headline renders colored (gold by default, tt-fire/… for zodiac signs)
  *  and the rest soft white. Place inside a trigger with class "tip2"
@@ -459,10 +481,13 @@ export function renderText(text: string): React.ReactNode {
       const glyph = SYMBOL_TO_GLYPH[ch];
 
       if (glyph) {
-        // Aspect symbols / ASC emoji variants: plain gold glyph, no toggle.
+        // Aspect symbols carry a two-tone hover tooltip (gold headline); ASC
+        // emoji variants stay a plain gold glyph with no toggle.
+        const aspTip = ASPECT_SET.has(ch) ? aspectSymbolTip(glyph) : undefined;
         nodes.push(
-          <span key={k++} className="gi gi-pl">
+          <span key={k++} className={`gi gi-pl${aspTip ? ' tip2' : ''}`} style={aspTip ? { cursor: 'help' } : undefined}>
             <svg><use href={`#gl-${glyph}`}/></svg>
+            {aspTip ? tipBubble(aspTip) : null}
           </span>
         );
       } else {

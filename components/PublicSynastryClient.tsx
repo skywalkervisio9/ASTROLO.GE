@@ -69,9 +69,12 @@ export default function PublicSynastryClient({ slug, viewerIsParticipant }: Prop
     };
   }, [load]);
 
+  // Carry the current language onto the share link so the crawler picks the
+  // matching KA/EN thumbnail (?lang=); metadata falls back to the owner's
+  // account language when the param is absent.
   const shareHref = useMemo(
-    () => (typeof window !== 'undefined' ? `${window.location.origin}/s/${slug}` : ''),
-    [slug],
+    () => (typeof window !== 'undefined' ? `${window.location.origin}/s/${slug}?lang=${language}` : ''),
+    [slug, language],
   );
 
   useEffect(() => {

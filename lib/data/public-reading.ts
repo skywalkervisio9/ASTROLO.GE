@@ -100,6 +100,7 @@ export type ReadingUser = {
   email: string | null;
   account_type: string | null;
   natal_chart_unlocked: boolean;
+  language: string | null;
 };
 
 export function getUserProfileForReading(userId: string): Promise<ReadingUser | null> {
@@ -108,7 +109,7 @@ export function getUserProfileForReading(userId: string): Promise<ReadingUser | 
       const admin = createAdminSupabase();
       const { data: profile } = await admin
         .from('users')
-        .select('id, full_name, email, account_type, natal_chart_unlocked')
+        .select('id, full_name, email, account_type, natal_chart_unlocked, language')
         .eq('id', userId)
         .maybeSingle();
       if (!profile) return null;
@@ -118,6 +119,7 @@ export function getUserProfileForReading(userId: string): Promise<ReadingUser | 
         email: profile.email,
         account_type: profile.account_type,
         natal_chart_unlocked: profile.natal_chart_unlocked ?? false,
+        language: profile.language ?? null,
       };
     },
     ['user-profile-for-reading', userId],
@@ -159,8 +161,11 @@ export type ReadingMeta = {
   user_id: string;
   is_public: boolean;
   owner_full_name: string | null;
+  owner_language: string | null;
   tagline_ka: string | null;
   tagline_en: string | null;
+  sun_sign: string | null;
+  moon_sign: string | null;
 } | null;
 
 function pluckTagline(reading: Record<string, unknown> | null): string | null {
@@ -168,22 +173,39 @@ function pluckTagline(reading: Record<string, unknown> | null): string | null {
   return overview?.sectionTagline?.trim() || null;
 }
 
+/** English sign name for a given planet from the injected planetTable
+ *  (e.g. planet === 'Sun' → 'Cancer'). Null when the row/chart is missing. */
+function pluckPlanetSign(reading: Record<string, unknown> | null, planet: string): string | null {
+  const overview = reading?.overview as { planetTable?: unknown } | undefined;
+  const table = overview?.planetTable;
+  if (!Array.isArray(table)) return null;
+  const row = table.find(
+    (r) => r && typeof r === 'object' && (r as { planet?: string }).planet === planet,
+  ) as { sign?: string } | undefined;
+  return row?.sign?.trim() || null;
+}
+
 export async function getReadingMeta(slug: string): Promise<ReadingMeta> {
   const body = await getReadingBodyBySlug(slug);
   if (!body) return null;
 
   let owner_full_name: string | null = null;
+  let owner_language: string | null = null;
   if (body.is_public) {
     const profile = await getUserProfileForReading(body.user_id);
     owner_full_name = profile?.full_name ?? null;
+    owner_language = profile?.language ?? null;
   }
 
   return {
     user_id: body.user_id,
     is_public: body.is_public,
     owner_full_name,
+    owner_language,
     tagline_ka: pluckTagline(body.reading_ka),
     tagline_en: pluckTagline(body.reading_en),
+    sun_sign: pluckPlanetSign(body.reading_ka, 'Sun'),
+    moon_sign: pluckPlanetSign(body.reading_ka, 'Moon'),
   };
 }
 

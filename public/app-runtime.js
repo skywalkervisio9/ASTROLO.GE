@@ -217,6 +217,11 @@ var _synastryPartnerName = null;
 var _synastryConnectionId = null;
 var _synastryRelType = null;
 var _synastryGenerating = false;
+// Latch: set when a synastry generation STARTS in this session so that the
+// matching `synastry-ready` can auto-switch the user to the finished reading.
+// Guards against redirecting on plain page loads where the reading already
+// existed (that path fires `synastry-ready` without a preceding start).
+var _synGenRedirectPending = false;
 
 function occupySlot(slotNum, btn) {
   // Get effective unlock state
@@ -516,6 +521,9 @@ document.getElementById('synNavItem').onclick = function() {
 
 window.addEventListener('synastry-generation-started', function() {
   _synastryGenerating = true;
+  // Arm the auto-redirect: the reading is being generated now, so when it's
+  // ready we take the user straight to it.
+  _synGenRedirectPending = true;
   rebuildSidebar();
 });
 window.addEventListener('synastry-generation-ended', function() {
@@ -567,6 +575,16 @@ window.addEventListener('synastry-ready', function(e) {
   }
 
   console.log('[DEV] Synastry ready:', name, _synastryRelType, _synastryConnectionId);
+
+  // Generation just finished in this session → take the user to the reading.
+  // Only when armed by a preceding `synastry-generation-started`, so we never
+  // yank users away from their natal view on a plain reload of an already-
+  // generated synastry.
+  if (_synGenRedirectPending) {
+    _synGenRedirectPending = false;
+    closeSidebar();
+    switchView('synastry');
+  }
 });
 
 // ═══ INVITE MODAL (lazy: runtime-extras.js) ═══

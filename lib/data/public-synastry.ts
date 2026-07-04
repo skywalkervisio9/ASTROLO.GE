@@ -83,6 +83,7 @@ type ReadingProfile = {
   full_name: string | null;
   email: string | null;
   account_type: string | null;
+  language: string | null;
 };
 
 function getMinimalProfileCached(userId: string): Promise<ReadingProfile | null> {
@@ -91,7 +92,7 @@ function getMinimalProfileCached(userId: string): Promise<ReadingProfile | null>
       const admin = createAdminSupabase();
       const { data: profile } = await admin
         .from('users')
-        .select('id, full_name, email, account_type')
+        .select('id, full_name, email, account_type, language')
         .eq('id', userId)
         .maybeSingle();
       if (!profile) return null;
@@ -100,6 +101,7 @@ function getMinimalProfileCached(userId: string): Promise<ReadingProfile | null>
         full_name: profile.full_name ?? null,
         email: profile.email ?? null,
         account_type: profile.account_type ?? null,
+        language: profile.language ?? null,
       };
     },
     ['synastry-share-profile', userId],
@@ -151,6 +153,7 @@ export type SynastryMeta = {
   title_ka: string | null;
   title_en: string | null;
   compatibility_score: number | null;
+  owner_language: string | null;
 } | null;
 
 function pluckHeroLine(reading: Record<string, unknown> | null, lang: 'ka' | 'en'): string | null {
@@ -178,12 +181,16 @@ export async function getSynastryMeta(slug: string): Promise<SynastryMeta> {
         : null;
   const score = raw != null ? Math.round(raw) : null;
 
+  // Card language defaults to the inviter's (user1) account language.
+  const owner = await getMinimalProfileCached(body.user1_id);
+
   return {
     connection_id: body.connection_id,
     is_public: body.is_public,
     title_ka: pluckHeroLine(body.reading_ka, 'ka'),
     title_en: pluckHeroLine(body.reading_en, 'en'),
     compatibility_score: score,
+    owner_language: owner?.language ?? null,
   };
 }
 

@@ -15,6 +15,7 @@ import {
   getReadingMeta,
   getReadingOwnership,
 } from '@/lib/data/public-reading';
+import { requestOrigin, resolveShareLang, shareImageMetadata } from '@/lib/og/metadata';
 import { computeOnboardingStatus } from '@/lib/onboarding/status';
 import PrototypeClient from '@/components/PrototypeClient';
 import PublicReadingClient from '@/components/PublicReadingClient';
@@ -26,33 +27,32 @@ interface Props {
 
 // Server-rendered metadata for social share previews (FB, WhatsApp, X, etc).
 // Backed by the per-slug Data Cache; first hit fills, repeats are free.
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const { lang: langParam } = await searchParams;
   const meta = await getReadingMeta(slug);
 
   if (!meta || !meta.is_public) {
     return { title: 'ASTROLO.GE', robots: { index: false, follow: false } };
   }
 
-  const tagline = meta.tagline_ka || meta.tagline_en || 'ასტროლოგიური ანალიზი';
+  const lang = resolveShareLang(langParam, meta.owner_language);
+  const tagline =
+    (lang === 'en' ? meta.tagline_en || meta.tagline_ka : meta.tagline_ka || meta.tagline_en) ||
+    (lang === 'en' ? 'Astrological analysis' : 'ასტროლოგიური ანალიზი');
   const name = meta.owner_full_name?.trim() || '';
   const title = name ? `ASTROLO.GE — ${name}` : 'ASTROLO.GE';
 
+  const origin = await requestOrigin();
   return {
     title,
     description: tagline,
-    openGraph: {
+    ...shareImageMetadata(
+      `${origin}/r/${slug}/share-image/${lang}`,
       title,
-      description: tagline,
-      type: 'article',
-      siteName: 'ASTROLO.GE',
-      // opengraph-image.tsx in the same route segment supplies the image.
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description: tagline,
-    },
+      tagline,
+      'ASTROLO.GE Natal Reading',
+    ),
   };
 }
 

@@ -185,8 +185,19 @@ function _shareTitle() {
   const view = document.body.getAttribute('data-view');
   return view === 'synastry' ? 'ASTROLO.GE — სინასტრია' : 'ASTROLO.GE — ჩემი ნატალური რუკა';
 }
+// Stamp the current language toggle onto a share URL so the link-preview
+// crawler picks the matching KA/EN thumbnail (?lang=). The share page ignores
+// the param for humans; only generateMetadata reads it (falling back to the
+// owner's account language when absent).
+function _shareUrlWithLang(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    u.searchParams.set('lang', document.body.classList.contains('lang-en') ? 'en' : 'ka');
+    return u.toString();
+  } catch (e) { return rawUrl; }
+}
 function _doShareReading() {
-  const url = window.location.href;
+  const url = _shareUrlWithLang(window.location.href);
   const title = _shareTitle();
   if (navigator.share) { navigator.share({ title, url }).catch(() => {}); }
   else { navigator.clipboard?.writeText(url); }
@@ -215,7 +226,7 @@ function _flashShareIcon(btn) {
   setTimeout(function() { btn.innerHTML = orig; btn._copied = false; }, 1500);
 }
 function shareToSocial(platform, btn) {
-  const rawUrl = window.location.href;
+  const rawUrl = _shareUrlWithLang(window.location.href);
   const url = encodeURIComponent(rawUrl);
   const title = _shareTitle();
   const text = encodeURIComponent(title);
