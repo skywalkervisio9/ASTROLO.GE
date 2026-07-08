@@ -24,7 +24,7 @@ body:has(#loadingScreen.active) .pbar{display:none}
    tile), where one tile of stars is cloned a viewport below (see the STARS
    block in app-runtime.js). The layer parallaxes forever and never empties
    — when --wy wraps -tile→0 the clone lands exactly where the original was, so
-   the seam is invisible. --wy stays 0 (static field) on touch / reduced-motion. */
+   the seam is invisible. --wy stays 0 (static field) under reduced-motion. */
 .star-layer{position:absolute;inset:0;transform:translate3d(0,var(--wy,0px),0);will-change:transform}
 .star{position:absolute;width:2px;height:2px;background:rgba(255,255,255,.5);border-radius:50%;animation:tw var(--d,3s) ease-in-out infinite alternate}
 @keyframes tw{0%{opacity:.1}100%{opacity:.6}}

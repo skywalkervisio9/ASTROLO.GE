@@ -184,6 +184,7 @@ const KA_PLANET_DECL: Array<{ sym: string; forms: Record<string, string> }> = [
   { sym:'♆', forms:{nom:'ნეპტუნი',gen:'ნეპტუნის',loc:'ნეპტუნში',dat:'ნეპტუნს',inst:'ნეპტუნით',adv:'ნეპტუნად',for:'ნეპტუნისთვის',with:'ნეპტუნთან',voc:'ნეპტუნო'} },
   { sym:'♇', forms:{nom:'პლუტონი',gen:'პლუტონის',loc:'პლუტონში',dat:'პლუტონს',inst:'პლუტონით',adv:'პლუტონად',for:'პლუტონისთვის',with:'პლუტონთან',voc:'პლუტონო'} },
   { sym:'⚸', forms:{nom:'ლილითი',gen:'ლილითის',loc:'ლილითში',dat:'ლილითს',inst:'ლილითით',adv:'ლილითად',for:'ლილითისთვის',with:'ლილითთან',voc:'ლილითო'} },
+  { sym:'⚷', forms:{nom:'ქირონი',gen:'ქირონის',loc:'ქირონში',dat:'ქირონს',inst:'ქირონით',adv:'ქირონად',for:'ქირონისთვის',with:'ქირონთან',voc:'ქირონო'} },
   { sym:'☊', forms:{nom:'ჩრდილოეთის კვანძი',gen:'ჩრდილოეთის კვანძის',loc:'ჩრდილოეთის კვანძში',dat:'ჩრდილოეთის კვანძს',inst:'ჩრდილოეთის კვანძით',for:'ჩრდილოეთის კვანძისთვის',with:'ჩრდილოეთის კვანძთან'} },
   { sym:'☋', forms:{nom:'სამხრეთის კვანძი',gen:'სამხრეთის კვანძის',loc:'სამხრეთის კვანძში',dat:'სამხრეთის კვანძს',inst:'სამხრეთის კვანძით',for:'სამხრეთის კვანძისთვის',with:'სამხრეთის კვანძთან'} },
   // Bare "კვანძი" (no prefix) → North Node.
@@ -211,13 +212,21 @@ const KA_PLANET_WORD_RE = new RegExp(
 );
 const KA_PLANET_WORD_MAP = new Map(KA_PLANET_WORD_TO_TOKEN);
 // Any planet symbol, optionally already carrying a "-suffix".
-const PLANET_SYM_CLASS = '[☉☽☿♀♂♃♄♅♆♇⚸☊☋]';
+const PLANET_SYM_CLASS = '[☉☽☿♀♂♃♄♅♆♇⚸☊☋⚷]';
 const PLANET_SUFFIX_ALT = 'ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო|ია|ა';
 
 function sanitizePlanetTerminology(p: string): string {
   if (typeof p !== 'string') return p;
+  // 0. The Latin word "Chiron" — the only planet whose glyph (⚷) the prompt used
+  //    to omit from its keep-symbols list, so the model wrote it out as a word
+  //    (in Georgian readings too). Fold it to the glyph, keeping any Georgian case
+  //    suffix so the renderer's icon/name toggle can re-inflect it.
+  let t = p.replace(
+    new RegExp(`\\bChiron\\b(?:-?(${PLANET_SUFFIX_ALT}))?`, 'gi'),
+    (_m, suf) => (suf ? `⚷-${suf}` : '⚷')
+  );
   // 1. Inflected planet words → canonical symbol(-suffix).
-  let t = p.replace(KA_PLANET_WORD_RE, (w) => KA_PLANET_WORD_MAP.get(w) ?? w);
+  t = t.replace(KA_PLANET_WORD_RE, (w) => KA_PLANET_WORD_MAP.get(w) ?? w);
   // 2. Collapse a symbol immediately followed by the same symbol — the old
   //    "☉ მზე" pairing becomes "☉ ☉" after step 1. Keep the second token's
   //    suffix if it has one (the word carried the case), else keep the first.
@@ -237,10 +246,20 @@ function normalizeHouseNotation(p: string): string {
   return p.replace(/\bH(1[0-2]|[1-9])\b/g, (_m, n) => HOUSE_ROMAN[+n]);
 }
 
+// Numeric orb tucked in a parenthetical, e.g. „(2°06' ორბით)" / „(orb 2°06')" /
+// „(0.62° ორბი)". The i14 prompt bans these in prose (aspect strength is conveyed
+// in words; the numeric orb already renders in the aspect table) but the AI still
+// slips them in, and older cached readings carry them — so strip at generation
+// AND at display time (see ORB_PAREN_RE use in renderText.tsx / app-runtime.js).
+// Both lookaheads must hold — a degree AND the orb keyword — so a plain degree
+// parenthetical like „(11°25')" is left untouched.
+const ORB_PAREN_RE = /\s*\((?=[^)]*[°º])(?=[^)]*(?:ორბ|orb))[^)]*\)/giu;
+
 /** Replace verbose English terms with standard abbreviations (i12) */
 function sanitizeTerminology(p: string): string {
   if (typeof p !== 'string') return p;
   let t = p
+    .replace(ORB_PAREN_RE, '')
     .replace(/\bAscendant\b/gi, 'ASC')
     .replace(/\bDescendant\b/gi, 'DSC')
     .replace(/\bMidheaven\b/gi, 'MC')

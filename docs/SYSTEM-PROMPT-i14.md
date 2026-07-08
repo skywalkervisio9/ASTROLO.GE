@@ -345,7 +345,8 @@ NEVER TRANSLITERATE: ✗ „ტაიტ" → ✓ „ზუსტი" | ✗ „�
 GEORGIAN WRITING: Write all Georgian natively. Prefer simple, common verb forms over complex constructions. If a sentence feels like translated English, rewrite from scratch.
 Use rich vocabulary: განვითარება, თვითშემეცნება, ბედისწერა, ტრანსფორმაცია, ინტუიცია, არქეტიპი, ფსიქე, ჩრდილი, ინტეგრაცია.
 
-Keep symbols as-is: ☉☽☿♀♂♃♄♅♆♇☊⚸ and degrees 22°20'
+Keep symbols as-is: ☉☽☿♀♂♃♄♅♆♇☊☋⚸⚷ and degrees 22°20'
+Chiron is always the glyph ⚷ (Georgian: ქირონი) — NEVER the Latin word „Chiron".
 Use „..." for Georgian quotes. Address as „შენ".
 ```
 
@@ -379,7 +380,7 @@ Card: {
   "label": "string",
   "title": "string",
   "body": ["paragraph"],
-  "crossReferences": ["short astrological context: degrees, dignity, orbs, rulerships"],
+  "crossReferences": ["short astrological context: degrees, dignity, rulerships — NEVER numeric orbs"],
   "expandedContent": ["paragraph"] | null,  // ← numbered items render as two-column table
   "hint": { "title":"string", "content":"string" } | null,
   "accentElement": "fire|earth|air|water" | null
@@ -398,7 +399,7 @@ aspectInterpretations rules (MANDATORY — this array MUST always be present and
 - Do NOT interpret every aspect — quality over quantity
 - Each interpretation: 1-2 sentences, chart-specific — not generic definitions
 - LANGUAGE: Write each interpretation in the SAME language as the rest of the reading. If Georgian → Georgian. If English → English. Mixing languages is a critical error.
-- Use "you"/"შენ" perspective. Reference actual orbs and placements when it adds precision.
+- Use "you"/"შენ" perspective. Reference actual placements when it adds precision — convey aspect strength in words (მჭიდრო / ზუსტი / სუსტი), never a numeric orb.
 ```
 
 

@@ -255,15 +255,15 @@ export function renderPlanetSymbolToken(ch: string, suffix = '', nodeKey?: React
 //  11: element word itself       (e.g. "ცეცხლი", "Water")
 //  12: optional percentage       (e.g. "48")
 //  13: retrograde word (English "retrograde" or Georgian core "რეტროგრად") → rendered as ℞; Georgian suffix stays as plain text
-//  14: AI-output "(R)" shorthand → rendered as ℞
-//  15: degree token core (e.g. "29°27'", "28°", "8°32") → tinted .deg span
+//  14: AI-output retrograde shorthand "(R)" / "(Rx)" / standalone "Rx" → rendered as ℞
+//  15: degree token core (e.g. "29°27'", "28°", "8°32", "2.47°") → tinted .deg span
 //  16: trailing retrograde "R" on a degree (e.g. "8°32'R" or "8°32' R") → rendered as ℞
 //
 // Georgian stems: ცეცხლ (fire) / მიწ (earth) / ჰაერ (air) / წყალ (water)
 // Matches any Georgian ending [ა-ჰ]* after the stem — so ცეცხლი / ცეცხლის / წყალში all work.
 // Water has two stems in Georgian: წყალ (nominative) and წყლ (genitive — წყლის, წყლისა, წყლით…)
 // Order matters: წყალ before წყლ so the longer match wins on "წყალისა".
-const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([♈♉♊♋♌♍♎♏♐♑♒♓])(-(?:სთვის|სთან|თვის|თან|ის|ში|ით|ად|ს|ო|ია|ა))?|([☉☽☿♀♂♃♄♅♆♇⚸☊☋⚷])(-(?:ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო|ია|ა))?|([☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)|(\(R\))|(?<!\d)(\d{1,2}[°º](?:\d{1,2}['′]?)?)(?:\s*(R))?(?![\w°])/giu;
+const TEXT_TOKEN_RE = /\*\*(.+?)\*\*|(?<!\w)_(.+?)_(?!\w)|\b(ASC|MC|IC|DSC)\b|(℞)|([♈♉♊♋♌♍♎♏♐♑♒♓])(-(?:სთვის|სთან|თვის|თან|ის|ში|ით|ად|ს|ო|ია|ა))?|([☉☽☿♀♂♃♄♅♆♇⚸☊☋⚷])(-(?:ისთვის|ისთან|სთვის|სთან|თვის|თან|ში|ით|ად|ის|ს|ო|ია|ა))?|([☌☍△□⚹🔱⬆↑])|(((?<![ა-ჰ])(?:ცეცხლ|მიწ|ჰაერ|წყალ|წყლ)[ა-ჰ]*|\b(?:fire|earth|air|water)\b)(?:\s*\(\s*(\d{1,3})\s*%?\s*\))?)|(\bretrograde\b|(?<![ა-ჰ])რეტროგრად)|(\(Rx?\)|(?<![\wა-ჰ])Rx(?![\wა-ჰ]))|(?<!\d)(\d{1,3}(?:\.\d+)?[°º](?:\d{1,2}['′]?)?)(?:\s*(R))?(?![\w°])/giu;
 /** Classify the stem of an element word to its CSS modifier */
 function getElementClass(word: string): string | null {
   const w = word.toLowerCase();
@@ -401,13 +401,20 @@ export function normalizeHouseNotation(text: string): string {
   return text.replace(/\bH(1[0-2]|[1-9])\b/g, (_m, n) => HOUSE_ROMAN[+n]);
 }
 
+// Numeric orb tucked in a parenthetical, e.g. „(2°06' ორბით)" / „(orb 2°06')".
+// Banned in prose by the i14 prompt and stripped at generation (validator.ts),
+// but older cached readings still carry them — so strip at display too. Both
+// lookaheads must hold (a degree AND the orb keyword) so a plain degree
+// parenthetical like „(11°25')" survives.
+const ORB_PAREN_RE = /\s*\((?=[^)]*[°º])(?=[^)]*(?:ორბ|orb))[^)]*\)/giu;
+
 /**
  * Render rich text with bold, italic, astrological symbols, chart points, and retrograde markers.
  * Call setRenderLang() before rendering to set tooltip language.
  */
 export function renderText(text: string): React.ReactNode {
   if (!text) return null;
-  text = normalizeHouseNotation(text);
+  text = normalizeHouseNotation(text).replace(ORB_PAREN_RE, '');
 
   const ptTips = _renderLang === 'ka' ? PT_TIPS_KA : PT_TIPS_EN;
   const retroTip = _renderLang === 'ka'

@@ -989,14 +989,6 @@ function openAspInterp(row, ev) {
 // stops, so it costs nothing at rest. Fully disabled under reduced-motion.
 (function() {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  // Touch devices only: skip scroll-parallax entirely. Mobile browsers coalesce
-  // scroll events and throttle rAF during momentum scrolling, and the URL-bar
-  // show/hide resizes the viewport — so scrollY arrives in large discrete steps
-  // and the fixed starfield snaps to each one ("jumps") instead of drifting.
-  // Scroll-linked transforms on position:fixed can't be made smooth on touch,
-  // so we leave --wy/--mmag at their defaults: the starfield stays put and just
-  // twinkles. Desktop (fine-pointer) keeps the parallax + motion-trail.
-  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return;
   const c = document.getElementById('stars');
   if (!c) return;
   const layers = Array.prototype.map.call(c.querySelectorAll('.star-layer'), function(el) {
@@ -1004,10 +996,30 @@ function openAspInterp(row, ev) {
   });
   if (!layers.length) return;
 
+  // Touch keeps the parallax + trail but tuned to survive mobile scrolling:
+  // browsers coalesce scroll events + throttle rAF during momentum, so the
+  // easing has to do more smoothing (lower EASE), and a long streak would
+  // exaggerate any residual coarse step — so the trail is shorter (higher SPD =
+  // less streak per unit speed) with a gentler attack. Desktop keeps the
+  // snappier feel. The real jump culprit — the URL-bar show/hide resizing the
+  // viewport — is handled by the resize re-baseline below, not by disabling.
+  var isTouch = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  var EASE = isTouch ? 0.11 : 0.16;   // lower = smoother drift, hides coarse steps
+  var SPD  = isTouch ? 70 : 40;       // higher = shorter trail per unit scroll speed
+  var ATK  = isTouch ? 0.28 : 0.4;    // trail attack (rise) rate
+
   // tile = one viewport-tall star tile (100% of the layer). The offset wraps
   // modulo this, so the field tiles seamlessly. Kept in sync with innerHeight.
   let tile = window.innerHeight || 800;
-  window.addEventListener('resize', function() { tile = window.innerHeight || 800; }, { passive: true });
+  // The mobile URL bar showing/hiding resizes the viewport, which shifts scrollY
+  // abruptly. Reading that shift as motion is what made the field "snap" and
+  // fire a bogus trail. On any viewport resize we flag the next frame to
+  // re-baseline curY to the live scrollY with zero velocity, so the field
+  // settles into its new position instead of streaking to it.
+  let snap = false;
+  function onResize() { tile = window.innerHeight || 800; snap = true; ensure(); }
+  window.addEventListener('resize', onResize, { passive: true });
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize, { passive: true });
 
   function applyWrap() {
     for (let i = 0; i < layers.length; i++) {
@@ -1018,24 +1030,27 @@ function openAspInterp(row, ev) {
   }
 
   // curY is a *smoothed* scroll position that eases toward the real scrollY each
-  // frame. Easing turns discrete mouse-wheel steps into continuous drift. The
-  // loop keeps running after scroll stops until curY has caught up, then stops.
+  // frame. Easing turns discrete scroll steps into continuous drift. The loop
+  // keeps running after scroll stops until curY has caught up, then stops.
   let curY = window.scrollY, mmag = 0, dir = 1, running = false, idle = 0;
   applyWrap();
 
   function frame() {
     const targetY = window.scrollY;
+    // Re-baseline after a viewport resize (URL bar): jump curY to the live
+    // position with no velocity so the field settles instead of streaking.
+    if (snap) { snap = false; curY = targetY; applyWrap(); requestAnimationFrame(frame); return; }
     const prevY = curY;
-    // Ease toward the live scroll position. 0.16 ≈ ~150ms to converge: smooth
-    // enough to hide wheel notches, snappy enough to still feel attached.
-    curY += (targetY - curY) * 0.16;
+    // Ease toward the live scroll position: smooth enough to hide scroll notches,
+    // snappy enough to still feel attached.
+    curY += (targetY - curY) * EASE;
     const rawV = curY - prevY;
     if (Math.abs(rawV) > 0.5) dir = rawV > 0 ? 1 : -1;
     // Trail magnitude tracks real scroll speed (rawV), not the wrapped offset,
     // so a wrap never spikes the streak. Fast attack / slow decay so it appears
     // at once and lingers briefly.
-    const speed = Math.min(1, Math.abs(rawV) / 40);
-    mmag += (speed - mmag) * (speed > mmag ? 0.4 : 0.08);
+    const speed = Math.min(1, Math.abs(rawV) / SPD);
+    mmag += (speed - mmag) * (speed > mmag ? ATK : 0.08);
     applyWrap();
     c.style.setProperty('--mmag', mmag.toFixed(3));
     c.style.setProperty('--mdir', String(dir));
@@ -2846,9 +2861,15 @@ function _tip2Html(text, headClass) {
 }
 
 // Render rich text: converts Unicode astro symbols to SVG glyphs + basic markdown (bold/italic)
+// Numeric orb in a parenthetical, e.g. „(2°06' ორბით)" / „(orb 2°06')" — banned
+// in prose by the i14 prompt and stripped at generation (validator.ts); strip
+// here too so older cached readings drop it at display. Both lookaheads must
+// hold (a degree AND the orb keyword) so a plain „(11°25')" survives.
+var _ORB_PAREN_RE = /\s*\((?=[^)]*[°º])(?=[^)]*(?:ორბ|orb))[^)]*\)/giu;
+
 function _renderRichText(text) {
   if (!text) return '';
-  text = _normalizeHouseNotation(_normalizeLlmHtmlEmphasisToMarkdown(String(text)));
+  text = _normalizeHouseNotation(_normalizeLlmHtmlEmphasisToMarkdown(String(text))).replace(_ORB_PAREN_RE, '');
   // First, escape HTML but preserve our markers
   var escaped = _esc(text);
   // Convert **bold** to <strong>
@@ -2909,10 +2930,13 @@ function _renderRichText(text) {
   escaped = escaped.replace(/\bretrograde\b|(?<![ა-ჰ])რეტროგრად/giu, function(m, offset, str) {
     return /[ა-ჰ]/u.test(str[offset + m.length] || '') ? _retroSpan + '-' : _retroSpan;
   });
+  // Retrograde shorthand the model uses in prose: "(R)", "(Rx)", or a standalone
+  // "Rx" (e.g. "♃ Rx ♄") → the silver ℞ marker. Mirrors renderText.tsx group 14.
+  escaped = escaped.replace(/\(Rx?\)|(?<![\wა-ჰ])Rx(?![\wა-ჰ])/g, _retroSpan);
   // Inline degree tokens → tinted .deg span so numerals/°/′ read as data; a
   // trailing "R" (e.g. 8°32'R) becomes the silver ℞ marker. Runs after the ℞
   // pass so the emitted marker isn't re-wrapped.
-  escaped = escaped.replace(/(?<!\d)(\d{1,2}[°º](?:\d{1,2}['′]?)?)(?:\s*(R))?(?![\w°])/gi, function(_m, core, r) {
+  escaped = escaped.replace(/(?<!\d)(\d{1,3}(?:\.\d+)?[°º](?:\d{1,2}['′]?)?)(?:\s*(R))?(?![\w°])/gi, function(_m, core, r) {
     return '<span class="deg">' + core + '</span>' + (r ? _retroSpan : '');
   });
   // Element words → colored inline pills (Characteristics core card).
