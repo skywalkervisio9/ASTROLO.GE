@@ -196,7 +196,9 @@ function startLoading(lang, durationMs) {
   const MSG_INTERVAL = TOTAL_DURATION / loadMsgs.length;
   const msgEl = document.getElementById('loadingMsg');
   const fillEl = document.getElementById('loadingFill');
-  const startTime = Date.now();
+  // `let` (not const): window.rebaseLoading below reassigns this so a
+  // mid-generation refresh can resume the bar from the real launch time.
+  let startTime = Date.now();
   let lastMsgIdx = -1;
 
   // Fun-fact rotation. The swap is a soft crossfade: the outgoing line eases
@@ -260,6 +262,19 @@ function startLoading(lang, durationMs) {
   const tickInt = setInterval(tick, 1000);
   window._stopLoadingIntervals = function() {
     clearInterval(tickInt); clearInterval(zInt); clearInterval(factInt);
+  };
+
+  // Resume support: on a mid-generation refresh the bar would otherwise restart
+  // at 0. The React layer reads the server's generation_started_at and calls
+  // this with the real elapsed time so the bar (and message index) pick up
+  // where the in-flight run actually is. `elapsedMs` = now − launchTime; we
+  // only ever move startTime backwards (never let a stale/forward value snap
+  // the bar down), and clamp so a very old launch just sits near-full while
+  // polling continues.
+  window.rebaseLoading = function(elapsedMs) {
+    if (typeof elapsedMs !== 'number' || !isFinite(elapsedMs) || elapsedMs <= 0) return;
+    var candidate = Date.now() - elapsedMs;
+    if (candidate < startTime) { startTime = candidate; tick(); }
   };
 
   // Parallax + twinkle. Cursor / gyro sets a target offset; each star eases

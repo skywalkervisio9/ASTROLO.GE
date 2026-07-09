@@ -21,6 +21,10 @@ export type OnboardingStatus = {
   readingId?: string;
   shareSlug?: string | null;
   error?: string;
+  /** Epoch ms of the generation launch (generation_started_at), returned only
+   *  while still generating. Lets /loading resume its progress bar from the
+   *  real start after a refresh instead of restarting at 0. */
+  startedAt?: number;
 };
 
 function generateShareSlug(): string {
@@ -87,9 +91,16 @@ export async function computeOnboardingStatus(userId: string): Promise<Onboardin
   // ~15-min poll cap.
   const { data: reading } = await admin
     .from('natal_readings')
-    .select('id, analysis_en, reading_ka, share_slug, generation_status, validation_warnings')
+    .select('id, analysis_en, reading_ka, share_slug, generation_status, generation_started_at, validation_warnings')
     .eq('user_id', userId)
     .maybeSingle();
+
+  // generation_started_at is set at Call 1 start and preserved through Call 2,
+  // so it marks the true launch of the AI run. Surfaced only on 'generating'
+  // responses below — the /loading bar rebases to it after a refresh.
+  const startedAt = reading?.generation_started_at
+    ? new Date(reading.generation_started_at).getTime()
+    : undefined;
 
   // ── PREMIUM: needs full reading (Call 2) ──
   if (user && hasFullReading(user)) {
@@ -100,7 +111,7 @@ export async function computeOnboardingStatus(userId: string): Promise<Onboardin
     if (reading?.generation_status === 'failed') {
       return { status: 'failed', complete: false, error: extractFailureReason(reading.validation_warnings) };
     }
-    return { status: 'generating', complete: false };
+    return { status: 'generating', complete: false, startedAt };
   }
 
   // ── INVITED: needs Call 1 (analysis_en) ──
@@ -109,7 +120,7 @@ export async function computeOnboardingStatus(userId: string): Promise<Onboardin
       const shareSlug = await ensureShareSlug(admin, reading.id, reading.share_slug);
       return { status: 'complete', complete: true, readingId: reading.id, shareSlug };
     }
-    return { status: 'generating', complete: false };
+    return { status: 'generating', complete: false, startedAt };
   }
 
   // ── FREE: chart_data is enough — also return shareSlug if available ──

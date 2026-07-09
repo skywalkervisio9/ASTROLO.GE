@@ -60,7 +60,7 @@ export async function POST() {
     // Check if full reading already exists (idempotent)
     const { data: existingReading } = await admin
       .from('natal_readings')
-      .select('id, reading_ka, share_slug')
+      .select('id, reading_ka, share_slug, generation_started_at')
       .eq('user_id', authUser.id)
       .maybeSingle();
 
@@ -106,7 +106,9 @@ export async function POST() {
       .from('natal_readings')
       .update({
         generation_status: 'generating',
-        generation_started_at: new Date().toISOString(),
+        // Preserve the Call 1 launch time so the /loading bar's resume baseline
+        // spans the whole run; only stamp now if Call 1 didn't (legacy rows).
+        generation_started_at: existingReading?.generation_started_at ?? new Date().toISOString(),
         generation_finished_at: null,
       })
       .eq('user_id', authUser.id);

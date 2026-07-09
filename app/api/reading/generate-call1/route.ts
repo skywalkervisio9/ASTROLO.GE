@@ -66,6 +66,18 @@ export async function POST() {
       return NextResponse.json({ error: 'Chart data not found — complete onboarding first' }, { status: 400 });
     }
 
+    // Stamp the launch time BEFORE the (slow) AI call so the /loading progress
+    // bar can resume from it on a mid-generation refresh. Preserved through
+    // Call 2 (generate-full won't overwrite an existing value), so it marks the
+    // true start of the whole run, not just Call 2.
+    await admin
+      .from('natal_readings')
+      .upsert({
+        user_id: authUser.id,
+        generation_started_at: new Date().toISOString(),
+        generation_finished_at: null,
+      }, { onConflict: 'user_id' });
+
     const call1 = await runNatalCall1(chartRow.chart_context);
 
     await admin

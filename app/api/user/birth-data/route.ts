@@ -122,6 +122,8 @@ export async function POST(req: NextRequest) {
           tokens_call2_ka: null,
           tokens_call2_en: null,
           generation_status: null,
+          generation_started_at: null,
+          generation_finished_at: null,
           generation_error: null,
           validation_warnings: null,
         })

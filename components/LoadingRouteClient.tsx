@@ -174,7 +174,7 @@ export default function LoadingRouteClient() {
       if (!isFakeFull) {
         const earlyCheck = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (earlyCheck.ok) {
-          const earlyStatus = await earlyCheck.json() as { status: string; complete?: boolean; shareSlug?: string };
+          const earlyStatus = await earlyCheck.json() as { status: string; complete?: boolean; shareSlug?: string; startedAt?: number };
           if (earlyStatus.status === 'complete' && earlyStatus.shareSlug) {
             // Accept the invite synchronously so the connection exists, but
             // don't block on synastry AI here — the synastry view's cosmic
@@ -194,7 +194,18 @@ export default function LoadingRouteClient() {
           // the watch-only decision from the server state instead of the URL
           // makes every re-entry converge on: wait for the in-flight run, then
           // navigate to the reading.
-          if (earlyStatus.status === 'generating') serverGenerating = true;
+          if (earlyStatus.status === 'generating') {
+            serverGenerating = true;
+            // Mid-generation reload: resume the progress bar from the real
+            // launch time instead of restarting at 0. startedAt is only present
+            // while generating; rebaseLoading only ever moves the bar forward.
+            if (typeof earlyStatus.startedAt === 'number') {
+              const elapsed = Date.now() - earlyStatus.startedAt;
+              whenRuntimeReady().then(() => {
+                (window as unknown as { rebaseLoading?: (ms: number) => void }).rebaseLoading?.(elapsed);
+              });
+            }
+          }
         }
       }
 
