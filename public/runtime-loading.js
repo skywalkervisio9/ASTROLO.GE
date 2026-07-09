@@ -91,10 +91,14 @@ function startLoading(lang, durationMs) {
   var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var csEl = document.getElementById('cosmicStars');
   var csCanvas = null, csCtx = null, csW = 0, csH = 0, csStars = [];
-  var haloSprite = null, ghostSprite = null;
+  var haloSprites = null, ghostSprite = null;
+  var isDesktop = window.innerWidth >= 768;
   // Desktop's wider canvas makes the same trail strength read as busy — scale
   // it down there, but keep the trails clearly feelable.
-  var mmagScale = (window.innerWidth >= 768) ? 0.72 : 1.0;
+  var mmagScale = isDesktop ? 0.72 : 1.0;
+  // Desktop: dimmer, more varied halos against the darker desktop backdrop.
+  // Mobile is unchanged (single crisp sprite, original alpha).
+  var haloBaseAlpha = isDesktop ? 0.105 : 0.15;
   var resizeCsCanvas = null;
   // Per-layer alpha falloff for the three trail groups (fast / med / slow),
   // derived from the old box-shadow ghost stacks (globals.css .cs-trail.tg-*)
@@ -110,19 +114,26 @@ function startLoading(lang, durationMs) {
   // gradient or shadow per star/ghost. A feathered gradient plus a light blur
   // pass gives genuinely soft, diffuse edges (used for both the star glow and
   // the trail ghosts, so it smooths the trails too).
-  function makeGlowSprite(r, g, b) {
+  // `soft` (0..1) controls how feathered the halo is: 0 = the original tight
+  // core + 2px blur; higher pulls the mid-stops inward, drops their alpha and
+  // widens the blur so the edge dissolves more gradually. Building a few
+  // variants and scattering them across stars gives the field a mix of crisp
+  // pinpricks and diffuse blooms instead of one uniform glow. Default 0 keeps
+  // every existing call (ghost sprite, mobile) pixel-identical.
+  function makeGlowSprite(r, g, b, soft) {
+    var s = soft || 0;
     var S = 64, c = document.createElement('canvas');
     c.width = S; c.height = S;
     var gx = c.getContext('2d');
     var rgba = function (a) { return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; };
     var grd = gx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
     grd.addColorStop(0, rgba(1));
-    grd.addColorStop(0.18, rgba(0.72));
-    grd.addColorStop(0.42, rgba(0.30));
+    grd.addColorStop(0.18 + s * 0.05, rgba(0.72 - s * 0.24));
+    grd.addColorStop(0.42 + s * 0.12, rgba(0.30 - s * 0.12));
     grd.addColorStop(0.7, rgba(0.08));
     grd.addColorStop(1, rgba(0));
     // Light blur feathers the edge further (ignored where unsupported).
-    gx.filter = 'blur(2px)';
+    gx.filter = 'blur(' + (2 + s * 3.5) + 'px)';
     gx.fillStyle = grd; gx.fillRect(0, 0, S, S);
     gx.filter = 'none';
     return c;
@@ -135,7 +146,12 @@ function startLoading(lang, durationMs) {
     csEl.appendChild(csCanvas);
     csCtx = csCanvas.getContext('2d');
 
-    haloSprite = makeGlowSprite(228, 212, 170);  // star glow (0 0 gl rgba(228,212,170,.28))
+    // Desktop gets a spread of feather softnesses (assigned per star below);
+    // mobile keeps the single original crisp halo.
+    haloSprites = isDesktop
+      ? [makeGlowSprite(228, 212, 170, 0.15), makeGlowSprite(228, 212, 170, 0.5),
+         makeGlowSprite(228, 212, 170, 0.8), makeGlowSprite(228, 212, 170, 1.0)]
+      : [makeGlowSprite(228, 212, 170)];       // star glow (0 0 gl rgba(228,212,170,.28))
     ghostSprite = makeGlowSprite(245, 235, 210); // trail ghosts (rgb(245 235 210))
 
     for (var i = 0; i < 90; i++) {
@@ -161,6 +177,8 @@ function startLoading(lang, durationMs) {
         glowMult: 0.4 + Math.random() * 1.4,
         depth: depth,
         trail: isTrail, trailMult: trailMult, group: group,
+        // Which feather variant this star's halo uses (desktop has 4, mobile 1).
+        halo: Math.floor(Math.random() * haloSprites.length),
         // csTw twinkle: 0→.65→.65→0 over --tdur, ease-in-out, alternate.
         twDur: (4 + Math.random() * 6) * 1000,
         twDelay: Math.random() * 5000,
@@ -341,10 +359,11 @@ function startLoading(lang, durationMs) {
       var dx = s.bx * csW + offX * s.depth;
       var dy = s.by * csH + offY * s.depth;
       // Halo: soft glow sprite, sized by --gl and scaled per-star (glowMult)
-      // so glow strength varies star to star. Low base alpha keeps it faint.
+      // so glow strength varies star to star. Low base alpha keeps it faint;
+      // the per-star feather variant (s.halo) diversifies the edge softness.
       var hr = s.core / 2 + s.glow * 0.9;
-      csCtx.globalAlpha = 0.15 * s.glowMult * tw;
-      csCtx.drawImage(haloSprite, dx - hr, dy - hr, hr * 2, hr * 2);
+      csCtx.globalAlpha = haloBaseAlpha * s.glowMult * tw;
+      csCtx.drawImage(haloSprites[s.halo] || haloSprites[0], dx - hr, dy - hr, hr * 2, hr * 2);
       // Crisp core.
       csCtx.globalAlpha = 0.85 * tw;
       csCtx.fillStyle = 'rgb(245,235,210)';

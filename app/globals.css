@@ -1194,6 +1194,10 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 /* Loading Screen */
 .loading-overlay{position:fixed;inset:0;z-index:300;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .6s var(--ease)}
 .loading-overlay.active{display:flex;opacity:1}
+/* Desktop: sink the backdrop below the app's --bg (#0a0a0f) into near-black
+   with a subtle radial so the star field reads brighter against it. Mobile
+   keeps --bg. */
+@media (min-width:768px){.loading-overlay{background:radial-gradient(ellipse at center,#060610 0%,#030307 100%)}}
 .orrery{position:relative;width:280px;height:280px;margin-bottom:40px}
 .orrery-center{position:absolute;top:50%;left:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--gold);box-shadow:0 0 20px rgba(201,168,76,.5),0 0 60px rgba(201,168,76,.2);animation:sunPulse 3s ease-in-out infinite}
 @keyframes sunPulse{0%,100%{box-shadow:0 0 20px rgba(201,168,76,.5),0 0 60px rgba(201,168,76,.2)}50%{box-shadow:0 0 30px rgba(201,168,76,.7),0 0 80px rgba(201,168,76,.35)}}
@@ -1339,7 +1343,11 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
   .auth-panel{padding:22px 18px;border-radius:14px}
   .auth-sigil{width:72px;height:72px;margin-bottom:22px}
   .auth-sigil-icon{font-size:24px}
-  .orrery{width:220px;height:220px}
+  /* Scale the whole orrery (orbits, planets, zodiac ring + glyphs) up as one
+     unit — children are fixed-px, so a transform is the only way to enlarge
+     them together. Extra vertical margin absorbs the scaled overflow (the
+     transform doesn't grow the layout box) so it never crowds the title. */
+  .orrery{width:280px;height:280px;transform:scale(1.2);transform-origin:center;margin-top:18px;margin-bottom:64px}
 }
 
 /* ── Settings gear button (sidebar header) ── */
