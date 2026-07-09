@@ -15,8 +15,16 @@ import { hasFullReading } from '@/types/user';
 import type { User } from '@/types/user';
 import crypto from 'crypto';
 
+// A full-reading run cannot exceed generate-full's maxDuration (10min). Anything
+// still 'generating' past this window was hard-killed (timeout/OOM/deploy/crash)
+// before the failure handler ran — treat it as dead and re-fireable, not live.
+export const STALE_GENERATION_MS = 15 * 60 * 1000;
+
 export type OnboardingStatus = {
-  status: 'queued' | 'generating' | 'complete' | 'failed';
+  // 'not_started': a full/invited reading was never launched (no
+  // generation_started_at) — distinct from 'generating' so the client offers an
+  // explicit Generate action instead of watch-only polling a run that isn't happening.
+  status: 'queued' | 'not_started' | 'generating' | 'complete' | 'failed';
   complete: boolean;
   readingId?: string;
   shareSlug?: string | null;
@@ -110,6 +118,15 @@ export async function computeOnboardingStatus(userId: string): Promise<Onboardin
     }
     if (reading?.generation_status === 'failed') {
       return { status: 'failed', complete: false, error: extractFailureReason(reading.validation_warnings) };
+    }
+    // Re-fireable when the run was never launched (no generation_started_at), OR
+    // it was launched but has been 'generating' longer than any real run can take
+    // (a hard kill that never reached the failure handler). Both surface as
+    // 'not_started' so /loading offers a Generate/Retry action that actually
+    // re-runs generate-full instead of watch-only polling a dead run.
+    const stale = !!startedAt && Date.now() - startedAt > STALE_GENERATION_MS;
+    if (!reading?.generation_started_at || stale) {
+      return { status: 'not_started', complete: false };
     }
     return { status: 'generating', complete: false, startedAt };
   }

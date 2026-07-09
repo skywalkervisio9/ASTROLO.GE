@@ -66,6 +66,13 @@ export default async function PostAuthPage({
     redirect(invite ? `/loading?mode=resume&invite=${encodeURIComponent(invite)}` : '/loading?mode=resume');
   }
 
+  if (st.status === 'not_started') {
+    // Premium with no reading and no run in flight (e.g. a manual tier change or
+    // a dropped generate-full). Plain /loading surfaces a Generate button — do
+    // NOT use mode=resume, which would watch-only a run that isn't happening.
+    redirect(invite ? `/loading?invite=${encodeURIComponent(invite)}` : '/loading');
+  }
+
   if (st.status === 'complete' && st.shareSlug) {
     // Must hit /loading so client POST /api/invite/accept runs before natal redirect.
     redirect(

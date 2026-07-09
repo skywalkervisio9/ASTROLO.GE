@@ -84,6 +84,11 @@ export default async function ReadingPage({ params, searchParams }: Props) {
         // resume = watch + poll only; never re-fires the AI calls.
         redirect('/loading?mode=resume');
       }
+      if (st.status === 'not_started') {
+        // Premium with no reading and nothing generating — /loading shows a
+        // Generate button rather than rendering an empty natal view here.
+        redirect('/loading');
+      }
       if (st.status === 'queued') {
         // chart_data missing (e.g. interrupted onboarding or DOB correction) —
         // plain /loading rebuilds the chart from the pending payload/profile.

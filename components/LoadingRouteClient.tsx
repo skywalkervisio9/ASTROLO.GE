@@ -55,6 +55,9 @@ async function postInviteAcceptFromLoading(code: string | null | undefined): Pro
 export default function LoadingRouteClient() {
   const [errorText, setErrorText] = useState<string | null>(null);
   const [canReturnToBirth, setCanReturnToBirth] = useState(false);
+  // Premium user whose reading was never generated (status 'not_started').
+  // Renders an explicit Generate action instead of spinning on watch-only polling.
+  const [notStarted, setNotStarted] = useState(false);
 
   // Lock body scroll while the loading overlay is mounted. The /loading page
   // also renders BodyContent (the full app shell) so the document is taller
@@ -93,6 +96,7 @@ export default function LoadingRouteClient() {
           setCanReturnToBirth(false);
           return;
         }
+        if (status.status === 'not_started') { setNotStarted(true); return; }
         if (status.status !== 'complete') return;
         const invTab = new URLSearchParams(window.location.search).get('invite');
         // complete but slug not written yet (e.g. ensureShareSlug lag) — never finishLoading on invite flow
@@ -194,6 +198,13 @@ export default function LoadingRouteClient() {
           // the watch-only decision from the server state instead of the URL
           // makes every re-entry converge on: wait for the in-flight run, then
           // navigate to the reading.
+          // Premium user, no reading, nothing in flight. Unless we arrived here
+          // explicitly to (re)generate, don't watch-only (spins forever) or fall
+          // through to chart/generate — surface a Generate button instead.
+          if (earlyStatus.status === 'not_started' && !isGenerateFull && !isRegenerate && !isFakeFull) {
+            setNotStarted(true);
+            return;
+          }
           if (earlyStatus.status === 'generating') {
             serverGenerating = true;
             // Mid-generation reload: resume the progress bar from the real
@@ -301,25 +312,30 @@ export default function LoadingRouteClient() {
 
       if (isGenerateFull || isRegenerate) {
         try {
-          // Step 1: Call 1 — chart analysis. Required for invited (completes their
-          // partial reading) and as the prerequisite for the full reading.
-          const init1 = await withCsrfHeaders({ method: 'POST', credentials: 'include' });
-          const res1 = await fetch('/api/reading/generate-call1', init1);
-          if (!res1.ok) {
-            const message = await res1.text();
-            const trimmed = message.length > 240 ? message.slice(0, 240) + '…' : message;
-            setErrorText(`Reading generation failed (${res1.status}): ${trimmed || 'no body'}`);
-            console.error('[loading] generate-call1 failed', res1.status, message);
-          } else if (isGenerateFull || isRegenerateFull) {
-            // Step 2 (full tiers only): fire generate-full without awaiting — it can run
-            // up to 300s on the server and write to DB even if the HTTP connection drops
-            // before it responds. Completion is detected by the polling loop below.
-            // (Invited regen stops after Call 1 — analysis_en is their completion signal.)
-            withCsrfHeaders({ method: 'POST', credentials: 'include' }).then((init2) => {
-              fetch('/api/reading/generate-full', init2).catch((err) =>
+          if (isGenerateFull || isRegenerateFull) {
+            // Full reading: a SINGLE request drives the whole run. generate-full
+            // now runs Call 1 itself when analysis_en is missing, so there is no
+            // client-side gap between Call 1 and Call 2 where a closed tab could
+            // strand the reading half-generated. keepalive lets the request
+            // survive tab teardown; not awaited because it runs up to 600s
+            // server-side and writes to DB regardless of HTTP timing — the
+            // polling loop below detects completion.
+            withCsrfHeaders({ method: 'POST', credentials: 'include', keepalive: true }).then((init) => {
+              fetch('/api/reading/generate-full', init).catch((err) =>
                 console.error('[loading] generate-full network error (expected on long runs):', err)
               );
             });
+          } else {
+            // Invited-tier regen (isRegenerateCall1): Call 1 only — analysis_en is
+            // their completion signal, no Call 2.
+            const init1 = await withCsrfHeaders({ method: 'POST', credentials: 'include', keepalive: true });
+            const res1 = await fetch('/api/reading/generate-call1', init1);
+            if (!res1.ok) {
+              const message = await res1.text();
+              const trimmed = message.length > 240 ? message.slice(0, 240) + '…' : message;
+              setErrorText(`Reading generation failed (${res1.status}): ${trimmed || 'no body'}`);
+              console.error('[loading] generate-call1 failed', res1.status, message);
+            }
           }
         } catch {
           console.error('[loading] error starting full generation');
@@ -434,6 +450,11 @@ export default function LoadingRouteClient() {
           return;
         }
 
+        // Nothing is generating (e.g. the trigger request never reached the
+        // server). Stop polling and offer an explicit Generate action rather
+        // than looping to the timeout cap.
+        if (status.status === 'not_started') { setNotStarted(true); return; }
+
         if (status.status === 'complete') {
           if (navigated) return;
           if (status.shareSlug) {
@@ -464,6 +485,42 @@ export default function LoadingRouteClient() {
     const invite = new URLSearchParams(window.location.search).get('invite');
     window.location.href = invite ? `/auth?step=birth&invite=${invite}` : '/auth?step=birth';
   };
+
+  if (notStarted) {
+    // Nothing is generating and no reading exists. Offer an explicit action that
+    // navigates to the mode which actually fires generate-full (Call 1 + Call 2).
+    const startGeneration = () => { window.location.href = '/loading?mode=generate-full'; };
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10001,
+          width: 'min(480px, calc(100vw - 32px))',
+          background: 'rgba(7,10,20,0.92)',
+          border: '1px solid rgba(251,191,36,0.3)',
+          borderRadius: 12,
+          padding: '12px 16px',
+          color: '#fde68a',
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: 13,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <span style={{ flex: 1, lineHeight: 1.4 }}>Your reading hasn&apos;t been generated yet.</span>
+        <button
+          onClick={startGeneration}
+          style={{ border: '1px solid rgba(251,191,36,0.5)', background: 'rgba(251,191,36,0.12)', color: '#fde68a', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          Generate reading
+        </button>
+      </div>
+    );
+  }
 
   if (!errorText) return null;
 

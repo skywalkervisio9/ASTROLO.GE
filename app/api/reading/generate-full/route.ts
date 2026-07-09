@@ -7,7 +7,8 @@
 
 import { NextResponse } from 'next/server';
 import { createAdminSupabase } from '@/lib/supabase/admin';
-import { runNatalCall2 } from '@/lib/AIgeneration/pipeline';
+import { runNatalCall1, runNatalCall2 } from '@/lib/AIgeneration/pipeline';
+import { STALE_GENERATION_MS } from '@/lib/onboarding/status';
 import { PROMPT_VERSION } from '@/lib/AIgeneration/prompts/natal';
 import { requireAuthContext } from '@/lib/auth/guards';
 import { jsonServerError } from '@/lib/auth/http';
@@ -84,19 +85,50 @@ export async function POST() {
     const storedPoints = chartRow.points as StoredPoints | null;
     const storedAspects = chartRow.aspects as StoredAspect[] | null;
 
-    // Call 1 must already exist — run /api/reading/generate-call1 first
+    // Launch timestamp for this run. A fresh run keeps the Call 1 timestamp (well
+    // within the window) so the /loading bar spans the whole run. But on a re-fire
+    // over a hard-killed 'stale generating' row, reset it to now — otherwise the
+    // preserved old timestamp reads as stale again immediately and the poller
+    // would bail mid-run.
+    const prevStartedMs = existingReading?.generation_started_at
+      ? new Date(existingReading.generation_started_at).getTime()
+      : 0;
+    const startedAtIso =
+      prevStartedMs && Date.now() - prevStartedMs <= STALE_GENERATION_MS
+        ? (existingReading!.generation_started_at as string)
+        : new Date().toISOString();
+
+    // Call 1 (chart analysis) is the prerequisite for Call 2. Normally the
+    // /loading flow runs it first, but this endpoint is self-contained: if the
+    // analysis is missing it runs Call 1 here. That lets the client fire a
+    // SINGLE (keepalive) request for the whole reading — no fragile client-side
+    // gap between Call 1 and Call 2 where a closed tab could strand the run.
     const { data: analysisRow } = await admin
       .from('natal_readings')
       .select('analysis_en, model_call1, tokens_call1')
       .eq('user_id', authUser.id)
       .maybeSingle();
 
-    const analysis = analysisRow?.analysis_en ?? '';
-    const call1Model = analysisRow?.model_call1 ?? 'cached';
-    const call1Tokens = analysisRow?.tokens_call1 ?? 0;
+    let analysis = analysisRow?.analysis_en ?? '';
+    let call1Model = analysisRow?.model_call1 ?? 'cached';
+    let call1Tokens = analysisRow?.tokens_call1 ?? 0;
 
     if (!analysis) {
-      return NextResponse.json({ error: 'Call 1 analysis not found — call /api/reading/generate-call1 first' }, { status: 400 });
+      const call1 = await runNatalCall1(context);
+      analysis = call1.analysis;
+      call1Model = call1.model;
+      call1Tokens = call1.tokens;
+      // Persist Call 1 output + stamp the launch time (marks the row as underway
+      // so /api/onboarding/status reports 'generating', not 'not_started').
+      await admin
+        .from('natal_readings')
+        .upsert({
+          user_id: authUser.id,
+          analysis_en: analysis,
+          model_call1: call1Model,
+          tokens_call1: call1Tokens,
+          generation_started_at: startedAtIso,
+        }, { onConflict: 'user_id' });
     }
 
     // Tier-2: mark generation underway. A hard kill (300s timeout) then leaves
@@ -106,9 +138,9 @@ export async function POST() {
       .from('natal_readings')
       .update({
         generation_status: 'generating',
-        // Preserve the Call 1 launch time so the /loading bar's resume baseline
-        // spans the whole run; only stamp now if Call 1 didn't (legacy rows).
-        generation_started_at: existingReading?.generation_started_at ?? new Date().toISOString(),
+        // Call 1 launch time for fresh runs (bar spans the whole run); reset to
+        // now when re-firing over a stale/hard-killed row. See startedAtIso above.
+        generation_started_at: startedAtIso,
         generation_finished_at: null,
       })
       .eq('user_id', authUser.id);

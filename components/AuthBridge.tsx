@@ -594,6 +594,17 @@ export default function AuthBridge() {
                 : '/loading?mode=resume';
               return;
             }
+            // Premium with no reading and nothing generating (manual tier change
+            // or a dropped generate-full). Plain /loading shows a Generate button
+            // — resume would watch-only a run that isn't happening.
+            if (s.status === 'not_started') {
+              console.log("[AB] onAuthSuccess: reading not generated yet, redirecting to /loading");
+              const inviteNs = new URLSearchParams(window.location.search).get('invite');
+              window.location.href = inviteNs
+                ? `/loading?invite=${encodeURIComponent(inviteNs)}`
+                : '/loading';
+              return;
+            }
           }
         } catch (e) {
           console.warn('[AB] onboarding/status check failed:', e);
