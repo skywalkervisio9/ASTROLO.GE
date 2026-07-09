@@ -206,6 +206,15 @@ function startLoading(lang, durationMs) {
     el.style.top = (r + r * Math.sin((angle - 90) * Math.PI / 180)) + 'px';
     el.style.transform = 'translate(-50%,-50%)'; ring.appendChild(el);
   });
+  // The ring spins (zodiacSpin) while each glyph counter-spins (zodiacCounterSpin)
+  // to stay upright — this only works if both share a start time. The ring
+  // element persists across startLoading calls, so its spin has been running
+  // since page render while these glyphs are brand new; that offset leaves the
+  // glyphs permanently tilted. Restart the ring's animation so it re-syncs with
+  // the freshly-built glyphs.
+  ring.style.animation = 'none';
+  void ring.offsetWidth; // force reflow so the restart takes effect
+  ring.style.animation = '';
   const zSigns = ring.querySelectorAll('.z-sign'); let zIdx = 0;
   const zInt = setInterval(() => { zSigns.forEach(z => z.classList.remove('lit')); if (zIdx < zSigns.length) { zSigns[zIdx].classList.add('lit'); zIdx++; } else zIdx = 0; }, 800);
 

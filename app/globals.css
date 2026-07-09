@@ -1195,9 +1195,11 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 .loading-overlay{position:fixed;inset:0;z-index:300;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .6s var(--ease)}
 .loading-overlay.active{display:flex;opacity:1}
 /* Desktop: sink the backdrop below the app's --bg (#0a0a0f) into near-black
-   with a subtle radial so the star field reads brighter against it. Mobile
-   keeps --bg. */
+   with a subtle radial so the star field reads brighter against it. */
 @media (min-width:768px){.loading-overlay{background:radial-gradient(ellipse at center,#060610 0%,#030307 100%)}}
+/* Mobile: bloom a deep midnight-blue behind the sun/orrery (~40% down, where
+   the center sits) fading out to --bg at the edges. */
+@media (max-width:767px){.loading-overlay{background:radial-gradient(ellipse 60% 42% at 50% 40%,#0d1428 0%,#0a0d18 30%,var(--bg) 62%)}}
 .orrery{position:relative;width:280px;height:280px;margin-bottom:40px}
 .orrery-center{position:absolute;top:50%;left:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--gold);box-shadow:0 0 20px rgba(201,168,76,.5),0 0 60px rgba(201,168,76,.2);animation:sunPulse 3s ease-in-out infinite}
 @keyframes sunPulse{0%,100%{box-shadow:0 0 20px rgba(201,168,76,.5),0 0 60px rgba(201,168,76,.2)}50%{box-shadow:0 0 30px rgba(201,168,76,.7),0 0 80px rgba(201,168,76,.35)}}
@@ -1220,6 +1222,12 @@ body[data-invite-arrival="true"] .auth-page .auth-sigil{display:none}
 @keyframes zodiacCounterSpin{to{transform:translate(-50%,-50%) rotate(-360deg)}}
 .zodiac-ring .z-sign svg{transition:all .8s var(--ease)}
 .zodiac-ring .z-sign.lit{color:rgba(201,168,76,.6);filter:drop-shadow(0 0 8px rgba(201,168,76,.4))}
+/* Mobile only: brighter glyphs + soft glow so the zodiac ring stands out.
+   Desktop keeps the fainter baseline above. */
+@media (max-width:767px){
+  .zodiac-ring .z-sign{color:rgba(201,168,76,.28);filter:drop-shadow(0 0 3px rgba(201,168,76,.28))}
+  .zodiac-ring .z-sign.lit{color:rgba(201,168,76,.72);filter:drop-shadow(0 0 10px rgba(201,168,76,.55))}
+}
 .loading-text{text-align:center}
 .loading-title{font-family:var(--fd);font-size:clamp(1.1rem,2.5vw,1.4rem);color:var(--gold);letter-spacing:.1em;margin-bottom:8px;opacity:0;animation:fadeUp .8s ease .3s forwards}
 .loading-msg{font-size:.78rem;color:var(--txd);letter-spacing:.06em;min-height:24px;transition:opacity .4s}
