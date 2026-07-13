@@ -84,6 +84,27 @@ export default function LoadingRouteClient() {
     // completed reading redirects immediately instead of waiting for the
     // (possibly stalled) loop to resume.
     let navigated = false;
+
+    // Explicit (re)generation modes fire the AI run themselves, but the server
+    // takes a moment to flip generation_started_at — until it does, the status
+    // endpoint still reports 'not_started'. Without a grace window, the very
+    // first poll right after firing would surface the "hasn't been generated
+    // yet" prompt even though a run is on its way. Tolerate a few not_started
+    // polls in those modes so the prompt only appears when the trigger genuinely
+    // never landed (i.e. after a real attempt failed to start), not immediately.
+    const topMode = new URLSearchParams(window.location.search).get('mode');
+    const didTriggerGeneration =
+      topMode === 'generate-full' || topMode === 'regenerate-full' || topMode === 'regenerate-call1';
+    const NOT_STARTED_GRACE_ATTEMPTS = 6; // 6 × 5s = 30s
+    let notStartedPolls = 0;
+    /** Returns true if the caller should stop (prompt shown); false to keep waiting. */
+    const reportNotStarted = (): boolean => {
+      notStartedPolls += 1;
+      if (didTriggerGeneration && notStartedPolls < NOT_STARTED_GRACE_ATTEMPTS) return false;
+      setNotStarted(true);
+      return true;
+    };
+
     const checkOnVisible = async () => {
       if (document.visibilityState !== 'visible' || navigated) return;
       try {
@@ -96,7 +117,7 @@ export default function LoadingRouteClient() {
           setCanReturnToBirth(false);
           return;
         }
-        if (status.status === 'not_started') { setNotStarted(true); return; }
+        if (status.status === 'not_started') { reportNotStarted(); return; }
         if (status.status !== 'complete') return;
         const invTab = new URLSearchParams(window.location.search).get('invite');
         // complete but slug not written yet (e.g. ensureShareSlug lag) — never finishLoading on invite flow
@@ -453,7 +474,10 @@ export default function LoadingRouteClient() {
         // Nothing is generating (e.g. the trigger request never reached the
         // server). Stop polling and offer an explicit Generate action rather
         // than looping to the timeout cap.
-        if (status.status === 'not_started') { setNotStarted(true); return; }
+        if (status.status === 'not_started') {
+          if (reportNotStarted()) return;
+          continue;
+        }
 
         if (status.status === 'complete') {
           if (navigated) return;
