@@ -337,6 +337,13 @@ export default function SynastryView({
     }
   }, [sections, scrollToSection]);
 
+  // The overall score resolves the whole reading → it jumps to the closing
+  // "potential" chapter (where the relationship's forward arc is drawn).
+  const scrollToPotential = useCallback(() => {
+    const idx = sections.findIndex((s) => s.key === 'potential');
+    if (idx >= 0) scrollToSection(idx);
+  }, [sections, scrollToSection]);
+
   const { meta } = reading;
   // The reading data is keyed personA/personB by inviter/invitee. Map both
   // sides onto viewer/other so the UI can put the logged-in user on the
@@ -376,7 +383,14 @@ export default function SynastryView({
     const key = (CATEGORY_TO_SECTION[catKey] || []).find((k) => reading[k]);
     return key ? (reading[key] as SynastrySectionData | undefined)?.cards?.[0]?.body?.[0] : undefined;
   };
+  // The signature card headlines with its chapter's lead-card TITLE (2-4 words)
+  // rather than the category caption — the caption often wraps to a second line.
+  const sectionLeadTitle = (catKey: string): string | undefined => {
+    const key = (CATEGORY_TO_SECTION[catKey] || []).find((k) => reading[k]);
+    return key ? (reading[key] as SynastrySectionData | undefined)?.cards?.[0]?.title : undefined;
+  };
   const sigDetail = signatureEntry ? sectionLeadBody(signatureEntry[0]) : undefined;
+  const sigHeadline = signatureEntry ? sectionLeadTitle(signatureEntry[0]) : undefined;
 
   const [deletedAccountOpen, setDeletedAccountOpen] = useState(false);
   const openChart = useCallback(async (slug: string) => {
@@ -408,7 +422,6 @@ export default function SynastryView({
             </button>
           </div>
           <button className="bb active">
-            <svg style={{ width: '10px', height: '10px', fill: 'var(--gold)' }}><use href="#gl-conjunction" /></svg>
             <span>{language === 'ka' ? 'სინასტრია' : 'Synastry'}</span>
           </button>
           <div className="bnav-side bnav-r">
@@ -427,7 +440,15 @@ export default function SynastryView({
         {/* Hero */}
         <div className="chero section-reveal vis">
           <div className="chero-glow" />
-          <SigilSVG />
+          <SynastryAspectWheel
+            chartA={viewerChart}
+            chartB={otherChart}
+            nameA={viewerPerson.name}
+            nameB={otherPerson.name}
+            genderA={viewerPerson.gender}
+            genderB={otherPerson.gender}
+            language={language}
+          />
           <h1>{heroTitle}</h1>
           <div className="tg">{heroSub}</div>
           {publicSynastrySlug && (
@@ -445,7 +466,6 @@ export default function SynastryView({
             <div className="bridge-icon">
               <svg viewBox="0 0 40 40" width="40" height="40">
                 <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(201,168,76,.3)" strokeWidth="1" />
-                <text x="20" y="24" textAnchor="middle" fill="var(--gold)" fontSize="14" fontFamily="serif">☌</text>
               </svg>
             </div>
             <div className="bridge-line" />
@@ -453,23 +473,11 @@ export default function SynastryView({
           <PartnerCard person={otherPerson} language={language} chart={otherChart ?? undefined} shareSlug={otherSlug ?? undefined} onOpenChart={openChart} />
         </div>
 
-        {/* Aspect wheel — the real cross-chart connection between the two */}
-        <SynastryAspectWheel
-          chartA={viewerChart}
-          chartB={otherChart}
-          nameA={viewerPerson.name}
-          nameB={otherPerson.name}
-          genderA={viewerPerson.gender}
-          genderB={otherPerson.gender}
-          language={language}
-        />
-
         {/* Resonance — dimensions lead, the overall score resolves last */}
         {signatureEntry && (
           <>
             <div className="rzn-head section-reveal vis">
               <h2>{language === 'ka' ? 'როგორ ერგებით ერთმანეთს' : 'How you resonate'}</h2>
-              <span className="rzn-hint">{language === 'ka' ? 'შეეხე განზომილებას ↓' : 'tap any dimension ↓'}</span>
             </div>
 
             <SignatureCard
@@ -477,6 +485,7 @@ export default function SynastryView({
               label={catLabels[signatureEntry[0]] || signatureEntry[0]}
               score={signatureEntry[1] as number}
               caption={catCaptions[signatureEntry[0]]}
+              headline={sigHeadline}
               detail={sigDetail}
               language={language}
               onJump={() => scrollToCategory(signatureEntry[0])}
@@ -508,7 +517,7 @@ export default function SynastryView({
               />
             )}
 
-            <DeepResonance score={overallScore} tier={tier} language={language} />
+            <DeepResonance score={overallScore} tier={tier} language={language} onJump={scrollToPotential} />
           </>
         )}
 
@@ -585,61 +594,6 @@ function DeletedAccountModal({ language, onClose }: { language: Language; onClos
 }
 
 // ── Sub-components ──
-
-function SigilSVG() {
-  return (
-    <div className="chero-sigil">
-      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="sigil-axis-grad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="rgba(228,180,196,0)" />
-            <stop offset="24%" stopColor="rgba(228,180,196,.5)" />
-            <stop offset="50%" stopColor="rgba(201,168,76,.5)" />
-            <stop offset="76%" stopColor="rgba(228,199,107,.5)" />
-            <stop offset="100%" stopColor="rgba(228,199,107,0)" />
-          </linearGradient>
-          <radialGradient id="sigil-sun-grad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(255,244,214,.95)" />
-            <stop offset="55%" stopColor="rgba(228,199,107,.55)" />
-            <stop offset="100%" stopColor="rgba(201,168,76,0)" />
-          </radialGradient>
-        </defs>
-
-        {/* Concentric rings — slow forward drift, mirrors the loader */}
-        <g className="sigil-ring">
-          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(201,168,76,.16)" strokeWidth=".8" />
-          <circle cx="50" cy="50" r="41" fill="none" stroke="rgba(201,168,76,.09)" strokeWidth=".5" strokeDasharray="1.5 5" />
-          <circle cx="50" cy="50" r="34" fill="none" stroke="rgba(196,122,138,.08)" strokeWidth=".5" />
-        </g>
-
-        {/* Moon + Sun on a luminous axis — slow counter-orbit */}
-        <g className="sigil-inner">
-          <line x1="29" y1="50" x2="71" y2="50" className="sigil-axis" stroke="url(#sigil-axis-grad)" strokeWidth="1" />
-
-          {/* Moon — elegant thin crescent (rose) */}
-          <g className="sigil-moon">
-            <path d="M30 41a9 9 0 1 0 0 18 7 7 0 0 1 0-18z" fill="rgba(228,180,196,.12)" stroke="rgba(228,180,196,.72)" strokeWidth="1" strokeLinejoin="round" />
-          </g>
-
-          {/* Sun — radiant disc with delicate rays (gold) */}
-          <g className="sigil-sun">
-            <circle cx="70" cy="50" r="9" fill="url(#sigil-sun-grad)" />
-            <circle cx="70" cy="50" r="5.2" fill="none" stroke="rgba(228,199,107,.78)" strokeWidth="1" />
-            <circle cx="70" cy="50" r="1.6" fill="rgba(255,246,222,.95)" />
-            {Array.from({ length: 8 }).map((_, i) => (
-              <line
-                key={i}
-                x1="70" y1="40" x2="70" y2="36.6"
-                stroke="rgba(228,199,107,.6)" strokeWidth=".8" strokeLinecap="round"
-                transform={`rotate(${i * 45} 70 50)`}
-              />
-            ))}
-          </g>
-        </g>
-      </svg>
-    </div>
-  );
-}
 
 // Glyph map for planet names (English keys as stored in DB)
 const PLANET_GLYPHS: Record<string, string> = {
@@ -747,12 +701,15 @@ function PartnerCard({
 }
 
 // ── Deep Resonance — the derived overall score, resolving AFTER the dimensions ──
-function DeepResonance({ score, tier, language }: { score: number; tier: TierResult; language: Language }) {
+function DeepResonance({ score, tier, language, onJump }: { score: number; tier: TierResult; language: Language; onJump: () => void }) {
   const circumference = 2 * Math.PI * 54;
   const offset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="rzn-chord section-reveal vis">
+    <div
+      className="rzn-chord section-reveal vis"
+      role="button" tabIndex={0} onClick={onJump} onKeyDown={jumpKeyHandler(onJump)}
+    >
       <div className="rzn-ring">
         <svg viewBox="0 0 120 120">
           <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(201,168,76,.1)" strokeWidth="6" />
@@ -775,11 +732,8 @@ function DeepResonance({ score, tier, language }: { score: number; tier: TierRes
         <div className="rzn-method">
           {language === 'ka' ? 'ექვსივე განზომილების შეწონილი ჯამი' : 'A weighted blend of all six dimensions'}
         </div>
-        <div className="rzn-band" aria-hidden>
-          {Array.from({ length: tier.total }).map((_, i) => (
-            <i key={i} className={i < tier.rank ? 'on' : ''} />
-          ))}
-          <span>{language === 'ka' ? `დონე ${tier.rank}/${tier.total}` : `tier ${tier.rank} of ${tier.total}`}</span>
+        <div className="rzn-chord-explore">
+          {language === 'ka' ? 'პოტენციალის თავში გადასვლა →' : 'Explore the potential →'}
         </div>
       </div>
     </div>
@@ -852,6 +806,9 @@ function SynastryAspectWheel({ chartA, chartB, nameA, nameB, genderA, genderB, l
   chartA?: ChartPersonData | null; chartB?: ChartPersonData | null;
   nameA: string; nameB: string; genderA?: string; genderB?: string; language: Language;
 }) {
+  // Hovered planet → floating tooltip (SVG <title> never reliably fired). Positioned
+  // as an HTML overlay at the glyph's fractional coords within the square canvas.
+  const [hover, setHover] = useState<{ label: string; x: number; y: number; person: string; name: string } | null>(null);
   const toPoints = (chart?: ChartPersonData | null) =>
     (chart?.planets ?? [])
       .filter((p) => WHEEL_PLANETS.includes(p.name))
@@ -882,7 +839,7 @@ function SynastryAspectWheel({ chartA, chartB, nameA, nameB, genderA, genderB, l
   if (colA === colB) colB = '#6f95bd';
 
   const PERSONAL = new Set(['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn']);
-  const cand: { ax: number; ay: number; bx: number; by: number; cls: string; tight: boolean; delta: number }[] = [];
+  const cand: { ax: number; ay: number; bx: number; by: number; cls: string; tight: boolean; delta: number; aName: string; bName: string }[] = [];
   for (const a of rawA) {
     for (const b of rawB) {
       if (!PERSONAL.has(a.name) && !PERSONAL.has(b.name)) continue;
@@ -893,13 +850,25 @@ function SynastryAspectWheel({ chartA, chartB, nameA, nameB, genderA, genderB, l
         if (delta <= asp.orb) {
           const [ax, ay] = posAng(angA(a.name), rA);
           const [bx, by] = posAng(angB(b.name), rB);
-          cand.push({ ax, ay, bx, by, cls: asp.cls, tight: delta < 2, delta });
+          cand.push({ ax, ay, bx, by, cls: asp.cls, tight: delta < 2, delta, aName: a.name, bName: b.name });
           break;
         }
       }
     }
   }
   const lines = cand.sort((x, y) => x.delta - y.delta).slice(0, 16);
+
+  // Hover a planet → light its own threads + the planets they reach, dim the rest.
+  const connected = new Set<string>();
+  if (hover) {
+    connected.add(`${hover.person}:${hover.name}`);
+    for (const l of lines) {
+      if (hover.person === 'a' && l.aName === hover.name) connected.add(`b:${l.bName}`);
+      if (hover.person === 'b' && l.bName === hover.name) connected.add(`a:${l.aName}`);
+    }
+  }
+  const lineActive = (l: { aName: string; bName: string }) =>
+    !hover || (hover.person === 'a' && l.aName === hover.name) || (hover.person === 'b' && l.bName === hover.name);
 
   const planetTip = (person: string, p: WheelPoint) => {
     const pl = language === 'ka' ? (PLANET_KA[p.name] || p.name) : p.name;
@@ -908,33 +877,57 @@ function SynastryAspectWheel({ chartA, chartB, nameA, nameB, genderA, genderB, l
   const renderGlyphs = (pts: WheelPoint[], r: number, color: string, person: string, key: string) =>
     pts.map((p, i) => {
       const [x, y] = posAng(p.ang, r);
+      const dim = !!hover && !connected.has(`${key}:${p.name}`);
       return (
-        <g key={`${key}${i}`} style={{ cursor: 'help' }}>
-          <title>{planetTip(person, p)}</title>
-          <circle cx={x} cy={y} r="8.5" fill="var(--bg,#0b0b13)" opacity="0.55" />
-          <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize="12.5" fill={color} fontFamily="serif">{PLANET_UNI[p.name]}</text>
+        <g
+          key={`${key}${i}`}
+          className="syn-planet"
+          style={{ cursor: 'help', opacity: dim ? 0.18 : 1 }}
+          onMouseEnter={() => setHover({ label: planetTip(person, p), x, y, person: key, name: p.name })}
+          onMouseLeave={() => setHover(null)}
+        >
+          {/* transparent, larger hit-area so the tooltip is easy to trigger */}
+          <circle cx={x} cy={y} r="12" fill="transparent" />
+          <circle cx={x} cy={y} r="8.5" fill="var(--bg,#0b0b13)" opacity="0.55" style={{ pointerEvents: 'none' }} />
+          <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize="12.5" fill={color} fontFamily="serif" style={{ pointerEvents: 'none' }}>{PLANET_UNI[p.name]}</text>
         </g>
       );
     });
 
   return (
     <div className="syn-wheel section-reveal vis">
-      <svg viewBox="0 0 300 300" role="img" aria-label={language === 'ka' ? 'სინასტრიის ასპექტების რუკა' : 'Synastry aspect wheel'}>
-        <circle cx={cx} cy={cy} r={rA + 8} fill="none" stroke="rgba(201,168,76,.12)" strokeWidth=".6" />
-        <circle cx={cx} cy={cy} r={rB - 8} fill="none" stroke="rgba(201,168,76,.08)" strokeWidth=".6" />
-        {Array.from({ length: 12 }).map((_, i) => {
-          const [x1, y1] = posAng(i * 30, rB - 8);
-          const [x2, y2] = posAng(i * 30, rA + 8);
-          return <line key={`t${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(201,168,76,.05)" strokeWidth=".5" />;
-        })}
-        {lines.map((l, i) => (
-          <line key={`l${i}`} x1={l.ax} y1={l.ay} x2={l.bx} y2={l.by}
-            stroke={ASPECT_STROKE[l.cls]} strokeWidth={l.tight ? 1.1 : 0.7} opacity={l.tight ? 0.5 : 0.28} strokeLinecap="round" />
-        ))}
-        {renderGlyphs(As, rA, colA, nameA, 'a')}
-        {renderGlyphs(Bs, rB, colB, nameB, 'b')}
-        <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--gold)" fontFamily="serif" opacity=".55">☌</text>
-      </svg>
+      <div className="syn-wheel-canvas">
+        <svg viewBox="0 0 300 300" role="img" aria-label={language === 'ka' ? 'სინასტრიის ასპექტების რუკა' : 'Synastry aspect wheel'}>
+          <circle cx={cx} cy={cy} r={rA + 8} fill="none" stroke="rgba(201,168,76,.12)" strokeWidth=".6" />
+          <circle cx={cx} cy={cy} r={rB - 8} fill="none" stroke="rgba(201,168,76,.08)" strokeWidth=".6" />
+          {Array.from({ length: 12 }).map((_, i) => {
+            const [x1, y1] = posAng(i * 30, rB - 8);
+            const [x2, y2] = posAng(i * 30, rA + 8);
+            return <line key={`t${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(201,168,76,.05)" strokeWidth=".5" />;
+          })}
+          {lines.map((l, i) => {
+            const active = lineActive(l);
+            const baseOp = l.tight ? 0.5 : 0.28;
+            const op = !hover ? baseOp : active ? Math.min(1, baseOp + 0.45) : baseOp * 0.14;
+            const sw = hover && active ? (l.tight ? 1.5 : 1.1) : l.tight ? 1.1 : 0.7;
+            return (
+              <line key={`l${i}`} className="syn-aspect-line" x1={l.ax} y1={l.ay} x2={l.bx} y2={l.by}
+                pathLength={1} stroke={ASPECT_STROKE[l.cls]} strokeLinecap="round"
+                style={{ ['--i' as never]: i, opacity: op, strokeWidth: sw }} />
+            );
+          })}
+          {renderGlyphs(As, rA, colA, nameA, 'a')}
+          {renderGlyphs(Bs, rB, colB, nameB, 'b')}
+        </svg>
+        {hover && (
+          <div
+            className="syn-wheel-tip"
+            style={{ left: `${(hover.x / 300) * 100}%`, top: `${(hover.y / 300) * 100}%` }}
+          >
+            {hover.label}
+          </div>
+        )}
+      </div>
       <div className="syn-wheel-legend">
         <span className="swl-item"><i className="swl-dot" style={{ background: colA }} />{nameA}</span>
         <span className="swl-item"><i className="swl-dot" style={{ background: colB }} />{nameB}</span>
@@ -993,11 +986,13 @@ function capPopup(s: string): string {
 
 // The single strongest resonance dimension, rendered large with its insight.
 // Reuses meta.categoryCaptions[key] — no new data required.
-function SignatureCard({ catKey, label, score, caption, detail, language, onJump }: {
-  catKey: string; label: string; score: number; caption?: string; detail?: string; language: Language; onJump: () => void;
+function SignatureCard({ catKey, label, score, caption, headline, detail, language, onJump }: {
+  catKey: string; label: string; score: number; caption?: string; headline?: string; detail?: string; language: Language; onJump: () => void;
 }) {
   const el = CAT_TO_ELEMENT[catKey] || 'var(--gold)';
   const { prose } = splitCaption(caption);
+  // Prefer the chapter's short lead-card title; fall back to the caption hook.
+  const insight = headline || prose;
   return (
     <div
       className="rzn-sig section-reveal vis"
@@ -1010,8 +1005,8 @@ function SignatureCard({ catKey, label, score, caption, detail, language, onJump
         <div className="rzn-sig-num">{score}<small>/100</small></div>
       </div>
       <div className="rzn-sig-body">
-        {prose && <div className="rzn-sig-ins">{renderText(prose)}</div>}
-        {detail && <p className="rzn-sig-detail">{renderText(detail)}</p>}
+        {insight && <div className="rzn-sig-ins">{renderText(insight)}</div>}
+        {detail && <p className="rzn-sig-detail">{renderText(capPopup(detail))}</p>}
         <div className="rzn-sig-explore">{language === 'ka' ? 'ამ თავში გადასვლა →' : 'Explore this chapter →'}</div>
       </div>
     </div>
