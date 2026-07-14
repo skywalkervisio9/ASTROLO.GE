@@ -1102,19 +1102,22 @@ function GrowthEdge({ score, caption, language, onJump }: {
 // ── Section renderer — uses .sh / .sh h2 / .st / .pq (natal pattern) ──
 
 // Per-section header glyphs (user-selected, thin gold line style like natal).
+// Each carries a per-icon viewBox that frames its content to a consistent ~67%
+// fill so every glyph renders at a similar visual size, with strokeWidth scaled
+// to that viewBox so the line weight stays uniform across all of them.
 const svgProps = { viewBox: '0 0 48 48', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
 const SECTION_GLYPHS: Record<string, React.ReactNode> = {
   emotionalBond: (<svg {...svgProps}><path d="M21 11a11 11 0 1 0 0 26 9 9 0 0 1 0-26z" /><path d="M27 11a11 11 0 1 1 0 26 9 9 0 0 0 0-26z" /></svg>),
-  passion: (<svg {...svgProps}><path d="M24 7c5 7 9 9 9 15a9 9 0 0 1-18 0c0-3.5 2-6 3.6-8 .9 3.4 3.4 3.4 3.4 1 0-3-1-5.5 2-8z" /></svg>),
-  karmic: (<svg {...svgProps}><path d="M24 26C20 26 20 21 24 21 29 21 29 28 24 28 16 28 16 17 24 17 34 17 34 32 24 32" /></svg>),
-  numerology: (<svg viewBox="0 0 48 48" fill="none"><text x="12" y="16" fontFamily="Cormorant Garamond,serif" fontSize="12" fill="currentColor" opacity=".35">7</text><text x="9" y="36" fontFamily="Cormorant Garamond,serif" fontSize="24" fill="currentColor">4</text><text x="26" y="27" fontFamily="Cormorant Garamond,serif" fontSize="16" fill="currentColor" opacity=".55">9</text></svg>),
-  growth: (<svg {...svgProps}><path d="M24 39V21" /><path d="M24 27c-6.5 0-9.5-3-9.5-8.5 5.5 0 9.5 2 9.5 8.5z" /><path d="M24 23c6.5 0 9.5-3 9.5-8-5.5 0-9.5 2-9.5 8z" /></svg>),
-  sharedShadow: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.5}><circle cx="24" cy="24" r="12" /><path d="M24 12a12 12 0 0 1 0 24z" fill="currentColor" stroke="none" /></svg>),
-  dailyRitual: (<svg {...svgProps}><circle cx="24" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="31" cy="15" r="1.6" fill="currentColor" stroke="none" /><circle cx="34" cy="22" r="1.6" fill="currentColor" stroke="none" /><circle cx="31" cy="29" r="1.6" fill="currentColor" stroke="none" /><circle cx="17" cy="29" r="1.6" fill="currentColor" stroke="none" /><circle cx="14" cy="22" r="1.6" fill="currentColor" stroke="none" /><circle cx="17" cy="15" r="1.6" fill="currentColor" stroke="none" /><path d="M24 32v4" /><path d="M21 40l3-4 3 4" /></svg>),
-  potential: (<svg {...svgProps}><line x1="24" y1="7" x2="24" y2="16" /><line x1="24" y1="32" x2="24" y2="41" /><line x1="7" y1="24" x2="16" y2="24" /><line x1="32" y1="24" x2="41" y2="24" /><line x1="14.5" y1="14.5" x2="19.5" y2="19.5" /><line x1="33.5" y1="14.5" x2="28.5" y2="19.5" /><line x1="14.5" y1="33.5" x2="19.5" y2="28.5" /><line x1="33.5" y1="33.5" x2="28.5" y2="28.5" /><path d="M24 19.5l3.8 4.5-3.8 4.5-3.8-4.5z" fill="currentColor" stroke="none" /></svg>),
+  passion: (<svg {...svgProps} viewBox="6 1 36 36" strokeWidth={1.15}><path d="M24 7c5 7 9 9 9 15a9 9 0 0 1-18 0c0-3.5 2-6 3.6-8 .9 3.4 3.4 3.4 3.4 1 0-3-1-5.5 2-8z" /></svg>),
+  karmic: (<svg {...svgProps} viewBox="13.5 13.25 22.5 22.5" strokeWidth={0.7}><path d="M24 26C20 26 20 21 24 21 29 21 29 28 24 28 16 28 16 17 24 17 34 17 34 32 24 32" /></svg>),
+  numerology: (<svg viewBox="-7 -5 57 57" fill="none"><text x="12" y="16" fontFamily="Cormorant Garamond,serif" fontSize="12" fill="currentColor" opacity=".35">7</text><text x="9" y="36" fontFamily="Cormorant Garamond,serif" fontSize="24" fill="currentColor">4</text><text x="26" y="27" fontFamily="Cormorant Garamond,serif" fontSize="16" fill="currentColor" opacity=".55">9</text></svg>),
+  growth: (<svg {...svgProps} viewBox="6 9 36 36" strokeWidth={1.15}><path d="M24 39V21" /><path d="M24 27c-6.5 0-9.5-3-9.5-8.5 5.5 0 9.5 2 9.5 8.5z" /><path d="M24 23c6.5 0 9.5-3 9.5-8-5.5 0-9.5 2-9.5 8z" /></svg>),
+  sharedShadow: (<svg viewBox="6 6 36 36" fill="none" stroke="currentColor" strokeWidth={1.15}><circle cx="24" cy="24" r="12" /><path d="M24 12a12 12 0 0 1 0 24z" fill="currentColor" stroke="none" /></svg>),
+  dailyRitual: (<svg {...svgProps} viewBox="2 3 44 44" strokeWidth={1.38}><circle cx="24" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="31" cy="15" r="1.6" fill="currentColor" stroke="none" /><circle cx="34" cy="22" r="1.6" fill="currentColor" stroke="none" /><circle cx="31" cy="29" r="1.6" fill="currentColor" stroke="none" /><circle cx="17" cy="29" r="1.6" fill="currentColor" stroke="none" /><circle cx="14" cy="22" r="1.6" fill="currentColor" stroke="none" /><circle cx="17" cy="15" r="1.6" fill="currentColor" stroke="none" /><path d="M24 32v4" /><path d="M21 40l3-4 3 4" /></svg>),
+  potential: (<svg {...svgProps} viewBox="-1.5 -1.5 51 51" strokeWidth={1.6}><line x1="24" y1="7" x2="24" y2="16" /><line x1="24" y1="32" x2="24" y2="41" /><line x1="7" y1="24" x2="16" y2="24" /><line x1="32" y1="24" x2="41" y2="24" /><line x1="14.5" y1="14.5" x2="19.5" y2="19.5" /><line x1="33.5" y1="14.5" x2="28.5" y2="19.5" /><line x1="14.5" y1="33.5" x2="19.5" y2="28.5" /><line x1="33.5" y1="33.5" x2="28.5" y2="28.5" /><path d="M24 19.5l3.8 4.5-3.8 4.5-3.8-4.5z" fill="currentColor" stroke="none" /></svg>),
   // Friend-only chapters — closest-match defaults.
-  intellectualSynergy: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.5}><circle cx="19" cy="24" r="8" /><circle cx="29" cy="24" r="8" /></svg>),
-  sharedAdventures: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round"><circle cx="24" cy="24" r="13" /><path d="M24 24l7.5-9.5-4.5 12.5-9.5 4.5 4.5-12.5z" fill="currentColor" stroke="none" /></svg>),
+  intellectualSynergy: (<svg viewBox="4.5 4.5 39 39" fill="none" stroke="currentColor" strokeWidth={1.2}><circle cx="19" cy="24" r="8" /><circle cx="29" cy="24" r="8" /></svg>),
+  sharedAdventures: (<svg viewBox="4.5 4.5 39 39" fill="none" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round"><circle cx="24" cy="24" r="13" /><path d="M24 24l7.5-9.5-4.5 12.5-9.5 4.5 4.5-12.5z" fill="currentColor" stroke="none" /></svg>),
 };
 
 const SynastrySection = React.forwardRef<HTMLElement, {

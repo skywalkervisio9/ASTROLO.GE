@@ -284,11 +284,11 @@ section.vis{opacity:1;transform:translateY(0)}
 }
 .sh{text-align:center;margin-bottom:32px}
 .sh .section-icon{width:48px;height:48px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
-.sh .section-icon svg{width:30px;height:30px;color:var(--gold)}
-/* Desktop: slightly larger section icons. Mobile keeps the 30px size above. */
+.sh .section-icon svg{width:34px;height:34px;color:var(--gold)}
+/* Desktop: slightly larger section icons. Mobile keeps the size above. */
 @media (min-width:768px){
   .sh .section-icon,.section-head .section-icon{width:56px;height:56px}
-  .sh .section-icon svg,.section-head .section-icon svg{width:37px;height:37px}
+  .sh .section-icon svg,.section-head .section-icon svg{width:42px;height:42px}
 }
 /* Subtle interactive bloom: section icons glow + lift on hover (desktop) and
    when scrolled to the viewport center band (mobile, via .sh-active toggled by
@@ -1066,7 +1066,7 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
 .analysis-section.vis{opacity:1;transform:translateY(0)}
 .section-head{text-align:center;margin-bottom:32px;position:relative}
 .section-head .section-icon{width:48px;height:48px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
-.section-head .section-icon svg{width:30px;height:30px}
+.section-head .section-icon svg{width:34px;height:34px}
 .section-head h2{font-family:var(--fd);font-weight:400;font-size:clamp(1.3rem,3vw,1.7rem);color:var(--gold);letter-spacing:.06em;margin-bottom:4px}
 .section-head .st{font-size:.82rem;color:var(--silver);letter-spacing:.06em;text-align:center;max-width:520px;margin:4px auto 0;line-height:1.7}
 
