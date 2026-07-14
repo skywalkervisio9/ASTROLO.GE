@@ -13,6 +13,7 @@ import GlyphDefs from '@/components/svg/GlyphDefs';
 import type { Language } from '@/types/user';
 import type { SynastryReadingData, ChartPersonData } from '@/components/synastry/SynastryView';
 import { SAMPLE_READING, SAMPLE_CHART_A, SAMPLE_CHART_B } from './sample';
+import { initReadingStarfield } from '@/lib/utils/reading-starfield';
 
 export default function SynastryPreviewClient() {
   const [language, setLanguage] = useState<Language>('en');
@@ -33,26 +34,8 @@ export default function SynastryPreviewClient() {
     return () => { document.body.classList.remove('zodiac-names'); };
   }, [symbolMode]);
 
-  // Populate a lightweight starfield (matches the reading's ambient stars).
-  useEffect(() => {
-    const stars = document.getElementById('preview-stars');
-    if (!stars || stars.childElementCount) return;
-    for (let L = 0; L < 3; L++) {
-      const layer = document.createElement('div');
-      layer.className = 'star-layer';
-      for (let i = 0; i < 26; i++) {
-        const s = document.createElement('div');
-        s.className = 'star';
-        s.style.left = `${Math.random() * 100}%`;
-        s.style.top = `${Math.random() * 100}%`;
-        s.style.setProperty('--d', `${2 + Math.random() * 4}s`);
-        s.style.animationDelay = `${Math.random() * 4}s`;
-        s.style.opacity = String(0.25 + Math.random() * 0.55);
-        layer.appendChild(s);
-      }
-      stars.appendChild(layer);
-    }
-  }, []);
+  // Starfield with scroll parallax + trails, identical to the individual reading.
+  useEffect(() => initReadingStarfield(document.getElementById('preview-stars')), []);
 
   useEffect(() => {
     const connection = new URLSearchParams(window.location.search).get('connection');

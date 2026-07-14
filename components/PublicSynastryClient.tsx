@@ -13,6 +13,7 @@ import type {
 import type { SynastryShareUsers } from '@/lib/data/public-synastry';
 import type { Language } from '@/types/user';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { initReadingStarfield } from '@/lib/utils/reading-starfield';
 
 type Props = {
   slug: string;
@@ -92,26 +93,8 @@ export default function PublicSynastryClient({ slug, viewerIsParticipant }: Prop
     return () => document.body.classList.remove('zodiac-names');
   }, [symbolMode]);
 
-  // Ambient starfield, matching the individual reading.
-  useEffect(() => {
-    const stars = document.getElementById('public-stars');
-    if (!stars || stars.childElementCount) return;
-    for (let L = 0; L < 3; L++) {
-      const layer = document.createElement('div');
-      layer.className = 'star-layer';
-      for (let i = 0; i < 26; i++) {
-        const s = document.createElement('div');
-        s.className = 'star';
-        s.style.left = `${Math.random() * 100}%`;
-        s.style.top = `${Math.random() * 100}%`;
-        s.style.setProperty('--d', `${2 + Math.random() * 4}s`);
-        s.style.animationDelay = `${Math.random() * 4}s`;
-        s.style.opacity = String(0.25 + Math.random() * 0.55);
-        layer.appendChild(s);
-      }
-      stars.appendChild(layer);
-    }
-  }, [reading]);
+  // Starfield with scroll parallax + trails, identical to the individual reading.
+  useEffect(() => initReadingStarfield(document.getElementById('public-stars')), [reading]);
 
   if (error) {
     return (
