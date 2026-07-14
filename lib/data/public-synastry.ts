@@ -16,6 +16,8 @@ const profileTag = (userId: string) => `user:profile:${userId}`;
 export type SynastryChartSnapshot = {
   planets: unknown;
   points: unknown;
+  fullName: string | null;
+  birth: { day: number | null; month: number | null; year: number | null; hour: number | null; minute: number | null } | null;
 };
 
 export type SynastryBody = {
@@ -69,13 +71,21 @@ export async function getSynastryChartsForParticipants(
   user2Id: string,
 ): Promise<{ chartA: SynastryChartSnapshot; chartB: SynastryChartSnapshot }> {
   const admin = createAdminSupabase();
-  const [{ data: a }, { data: b }] = await Promise.all([
+  const [{ data: a }, { data: b }, { data: people }] = await Promise.all([
     admin.from('chart_data').select('planets, points').eq('user_id', user1Id).maybeSingle(),
     admin.from('chart_data').select('planets, points').eq('user_id', user2Id).maybeSingle(),
+    admin.from('users').select('id, full_name, birth_day, birth_month, birth_year, birth_hour, birth_minute').in('id', [user1Id, user2Id]),
   ]);
+  const infoFor = (id: string) => {
+    const u = people?.find((p) => p.id === id);
+    return {
+      fullName: u?.full_name ?? null,
+      birth: u ? { day: u.birth_day, month: u.birth_month, year: u.birth_year, hour: u.birth_hour, minute: u.birth_minute } : null,
+    };
+  };
   return {
-    chartA: { planets: parseStoredJson(a?.planets), points: parseStoredJson(a?.points) },
-    chartB: { planets: parseStoredJson(b?.planets), points: parseStoredJson(b?.points) },
+    chartA: { planets: parseStoredJson(a?.planets), points: parseStoredJson(a?.points), ...infoFor(user1Id) },
+    chartB: { planets: parseStoredJson(b?.planets), points: parseStoredJson(b?.points), ...infoFor(user2Id) },
   };
 }
 

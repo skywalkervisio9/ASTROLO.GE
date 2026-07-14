@@ -38,17 +38,20 @@ export async function GET(req: NextRequest) {
 
   const reading = lang === 'ka' ? row.reading_ka : row.reading_en;
 
-  const { data: charts } = await admin
-    .from('chart_data')
-    .select('user_id, planets, points')
-    .in('user_id', [row.user1_id, row.user2_id]);
+  const [{ data: charts }, { data: people }] = await Promise.all([
+    admin.from('chart_data').select('user_id, planets, points').in('user_id', [row.user1_id, row.user2_id]),
+    admin.from('users').select('id, full_name, birth_day, birth_month, birth_year, birth_hour, birth_minute').in('id', [row.user1_id, row.user2_id]),
+  ]);
 
   const chartFor = (userId: string) => {
     const c = charts?.find((x) => x.user_id === userId);
     if (!c) return null;
+    const u = people?.find((p) => p.id === userId);
     return {
       planets: (typeof c.planets === 'string' ? JSON.parse(c.planets) : c.planets) ?? null,
       points: (typeof c.points === 'string' ? JSON.parse(c.points) : c.points) ?? null,
+      fullName: u?.full_name ?? null,
+      birth: u ? { day: u.birth_day, month: u.birth_month, year: u.birth_year, hour: u.birth_hour, minute: u.birth_minute } : null,
     };
   };
 

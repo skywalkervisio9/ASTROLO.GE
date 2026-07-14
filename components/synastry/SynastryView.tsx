@@ -68,6 +68,29 @@ export interface ChartPlanet {
 export interface ChartPersonData {
   planets: ChartPlanet[] | null;
   points: { ascendant?: { sign: string; degree: string }; [key: string]: unknown } | null;
+  /** Full display name (from the users table); the card shows this instead of
+   * the reading's first-name-only meta name. */
+  fullName?: string | null;
+  /** Birth date + time, surfaced under the partner name (from the users table). */
+  birth?: { day?: number | null; month?: number | null; year?: number | null; hour?: number | null; minute?: number | null } | null;
+}
+
+// Georgian + English month names for the partner-card date of birth.
+const MONTHS_KA = ['იანვარი', 'თებერვალი', 'მარტი', 'აპრილი', 'მაისი', 'ივნისი', 'ივლისი', 'აგვისტო', 'სექტემბერი', 'ოქტომბერი', 'ნოემბერი', 'დეკემბერი'];
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function formatBirthDate(
+  birth: { day?: number | null; month?: number | null; year?: number | null; hour?: number | null; minute?: number | null } | null | undefined,
+  language: Language,
+): string | null {
+  if (!birth) return null;
+  const { day, month, year, hour, minute } = birth;
+  if (!day || !month || !year) return null;
+  const name = (language === 'ka' ? MONTHS_KA : MONTHS_EN)[month - 1];
+  if (!name) return null;
+  const date = `${day} ${name} ${year}`;
+  if (hour == null || minute == null) return date;
+  const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  return `${date} · ${time}`;
 }
 
 // Section key order for couple vs friend
@@ -625,7 +648,10 @@ function PartnerCard({
   shareSlug?: string;
   onOpenChart?: (slug: string) => void;
 }) {
-  const initial = person.name.charAt(0).toUpperCase();
+  // Card shows the full name from the users table; the reading's meta name is
+  // first-name-only (kept that way for the prose).
+  const displayName = (chart?.fullName ?? '').trim() || person.name;
+  const initial = displayName.charAt(0).toUpperCase();
 
   // Build ordered planet rows from chart data, falling back to meta sun/moon/asc
   const planetRows: { glyph: string; label: string; sign: string; degree: string; retrograde: boolean }[] = [];
@@ -673,8 +699,11 @@ function PartnerCard({
       {isYou && <div className="pc-tooltip">{language === 'ka' ? 'ჩემი რუკა →' : 'My Chart →'}</div>}
       {!isYou && shareSlug && <div className="pc-other-tag">{chartPossessive(person.name, language)}</div>}
       <div className="pc-avatar"><span className="pc-avatar-letter">{initial}</span></div>
-      <div className="pc-name">{person.name}</div>
-      <div className="pc-sub">{renderText(`${localizeSign(person.sun, language)} · ${localizeSign(person.moon, language)} · ${localizeSign(person.asc, language)}`)}</div>
+      <div className="pc-name">{displayName}</div>
+      <div className="pc-sub">{
+        formatBirthDate(chart?.birth, language)
+        ?? renderText(`${localizeSign(person.sun, language)} · ${localizeSign(person.moon, language)} · ${localizeSign(person.asc, language)}`)
+      }</div>
       <div className="pc-placements">
         {planetRows.map((row) => (
           <div className="pc-row" key={row.label}>
@@ -1077,12 +1106,12 @@ const svgProps = { viewBox: '0 0 48 48', fill: 'none', stroke: 'currentColor', s
 const SECTION_GLYPHS: Record<string, React.ReactNode> = {
   emotionalBond: (<svg {...svgProps}><path d="M21 11a11 11 0 1 0 0 26 9 9 0 0 1 0-26z" /><path d="M27 11a11 11 0 1 1 0 26 9 9 0 0 0 0-26z" /></svg>),
   passion: (<svg {...svgProps}><path d="M24 7c5 7 9 9 9 15a9 9 0 0 1-18 0c0-3.5 2-6 3.6-8 .9 3.4 3.4 3.4 3.4 1 0-3-1-5.5 2-8z" /></svg>),
-  karmic: (<svg {...svgProps}><path d="M24 24c-2.6-4.2-9.4-4.2-9.4 0s6.8 4.2 9.4 0z" /><path d="M24 24c2.6-4.2 9.4-4.2 9.4 0s-6.8 4.2-9.4 0z" /></svg>),
-  numerology: (<svg viewBox="0 0 48 48" fill="none"><text x="9" y="33" fontFamily="Cormorant Garamond,serif" fontSize="24" fill="currentColor">4</text><text x="25" y="25" fontFamily="Cormorant Garamond,serif" fontSize="16" fill="currentColor" opacity=".55">9</text></svg>),
+  karmic: (<svg {...svgProps}><path d="M24 26C20 26 20 21 24 21 29 21 29 28 24 28 16 28 16 17 24 17 34 17 34 32 24 32" /></svg>),
+  numerology: (<svg viewBox="0 0 48 48" fill="none"><text x="12" y="16" fontFamily="Cormorant Garamond,serif" fontSize="12" fill="currentColor" opacity=".35">7</text><text x="9" y="36" fontFamily="Cormorant Garamond,serif" fontSize="24" fill="currentColor">4</text><text x="26" y="27" fontFamily="Cormorant Garamond,serif" fontSize="16" fill="currentColor" opacity=".55">9</text></svg>),
   growth: (<svg {...svgProps}><path d="M24 39V21" /><path d="M24 27c-6.5 0-9.5-3-9.5-8.5 5.5 0 9.5 2 9.5 8.5z" /><path d="M24 23c6.5 0 9.5-3 9.5-8-5.5 0-9.5 2-9.5 8z" /></svg>),
   sharedShadow: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.5}><circle cx="24" cy="24" r="12" /><path d="M24 12a12 12 0 0 1 0 24z" fill="currentColor" stroke="none" /></svg>),
-  dailyRitual: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.4}><circle cx="12" cy="24" r="4" /><circle cx="24" cy="24" r="4" /><path d="M24 20.2a4 4 0 0 1 0 7.6z" fill="currentColor" stroke="none" /><circle cx="36" cy="24" r="4" fill="currentColor" stroke="none" /></svg>),
-  potential: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round"><path d="M24 8l2.6 13.4L40 24l-13.4 2.6L24 40l-2.6-13.4L8 24l13.4-2.6z" /></svg>),
+  dailyRitual: (<svg {...svgProps}><circle cx="24" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="31" cy="15" r="1.6" fill="currentColor" stroke="none" /><circle cx="34" cy="22" r="1.6" fill="currentColor" stroke="none" /><circle cx="31" cy="29" r="1.6" fill="currentColor" stroke="none" /><circle cx="17" cy="29" r="1.6" fill="currentColor" stroke="none" /><circle cx="14" cy="22" r="1.6" fill="currentColor" stroke="none" /><circle cx="17" cy="15" r="1.6" fill="currentColor" stroke="none" /><path d="M24 32v4" /><path d="M21 40l3-4 3 4" /></svg>),
+  potential: (<svg {...svgProps}><line x1="24" y1="7" x2="24" y2="16" /><line x1="24" y1="32" x2="24" y2="41" /><line x1="7" y1="24" x2="16" y2="24" /><line x1="32" y1="24" x2="41" y2="24" /><line x1="14.5" y1="14.5" x2="19.5" y2="19.5" /><line x1="33.5" y1="14.5" x2="28.5" y2="19.5" /><line x1="14.5" y1="33.5" x2="19.5" y2="28.5" /><line x1="33.5" y1="33.5" x2="28.5" y2="28.5" /><path d="M24 19.5l3.8 4.5-3.8 4.5-3.8-4.5z" fill="currentColor" stroke="none" /></svg>),
   // Friend-only chapters — closest-match defaults.
   intellectualSynergy: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.5}><circle cx="19" cy="24" r="8" /><circle cx="29" cy="24" r="8" /></svg>),
   sharedAdventures: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round"><circle cx="24" cy="24" r="13" /><path d="M24 24l7.5-9.5-4.5 12.5-9.5 4.5 4.5-12.5z" fill="currentColor" stroke="none" /></svg>),
