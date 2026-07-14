@@ -141,7 +141,7 @@ interface SubjectPoint {
  *
  * Passes through LUKA_CHART_DATA-style clean format unchanged (dev seed path).
  */
-function normalizeChartData(raw: unknown): {
+export function normalizeChartData(raw: unknown): {
   planets: unknown[] | null;
   aspects: unknown[] | null;
   points: Record<string, unknown> | null;

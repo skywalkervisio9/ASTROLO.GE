@@ -5,6 +5,7 @@
 
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { computeOverallScore } from '@/lib/synastry/scoring';
 
 const BODY_REVALIDATE = 60 * 60 * 24;
 const PROFILE_REVALIDATE = 60 * 5;
@@ -173,13 +174,19 @@ export async function getSynastryMeta(slug: string): Promise<SynastryMeta> {
   if (!body) return null;
   const enMeta = body.reading_en?.meta as Record<string, unknown> | undefined;
   const kaMeta = body.reading_ka?.meta as Record<string, unknown> | undefined;
-  const raw =
-    typeof enMeta?.compatibilityScore === 'number'
-      ? enMeta.compatibilityScore
-      : typeof kaMeta?.compatibilityScore === 'number'
-        ? kaMeta.compatibilityScore
-        : null;
-  const score = raw != null ? Math.round(raw) : null;
+  // s7 drops meta.compatibilityScore — derive the overall from the six
+  // categoryScores so the share card matches what the reading UI displays.
+  const meta = enMeta ?? kaMeta;
+  const cats = meta?.categoryScores;
+  const hasCats = cats && typeof cats === 'object' && !Array.isArray(cats) && Object.keys(cats).length > 0;
+  const type = meta?.type === 'synastry_friend' ? 'friend' : 'couple';
+  const score = hasCats
+    ? computeOverallScore(cats as Record<string, unknown>, type)
+    : (typeof enMeta?.compatibilityScore === 'number'
+        ? Math.round(enMeta.compatibilityScore)
+        : typeof kaMeta?.compatibilityScore === 'number'
+          ? Math.round(kaMeta.compatibilityScore)
+          : null);
 
   // Card language defaults to the inviter's (user1) account language.
   const owner = await getMinimalProfileCached(body.user1_id);

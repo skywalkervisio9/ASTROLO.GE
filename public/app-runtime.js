@@ -2926,6 +2926,11 @@ function _renderRichText(text) {
   // soft-white body). Mirrors renderText.tsx's retroNode.
   var retroTip = _hydrateLang === 'ka' ? 'რეტროგრადული — ინტერნალიზებული ენერგია' : 'Retrograde — internalized energy';
   var _retroSpan = '<span class="retro tip2" style="cursor:help">℞' + _tip2Html(retroTip, 'tt-silver') + '</span>';
+  // A bare "R" right after a planet/sign glyph is the model's retrograde
+  // shorthand (e.g. "♋ R in XII House", "♂R"). Convert to ℞ so the marker pass
+  // below wraps it. Degree-attached "R" ("8°32'R") is handled by the degree
+  // pass. Mirrors renderText.tsx + validator.ts.
+  escaped = escaped.replace(/([☉☽☿♀♂♃♄♅♆♇⚸☊☋⚷♈♉♊♋♌♍♎♏♐♑♒♓])(\s*)R(?![\wა-ჰ])/gu, '$1$2℞');
   escaped = escaped.replace(/℞/g, _retroSpan);
   escaped = escaped.replace(/\bretrograde\b|(?<![ა-ჰ])რეტროგრად/giu, function(m, offset, str) {
     return /[ა-ჰ]/u.test(str[offset + m.length] || '') ? _retroSpan + '-' : _retroSpan;

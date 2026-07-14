@@ -40,8 +40,8 @@ export function getSynastryPrompt(
   language: Language
 ): string {
   const filename = type === 'couple'
-    ? 'SYSTEM-PROMPT-Couple_s6.md'
-    : 'SYSTEM-PROMPT-Friend_s6.md';
+    ? 'SYSTEM-PROMPT-Couple_s7.md'
+    : 'SYSTEM-PROMPT-Friend_s7.md';
 
   const spec = loadPromptFile(filename);
 
@@ -154,7 +154,7 @@ You receive two partners' individual natal analyses and their chart data. Cross-
 ${langInstruction}
 
 Output a single JSON object with:
-- meta: personA, personB, type, compatibilityScore, categoryScores, language
+- meta: personA, personB, type, categoryScores, categoryCaptions, language
 - 8 section keys (${sections}) each with sectionTitle, sectionSubtitle, cards, pullQuote
 
 Word count target: ${wordRange} words.

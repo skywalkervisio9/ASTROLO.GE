@@ -169,7 +169,7 @@ export async function runSynastryGeneration(connectionId: string): Promise<Synas
 
   const { data: users } = await admin
     .from('users')
-    .select('id, full_name')
+    .select('id, full_name, gender')
     .in('id', [conn.inviter_id, conn.invitee_id]);
 
   const nameMap = new Map((users ?? []).map((u) => [u.id, u.full_name ?? 'Unknown']));
@@ -189,6 +189,16 @@ export async function runSynastryGeneration(connectionId: string): Promise<Synas
   });
   const normalizedKa = enforcePersonNames(result.readingKa as Record<string, unknown>, personAName, personBName);
   const normalizedEn = enforcePersonNames(result.readingEn as Record<string, unknown>, personAName, personBName);
+
+  // Inject each person's gender into meta so the UI (aspect-wheel colours) has it.
+  const genderMap = new Map((users ?? []).map((u) => [u.id, (u as { gender?: string | null }).gender ?? null]));
+  const injectGender = (reading: Record<string, unknown>) => {
+    const meta = reading.meta as { personA?: Record<string, unknown>; personB?: Record<string, unknown> } | undefined;
+    if (meta?.personA) meta.personA.gender = genderMap.get(conn.inviter_id) ?? null;
+    if (meta?.personB) meta.personB.gender = genderMap.get(conn.invitee_id) ?? null;
+  };
+  injectGender(normalizedKa);
+  injectGender(normalizedEn);
 
   const { data: existingRow } = await admin
     .from('synastry_readings')

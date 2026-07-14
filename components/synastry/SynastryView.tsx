@@ -12,6 +12,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Language } from '@/types/user';
 import { renderText, setRenderLang } from '@/lib/utils/renderText';
 import { renderExpanded } from '@/components/reading/renderBody';
+import { computeOverallScore, resolveTier, type TierResult } from '@/lib/synastry/scoring';
 
 // ── Types matching the s4 JSON schema ──
 
@@ -35,6 +36,8 @@ export interface SynastryCardData {
 export interface SynastrySectionData {
   sectionTitle: string;
   sectionSubtitle: string;
+  /** Legacy field name (≤ s6). Read as a fallback for already-stored readings. */
+  sectionTagline?: string;
   cards: SynastryCardData[];
   pullQuote: string;
 }
@@ -42,8 +45,8 @@ export interface SynastrySectionData {
 export interface SynastryMeta {
   type: string;
   language: string;
-  personA: { name: string; sun: string; moon: string; asc: string };
-  personB: { name: string; sun: string; moon: string; asc: string };
+  personA: { name: string; sun: string; moon: string; asc: string; gender?: string };
+  personB: { name: string; sun: string; moon: string; asc: string; gender?: string };
   compatibilityScore: number;
   categoryScores: Record<string, number>;
   categoryCaptions?: Record<string, string>;
@@ -352,6 +355,29 @@ export default function SynastryView({
     ? (language === 'ka' ? 'მეგობრული თავსებადობის ანალიზი' : 'Friendship Compatibility Analysis')
     : (language === 'ka' ? 'სინასტრიის სიღრმისეული ანალიზი' : 'Deep Synastry Analysis');
 
+  // ── Derived compatibility ──
+  // The model proposes the six category scores; code owns the aggregate,
+  // so the headline number can never contradict the bars it summarises.
+  const relType: 'couple' | 'friend' = isFriend ? 'friend' : 'couple';
+  const catScores = (meta.categoryScores ?? {}) as Record<string, number>;
+  const catCaptions = meta.categoryCaptions ?? {};
+  const resonanceEntries = Object.entries(catScores)
+    .filter(([k, v]) => k !== 'challenge' && typeof v === 'number')
+    .sort((a, b) => (b[1] as number) - (a[1] as number));
+  const signatureEntry = resonanceEntries[0] ?? null;
+  const restResonance = resonanceEntries.slice(1);
+  const challengeScore = typeof catScores.challenge === 'number' ? catScores.challenge : null;
+  const overallScore = computeOverallScore(catScores, relType);
+  const tier = resolveTier(overallScore, language);
+  // Each resonance dimension can draw a short teaser from the lead card of its
+  // own chapter — the signature gets a full supporting paragraph, the tiles get
+  // one sentence — so the cards carry meaning instead of a redundant glyph tail.
+  const sectionLeadBody = (catKey: string): string | undefined => {
+    const key = (CATEGORY_TO_SECTION[catKey] || []).find((k) => reading[k]);
+    return key ? (reading[key] as SynastrySectionData | undefined)?.cards?.[0]?.body?.[0] : undefined;
+  };
+  const sigDetail = signatureEntry ? sectionLeadBody(signatureEntry[0]) : undefined;
+
   const [deletedAccountOpen, setDeletedAccountOpen] = useState(false);
   const openChart = useCallback(async (slug: string) => {
     try {
@@ -427,22 +453,64 @@ export default function SynastryView({
           <PartnerCard person={otherPerson} language={language} chart={otherChart ?? undefined} shareSlug={otherSlug ?? undefined} onOpenChart={openChart} />
         </div>
 
-        {/* Compatibility Wheel */}
-        <CompatibilityWheel score={meta.compatibilityScore} language={language} />
+        {/* Aspect wheel — the real cross-chart connection between the two */}
+        <SynastryAspectWheel
+          chartA={viewerChart}
+          chartB={otherChart}
+          nameA={viewerPerson.name}
+          nameB={otherPerson.name}
+          genderA={viewerPerson.gender}
+          genderB={otherPerson.gender}
+          language={language}
+        />
 
-        {/* Category Scores */}
-        <div className="cats section-reveal vis">
-          {Object.entries(meta.categoryScores ?? {}).map(([key, score]) => (
-            <CategoryBar
-              key={key}
-              category={key}
-              label={catLabels[key] || key}
-              score={score as number}
-              caption={meta.categoryCaptions?.[key]}
-              onClick={() => scrollToCategory(key)}
+        {/* Resonance — dimensions lead, the overall score resolves last */}
+        {signatureEntry && (
+          <>
+            <div className="rzn-head section-reveal vis">
+              <h2>{language === 'ka' ? 'როგორ ერგებით ერთმანეთს' : 'How you resonate'}</h2>
+              <span className="rzn-hint">{language === 'ka' ? 'შეეხე განზომილებას ↓' : 'tap any dimension ↓'}</span>
+            </div>
+
+            <SignatureCard
+              catKey={signatureEntry[0]}
+              label={catLabels[signatureEntry[0]] || signatureEntry[0]}
+              score={signatureEntry[1] as number}
+              caption={catCaptions[signatureEntry[0]]}
+              detail={sigDetail}
+              language={language}
+              onJump={() => scrollToCategory(signatureEntry[0])}
             />
-          ))}
-        </div>
+
+            {restResonance.length > 0 && (
+              <div className="rzn-grid section-reveal vis">
+                {restResonance.map(([key, score]) => (
+                  <ResonanceTile
+                    key={key}
+                    catKey={key}
+                    label={catLabels[key] || key}
+                    score={score as number}
+                    caption={catCaptions[key]}
+                    detail={sectionLeadBody(key)}
+                    language={language}
+                    onJump={() => scrollToCategory(key)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {challengeScore != null && (
+              <GrowthEdge
+                score={challengeScore}
+                caption={catCaptions['challenge']}
+                language={language}
+                onJump={() => scrollToCategory('challenge')}
+              />
+            )}
+
+            <DeepResonance score={overallScore} tier={tier} language={language} />
+          </>
+        )}
 
         {/* Section Navigation — mirrors the natal reading's nav structure:
             a full-bleed sticky bar (.snav, like .nb) wrapping an inset
@@ -678,16 +746,16 @@ function PartnerCard({
   );
 }
 
-function CompatibilityWheel({ score, language }: { score: number; language: Language }) {
+// ── Deep Resonance — the derived overall score, resolving AFTER the dimensions ──
+function DeepResonance({ score, tier, language }: { score: number; tier: TierResult; language: Language }) {
   const circumference = 2 * Math.PI * 54;
   const offset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="wheel-section section-reveal vis">
-      <div className="wheel-wrap">
-        <div className="wheel-ring" />
-        <svg className="wheel-svg" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(201,168,76,.08)" strokeWidth="6" />
+    <div className="rzn-chord section-reveal vis">
+      <div className="rzn-ring">
+        <svg viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(201,168,76,.1)" strokeWidth="6" />
           <circle
             cx="60" cy="60" r="54"
             fill="none"
@@ -699,9 +767,19 @@ function CompatibilityWheel({ score, language }: { score: number; language: Lang
             style={{ transition: 'stroke-dashoffset 1.5s ease-out' }}
           />
         </svg>
-        <div className="wheel-center">
-          <div className="wheel-num">{score}</div>
-          <div className="wheel-label">{language === 'ka' ? 'თავსებადობა' : 'Compatibility'}</div>
+        <div className="rzn-ring-num">{score}</div>
+      </div>
+      <div className="rzn-chord-txt">
+        <div className="rzn-tier">{tier.label}</div>
+        <div className="rzn-tier-desc">{tier.description}</div>
+        <div className="rzn-method">
+          {language === 'ka' ? 'ექვსივე განზომილების შეწონილი ჯამი' : 'A weighted blend of all six dimensions'}
+        </div>
+        <div className="rzn-band" aria-hidden>
+          {Array.from({ length: tier.total }).map((_, i) => (
+            <i key={i} className={i < tier.rank ? 'on' : ''} />
+          ))}
+          <span>{language === 'ka' ? `დონე ${tier.rank}/${tier.total}` : `tier ${tier.rank} of ${tier.total}`}</span>
         </div>
       </div>
     </div>
@@ -719,35 +797,301 @@ const CAT_TO_ELEMENT: Record<string, string> = {
   values: 'var(--gold)',
 };
 
-function CategoryBar({ category, label, score, caption, onClick }: { category: string; label: string; score: number; caption?: string; onClick?: () => void }) {
-  const tone = CAT_TO_ELEMENT[category] || 'var(--gold)';
+// ── Synastry aspect wheel — a bi-wheel of the two charts with the REAL
+// cross-chart aspects drawn between them. The stored chart aspects are each
+// person's own natal aspects, so the cross-aspects are computed here from both
+// sets of planet longitudes. ──
+const ZODIAC_ORDER = ['aries','taurus','gemini','cancer','leo','virgo','libra','scorpio','sagittarius','capricorn','aquarius','pisces'];
+const WHEEL_PLANETS = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'];
+const PLANET_UNI: Record<string, string> = {
+  Sun:'☉', Moon:'☽', Mercury:'☿', Venus:'♀', Mars:'♂', Jupiter:'♃', Saturn:'♄', Uranus:'♅', Neptune:'♆', Pluto:'♇',
+};
+const CROSS_ASPECTS: { angle: number; orb: number; cls: 'harmony' | 'tension' | 'magnetic' }[] = [
+  { angle: 0,   orb: 7, cls: 'magnetic' },
+  { angle: 180, orb: 7, cls: 'tension' },
+  { angle: 120, orb: 6, cls: 'harmony' },
+  { angle: 90,  orb: 6, cls: 'tension' },
+  { angle: 60,  orb: 4, cls: 'harmony' },
+];
+const ASPECT_STROKE: Record<string, string> = { harmony: 'var(--earth)', tension: 'var(--fire)', magnetic: 'var(--gold)' };
+
+function planetLongitude(sign: string, degree: string): number | null {
+  const idx = ZODIAC_ORDER.indexOf((sign || '').trim().toLowerCase());
+  if (idx < 0) return null;
+  const m = (degree || '').match(/(\d+)\s*[°º]\s*(\d+)?/);
+  const d = m ? parseInt(m[1], 10) + (m[2] ? parseInt(m[2], 10) / 60 : 0) : 0;
+  return idx * 30 + d;
+}
+
+interface WheelPoint { name: string; sign: string; lon: number; ang: number }
+
+// Nudge glyphs apart so overlapping planets stay legible, while keeping their
+// real order and rough longitude. Iterative relaxation to a minimum angular gap.
+function spreadAngles(points: { name: string; sign: string; lon: number }[], minGap: number): WheelPoint[] {
+  const arr: WheelPoint[] = points.map((p) => ({ ...p, ang: p.lon })).sort((a, b) => a.ang - b.ang);
+  if (arr.length < 2) return arr;
+  for (let iter = 0; iter < 80; iter++) {
+    let moved = false;
+    for (let i = 0; i < arr.length; i++) {
+      const a = arr[i], b = arr[(i + 1) % arr.length];
+      let gap = b.ang - a.ang;
+      if (gap < 0) gap += 360;
+      if (gap < minGap) {
+        const push = (minGap - gap) / 2 + 0.01;
+        a.ang = (a.ang - push + 360) % 360;
+        b.ang = (b.ang + push) % 360;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  return arr;
+}
+
+function SynastryAspectWheel({ chartA, chartB, nameA, nameB, genderA, genderB, language }: {
+  chartA?: ChartPersonData | null; chartB?: ChartPersonData | null;
+  nameA: string; nameB: string; genderA?: string; genderB?: string; language: Language;
+}) {
+  const toPoints = (chart?: ChartPersonData | null) =>
+    (chart?.planets ?? [])
+      .filter((p) => WHEEL_PLANETS.includes(p.name))
+      .map((p) => ({ name: p.name, sign: p.sign, lon: planetLongitude(p.sign, p.degree) }))
+      .filter((p): p is { name: string; sign: string; lon: number } => p.lon != null);
+
+  const rawA = toPoints(chartA);
+  const rawB = toPoints(chartB);
+  if (rawA.length < 3 || rawB.length < 3) return null;
+
+  const cx = 150, cy = 150, rA = 122, rB = 84;
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const posAng = (ang: number, r: number): [number, number] => {
+    const rad = (ang * Math.PI) / 180;
+    return [r2(cx + r * Math.sin(rad)), r2(cy - r * Math.cos(rad))];
+  };
+
+  // Displayed (spread) angles — glyphs use these; aspects classify by true lon.
+  const As = spreadAngles(rawA, 15);
+  const Bs = spreadAngles(rawB, 15);
+  const angA = (name: string) => As.find((p) => p.name === name)?.ang ?? 0;
+  const angB = (name: string) => Bs.find((p) => p.name === name)?.ang ?? 0;
+
+  // Gender colours: female → pink, male → gold; same gender → the second goes blue.
+  const base = (g?: string) => (g === 'female' ? 'var(--rose)' : 'var(--gold)');
+  const colA = base(genderA);
+  let colB = base(genderB);
+  if (colA === colB) colB = '#6f95bd';
+
+  const PERSONAL = new Set(['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn']);
+  const cand: { ax: number; ay: number; bx: number; by: number; cls: string; tight: boolean; delta: number }[] = [];
+  for (const a of rawA) {
+    for (const b of rawB) {
+      if (!PERSONAL.has(a.name) && !PERSONAL.has(b.name)) continue;
+      let diff = Math.abs(a.lon - b.lon);
+      if (diff > 180) diff = 360 - diff;
+      for (const asp of CROSS_ASPECTS) {
+        const delta = Math.abs(diff - asp.angle);
+        if (delta <= asp.orb) {
+          const [ax, ay] = posAng(angA(a.name), rA);
+          const [bx, by] = posAng(angB(b.name), rB);
+          cand.push({ ax, ay, bx, by, cls: asp.cls, tight: delta < 2, delta });
+          break;
+        }
+      }
+    }
+  }
+  const lines = cand.sort((x, y) => x.delta - y.delta).slice(0, 16);
+
+  const planetTip = (person: string, p: WheelPoint) => {
+    const pl = language === 'ka' ? (PLANET_KA[p.name] || p.name) : p.name;
+    return `${person} · ${pl} — ${localizeSign(p.sign, language)}`;
+  };
+  const renderGlyphs = (pts: WheelPoint[], r: number, color: string, person: string, key: string) =>
+    pts.map((p, i) => {
+      const [x, y] = posAng(p.ang, r);
+      return (
+        <g key={`${key}${i}`} style={{ cursor: 'help' }}>
+          <title>{planetTip(person, p)}</title>
+          <circle cx={x} cy={y} r="8.5" fill="var(--bg,#0b0b13)" opacity="0.55" />
+          <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize="12.5" fill={color} fontFamily="serif">{PLANET_UNI[p.name]}</text>
+        </g>
+      );
+    });
+
+  return (
+    <div className="syn-wheel section-reveal vis">
+      <svg viewBox="0 0 300 300" role="img" aria-label={language === 'ka' ? 'სინასტრიის ასპექტების რუკა' : 'Synastry aspect wheel'}>
+        <circle cx={cx} cy={cy} r={rA + 8} fill="none" stroke="rgba(201,168,76,.12)" strokeWidth=".6" />
+        <circle cx={cx} cy={cy} r={rB - 8} fill="none" stroke="rgba(201,168,76,.08)" strokeWidth=".6" />
+        {Array.from({ length: 12 }).map((_, i) => {
+          const [x1, y1] = posAng(i * 30, rB - 8);
+          const [x2, y2] = posAng(i * 30, rA + 8);
+          return <line key={`t${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(201,168,76,.05)" strokeWidth=".5" />;
+        })}
+        {lines.map((l, i) => (
+          <line key={`l${i}`} x1={l.ax} y1={l.ay} x2={l.bx} y2={l.by}
+            stroke={ASPECT_STROKE[l.cls]} strokeWidth={l.tight ? 1.1 : 0.7} opacity={l.tight ? 0.5 : 0.28} strokeLinecap="round" />
+        ))}
+        {renderGlyphs(As, rA, colA, nameA, 'a')}
+        {renderGlyphs(Bs, rB, colB, nameB, 'b')}
+        <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--gold)" fontFamily="serif" opacity=".55">☌</text>
+      </svg>
+      <div className="syn-wheel-legend">
+        <span className="swl-item"><i className="swl-dot" style={{ background: colA }} />{nameA}</span>
+        <span className="swl-item"><i className="swl-dot" style={{ background: colB }} />{nameB}</span>
+        <span className="swl-sep" />
+        <span className="swl-item"><i className="swl-line" style={{ background: 'var(--earth)' }} />{language === 'ka' ? 'ჰარმონია' : 'Harmony'}</span>
+        <span className="swl-item"><i className="swl-line" style={{ background: 'var(--fire)' }} />{language === 'ka' ? 'დაძაბულობა' : 'Tension'}</span>
+      </div>
+    </div>
+  );
+}
+
+// Shared Enter/Space handler so every score card is keyboard-operable.
+function jumpKeyHandler(onJump: () => void) {
+  return (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onJump(); }
+  };
+}
+
+// Captions are "<insight> · <aspect glyphs>". Split them so the prose reads as
+// prose and the aspect signature renders as a deliberate, muted tail — not a
+// technical patch stapled to the end of a sentence.
+const ASPECT_TAIL_RE = /^[\s·☉☽☿♀♂♃♄♅♆♇⚸☊☋⚷♈♉♊♋♌♍♎♏♐♑♒♓☌☍△□⚹]+$/u;
+function splitCaption(caption?: string): { prose: string; aspect: string } {
+  if (!caption) return { prose: '', aspect: '' };
+  const idx = caption.lastIndexOf('·');
+  if (idx > 0) {
+    const after = caption.slice(idx + 1).trim();
+    if (after && ASPECT_TAIL_RE.test(after)) {
+      return { prose: caption.slice(0, idx).trim(), aspect: after };
+    }
+  }
+  return { prose: caption.trim(), aspect: '' };
+}
+
+// First sentence of a paragraph — used to give each tile a short, concrete
+// teaser drawn from its chapter's lead card (the symbols already live in the
+// full reading, so the opening cards carry meaning, not notation).
+function firstSentence(text?: string): string {
+  if (!text) return '';
+  const t = text.trim();
+  const m = t.match(/^[\s\S]*?[.!?](?=\s|$)/);
+  return (m ? m[0] : t).trim();
+}
+
+// Keep the crossReferences hover popup short regardless of how long the model
+// made it — trim to ~1-2 sentences at a clean boundary.
+function capPopup(s: string): string {
+  const MAX = 240;
+  if (s.length <= MAX) return s;
+  const slice = s.slice(0, MAX);
+  const punct = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('? '), slice.lastIndexOf('! '));
+  if (punct > 120) return s.slice(0, punct + 1).trim();
+  const sp = slice.lastIndexOf(' ');
+  return (sp > 120 ? s.slice(0, sp) : slice).trim() + '…';
+}
+
+// The single strongest resonance dimension, rendered large with its insight.
+// Reuses meta.categoryCaptions[key] — no new data required.
+function SignatureCard({ catKey, label, score, caption, detail, language, onJump }: {
+  catKey: string; label: string; score: number; caption?: string; detail?: string; language: Language; onJump: () => void;
+}) {
+  const el = CAT_TO_ELEMENT[catKey] || 'var(--gold)';
+  const { prose } = splitCaption(caption);
   return (
     <div
-      className={`cat${onClick ? ' cat-clickable' : ''}`}
-      onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      className="rzn-sig section-reveal vis"
+      role="button" tabIndex={0} onClick={onJump} onKeyDown={jumpKeyHandler(onJump)}
+      style={{ ['--el' as never]: el }}
     >
-      <div className="cat-top">
-        <span className="cat-name">{label}</span>
-        <span className="cat-score" style={{ color: tone }}>{score}%</span>
+      <div className="rzn-sig-stat">
+        <div className="rzn-sig-eyebrow">{language === 'ka' ? 'ყველაზე ძლიერი განზომილება' : 'Strongest dimension'}</div>
+        <div className="rzn-sig-cat">{renderText(label)}</div>
+        <div className="rzn-sig-num">{score}<small>/100</small></div>
       </div>
-      <div className="cat-bar">
-        <div
-          className="cat-fill"
-          style={{
-            width: `${score}%`,
-            background: `linear-gradient(90deg, ${tone}, color-mix(in srgb, ${tone} 55%, transparent))`,
-          }}
-        />
+      <div className="rzn-sig-body">
+        {prose && <div className="rzn-sig-ins">{renderText(prose)}</div>}
+        {detail && <p className="rzn-sig-detail">{renderText(detail)}</p>}
+        <div className="rzn-sig-explore">{language === 'ka' ? 'ამ თავში გადასვლა →' : 'Explore this chapter →'}</div>
       </div>
-      {caption && <p className="cat-desc">{renderText(caption)}</p>}
+    </div>
+  );
+}
+
+// A remaining resonance dimension — compact tile, element-coloured, jumps to its chapter.
+// Teaser = the caption hook + one concrete sentence from its chapter's lead card.
+function ResonanceTile({ catKey, label, score, caption, detail, language, onJump }: {
+  catKey: string; label: string; score: number; caption?: string; detail?: string; language: Language; onJump: () => void;
+}) {
+  const el = CAT_TO_ELEMENT[catKey] || 'var(--gold)';
+  const { prose } = splitCaption(caption);
+  const cont = firstSentence(detail);
+  return (
+    <div
+      className="rzn-tile"
+      role="button" tabIndex={0} onClick={onJump} onKeyDown={jumpKeyHandler(onJump)}
+      style={{ ['--el' as never]: el }}
+    >
+      <div className="rzn-tile-top">
+        <span className="rzn-tile-nm">{renderText(label)}</span>
+        <span className="rzn-tile-sc">{score}</span>
+      </div>
+      <div className="rzn-tile-bar"><div className="rzn-tile-fill" style={{ width: `${score}%` }} /></div>
+      {prose && <div className="rzn-tile-cap">{renderText(prose)}</div>}
+      {cont && <div className="rzn-tile-detail">{renderText(cont)}</div>}
+      <div className="rzn-tile-jump">{renderText(label)} →</div>
+    </div>
+  );
+}
+
+// Challenge, reframed. Deliberately NOT a fill bar (a filling bar reads as
+// "more = better", a landmine for friction). Segmented intensity meter instead.
+function GrowthEdge({ score, caption, language, onJump }: {
+  score: number; caption?: string; language: Language; onJump: () => void;
+}) {
+  const filled = Math.max(1, Math.min(5, Math.round(score / 20)));
+  const { prose } = splitCaption(caption);
+  return (
+    <div
+      className="rzn-edge section-reveal vis"
+      role="button" tabIndex={0} onClick={onJump} onKeyDown={jumpKeyHandler(onJump)}
+    >
+      <span className="rzn-edge-icon"><svg><use href="#gl-sparkle" /></svg></span>
+      <div className="rzn-edge-main">
+        <div className="rzn-edge-lab">{language === 'ka' ? 'ზრდის წერტილი' : 'Growth edge'}</div>
+        {prose && <div className="rzn-edge-cap">{renderText(prose)}</div>}
+        <div className="rzn-edge-link">{language === 'ka' ? 'ჩრდილის თავში გადასვლა →' : 'Explore the shadow chapter →'}</div>
+      </div>
+      <div className="rzn-edge-right">
+        <div className="rzn-edge-intensity">
+          <span className="n">{score}</span>
+          <span className="l">{language === 'ka' ? 'ინტენსივობა' : 'friction intensity'}</span>
+        </div>
+        <div className="rzn-edge-dots" aria-hidden>
+          {Array.from({ length: 5 }).map((_, i) => <span key={i} className={i < filled ? 'dot on' : 'dot'} />)}
+        </div>
+      </div>
     </div>
   );
 }
 
 // ── Section renderer — uses .sh / .sh h2 / .st / .pq (natal pattern) ──
+
+// Per-section header glyphs (user-selected, thin gold line style like natal).
+const svgProps = { viewBox: '0 0 48 48', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+const SECTION_GLYPHS: Record<string, React.ReactNode> = {
+  emotionalBond: (<svg {...svgProps}><path d="M21 11a11 11 0 1 0 0 26 9 9 0 0 1 0-26z" /><path d="M27 11a11 11 0 1 1 0 26 9 9 0 0 0 0-26z" /></svg>),
+  passion: (<svg {...svgProps}><path d="M24 7c5 7 9 9 9 15a9 9 0 0 1-18 0c0-3.5 2-6 3.6-8 .9 3.4 3.4 3.4 3.4 1 0-3-1-5.5 2-8z" /></svg>),
+  karmic: (<svg {...svgProps}><path d="M24 24c-2.6-4.2-9.4-4.2-9.4 0s6.8 4.2 9.4 0z" /><path d="M24 24c2.6-4.2 9.4-4.2 9.4 0s-6.8 4.2-9.4 0z" /></svg>),
+  numerology: (<svg viewBox="0 0 48 48" fill="none"><text x="9" y="33" fontFamily="Cormorant Garamond,serif" fontSize="24" fill="currentColor">4</text><text x="25" y="25" fontFamily="Cormorant Garamond,serif" fontSize="16" fill="currentColor" opacity=".55">9</text></svg>),
+  growth: (<svg {...svgProps}><path d="M24 39V21" /><path d="M24 27c-6.5 0-9.5-3-9.5-8.5 5.5 0 9.5 2 9.5 8.5z" /><path d="M24 23c6.5 0 9.5-3 9.5-8-5.5 0-9.5 2-9.5 8z" /></svg>),
+  sharedShadow: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.5}><circle cx="24" cy="24" r="12" /><path d="M24 12a12 12 0 0 1 0 24z" fill="currentColor" stroke="none" /></svg>),
+  dailyRitual: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.4}><circle cx="12" cy="24" r="4" /><circle cx="24" cy="24" r="4" /><path d="M24 20.2a4 4 0 0 1 0 7.6z" fill="currentColor" stroke="none" /><circle cx="36" cy="24" r="4" fill="currentColor" stroke="none" /></svg>),
+  potential: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinejoin="round"><path d="M24 8l2.6 13.4L40 24l-13.4 2.6L24 40l-2.6-13.4L8 24l13.4-2.6z" /></svg>),
+  // Friend-only chapters — closest-match defaults.
+  intellectualSynergy: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.5}><circle cx="19" cy="24" r="8" /><circle cx="29" cy="24" r="8" /></svg>),
+  sharedAdventures: (<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round"><circle cx="24" cy="24" r="13" /><path d="M24 24l7.5-9.5-4.5 12.5-9.5 4.5 4.5-12.5z" fill="currentColor" stroke="none" /></svg>),
+};
 
 const SynastrySection = React.forwardRef<HTMLElement, {
   sectionId: string;
@@ -755,6 +1099,7 @@ const SynastrySection = React.forwardRef<HTMLElement, {
   language: Language;
 }>(function SynastrySection({ sectionId, section, language }, ref) {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const secKey = sectionId.replace(/^syn-/, '');
 
   const toggleExpand = (cardId: string) => {
     setExpandedCards((prev) => {
@@ -777,8 +1122,11 @@ const SynastrySection = React.forwardRef<HTMLElement, {
   return (
     <section id={sectionId} className="vis" ref={ref}>
       <div className="sh">
+        {SECTION_GLYPHS[secKey] && <div className="section-icon">{SECTION_GLYPHS[secKey]}</div>}
         <h2>{renderText(section.sectionTitle)}</h2>
-        {section.sectionSubtitle && <div className="st">{renderText(section.sectionSubtitle)}</div>}
+        {(section.sectionSubtitle || section.sectionTagline) && (
+          <div className="st">{renderText(section.sectionSubtitle || section.sectionTagline || '')}</div>
+        )}
       </div>
 
       {lead && (
@@ -869,7 +1217,7 @@ function SynastryCardComponent({
     ? [card.crossReferences]
     : [];
   const hasCrossRefs = crossRefsArray.length > 0;
-  const crossRefPopup = hasCrossRefs ? crossRefsArray.join(' · ') : undefined;
+  const crossRefPopup = hasCrossRefs ? capPopup(crossRefsArray.join(' · ')) : undefined;
 
   return (
     <div className={`${cardClass}${expanded ? ' is-open' : ''}`} style={cardStyle}>
