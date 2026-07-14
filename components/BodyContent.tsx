@@ -570,7 +570,7 @@ export default function BodyContent() {
 
 
 <div className="sb-section"><div className="sb-section-title">გაზიარება</div>
-<button className="sb-share-main" onClick={() => { proto().shareReading?.(); }} style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '10px', background: 'rgba(201,168,76,.04)', border: '1px solid rgba(201,168,76,.1)', borderRadius: '10px', color: 'var(--gold)', fontFamily: 'var(--fb)', fontSize: '.74rem', cursor: 'pointer', transition: 'all .35s', marginBottom: '8px'}}><svg style={{width: '13px', height: '13px', fill: 'var(--gold)'}}><use href="#gl-share"/></svg> რუკის გაზიარება</button>
+<button className="sb-share-main" onClick={() => { proto().shareReading?.(); }} style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '10px', background: 'rgba(201,168,76,.04)', border: '1px solid rgba(201,168,76,.1)', borderRadius: '10px', color: 'var(--gold)', fontFamily: 'var(--fb)', fontSize: '.74rem', cursor: 'pointer', transition: 'all .35s', marginBottom: '8px'}}><svg style={{width: '13px', height: '13px', fill: 'var(--gold)'}}><use href="#gl-share"/></svg> <span className="sbl-natal">რუკის გაზიარება</span><span className="sbl-syn">სინასტრიის გაზიარება</span></button>
 <div className="sb-share-inline">
 <button className="sb-share-icon" onClick={() => { proto().shareToSocial?.("fb"); }} title="Facebook">{IconFacebook}</button>
 <button className="sb-share-icon" onClick={(e) => { proto().shareToSocial?.("ig", e.currentTarget); }} title="Instagram">{IconInstagram}</button>

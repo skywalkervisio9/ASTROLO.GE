@@ -5,6 +5,7 @@
 
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { createAdminSupabase } from '@/lib/supabase/admin';
+import { computeOverallScore } from '@/lib/synastry/scoring';
 
 const BODY_REVALIDATE = 60 * 60 * 24;
 const PROFILE_REVALIDATE = 60 * 5;
@@ -15,6 +16,8 @@ const profileTag = (userId: string) => `user:profile:${userId}`;
 export type SynastryChartSnapshot = {
   planets: unknown;
   points: unknown;
+  fullName: string | null;
+  birth: { day: number | null; month: number | null; year: number | null; hour: number | null; minute: number | null } | null;
 };
 
 export type SynastryBody = {
@@ -68,13 +71,21 @@ export async function getSynastryChartsForParticipants(
   user2Id: string,
 ): Promise<{ chartA: SynastryChartSnapshot; chartB: SynastryChartSnapshot }> {
   const admin = createAdminSupabase();
-  const [{ data: a }, { data: b }] = await Promise.all([
+  const [{ data: a }, { data: b }, { data: people }] = await Promise.all([
     admin.from('chart_data').select('planets, points').eq('user_id', user1Id).maybeSingle(),
     admin.from('chart_data').select('planets, points').eq('user_id', user2Id).maybeSingle(),
+    admin.from('users').select('id, full_name, birth_day, birth_month, birth_year, birth_hour, birth_minute').in('id', [user1Id, user2Id]),
   ]);
+  const infoFor = (id: string) => {
+    const u = people?.find((p) => p.id === id);
+    return {
+      fullName: u?.full_name ?? null,
+      birth: u ? { day: u.birth_day, month: u.birth_month, year: u.birth_year, hour: u.birth_hour, minute: u.birth_minute } : null,
+    };
+  };
   return {
-    chartA: { planets: parseStoredJson(a?.planets), points: parseStoredJson(a?.points) },
-    chartB: { planets: parseStoredJson(b?.planets), points: parseStoredJson(b?.points) },
+    chartA: { planets: parseStoredJson(a?.planets), points: parseStoredJson(a?.points), ...infoFor(user1Id) },
+    chartB: { planets: parseStoredJson(b?.planets), points: parseStoredJson(b?.points), ...infoFor(user2Id) },
   };
 }
 
@@ -173,13 +184,19 @@ export async function getSynastryMeta(slug: string): Promise<SynastryMeta> {
   if (!body) return null;
   const enMeta = body.reading_en?.meta as Record<string, unknown> | undefined;
   const kaMeta = body.reading_ka?.meta as Record<string, unknown> | undefined;
-  const raw =
-    typeof enMeta?.compatibilityScore === 'number'
-      ? enMeta.compatibilityScore
-      : typeof kaMeta?.compatibilityScore === 'number'
-        ? kaMeta.compatibilityScore
-        : null;
-  const score = raw != null ? Math.round(raw) : null;
+  // s7 drops meta.compatibilityScore — derive the overall from the six
+  // categoryScores so the share card matches what the reading UI displays.
+  const meta = enMeta ?? kaMeta;
+  const cats = meta?.categoryScores;
+  const hasCats = cats && typeof cats === 'object' && !Array.isArray(cats) && Object.keys(cats).length > 0;
+  const type = meta?.type === 'synastry_friend' ? 'friend' : 'couple';
+  const score = hasCats
+    ? computeOverallScore(cats as Record<string, unknown>, type)
+    : (typeof enMeta?.compatibilityScore === 'number'
+        ? Math.round(enMeta.compatibilityScore)
+        : typeof kaMeta?.compatibilityScore === 'number'
+          ? Math.round(kaMeta.compatibilityScore)
+          : null);
 
   // Card language defaults to the inviter's (user1) account language.
   const owner = await getMinimalProfileCached(body.user1_id);

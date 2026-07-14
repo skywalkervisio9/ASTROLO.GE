@@ -2,7 +2,14 @@
 // Synastry persistence helpers — scores from AI JSON, share slug flow
 // ============================================================
 
-/** Pull compatibility fields from reading.meta (English row preferred for numerics). */
+import { computeOverallScore } from '@/lib/synastry/scoring';
+
+/**
+ * Pull compatibility fields from reading.meta (English row preferred for numerics).
+ * The model no longer emits a standalone compatibilityScore (s7) — the overall is
+ * DERIVED in code from the six categoryScores, so the stored value can never
+ * contradict the category bars the UI renders.
+ */
 export function extractSynastryScores(reading: Record<string, unknown>): {
   compatibility_score: number | null;
   category_scores: Record<string, unknown> | null;
@@ -12,9 +19,10 @@ export function extractSynastryScores(reading: Record<string, unknown>): {
     return { compatibility_score: null, category_scores: null };
   }
   const m = meta as Record<string, unknown>;
-  const score = typeof m.compatibilityScore === 'number' ? Math.round(m.compatibilityScore) : null;
   const cats = m.categoryScores;
   const category_scores =
     cats && typeof cats === 'object' && !Array.isArray(cats) ? (cats as Record<string, unknown>) : null;
-  return { compatibility_score: score, category_scores };
+  const type = m.type === 'synastry_friend' ? 'friend' : 'couple';
+  const compatibility_score = category_scores ? computeOverallScore(category_scores, type) : null;
+  return { compatibility_score, category_scores };
 }

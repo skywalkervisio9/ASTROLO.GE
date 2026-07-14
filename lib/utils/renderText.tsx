@@ -401,6 +401,16 @@ export function normalizeHouseNotation(text: string): string {
   return text.replace(/\bH(1[0-2]|[1-9])\b/g, (_m, n) => HOUSE_ROMAN[+n]);
 }
 
+// A bare "R" right after a planet/sign glyph is the model's retrograde
+// shorthand (e.g. "♋ R in XII House", "♂R"). Normalize it to ℞ so the retro
+// marker renders instead of a literal letter. Degree-attached "R" (e.g.
+// "8°32'R") is handled by the degree token, so it is intentionally NOT matched
+// here (no glyph is adjacent). Mirrors app-runtime.js + validator.ts.
+const RETRO_GLYPH_R_RE = /([☉☽☿♀♂♃♄♅♆♇⚸☊☋⚷♈♉♊♋♌♍♎♏♐♑♒♓])(\s*)R(?![\wა-ჰ])/gu;
+export function normalizeRetrograde(text: string): string {
+  return text.replace(RETRO_GLYPH_R_RE, '$1$2℞');
+}
+
 // Numeric orb tucked in a parenthetical, e.g. „(2°06' ორბით)" / „(orb 2°06')".
 // Banned in prose by the i14 prompt and stripped at generation (validator.ts),
 // but older cached readings still carry them — so strip at display too. Both
@@ -414,7 +424,7 @@ const ORB_PAREN_RE = /\s*\((?=[^)]*[°º])(?=[^)]*(?:ორბ|orb))[^)]*\)/giu;
  */
 export function renderText(text: string): React.ReactNode {
   if (!text) return null;
-  text = normalizeHouseNotation(text).replace(ORB_PAREN_RE, '');
+  text = normalizeRetrograde(normalizeHouseNotation(text)).replace(ORB_PAREN_RE, '');
 
   const ptTips = _renderLang === 'ka' ? PT_TIPS_KA : PT_TIPS_EN;
   const retroTip = _renderLang === 'ka'

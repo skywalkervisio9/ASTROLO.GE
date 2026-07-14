@@ -13,6 +13,7 @@ import type {
 import type { SynastryShareUsers } from '@/lib/data/public-synastry';
 import type { Language } from '@/types/user';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { initReadingStarfield } from '@/lib/utils/reading-starfield';
 
 type Props = {
   slug: string;
@@ -20,7 +21,8 @@ type Props = {
 };
 
 export default function PublicSynastryClient({ slug, viewerIsParticipant }: Props) {
-  const [language] = useState<Language>('ka');
+  const [language, setLanguage] = useState<Language>('ka');
+  const [symbolMode, setSymbolMode] = useState(true);
   const [reading, setReading] = useState<SynastryReadingData | null>(null);
   const [chartA, setChartA] = useState<ChartPersonData | null>(null);
   const [chartB, setChartB] = useState<ChartPersonData | null>(null);
@@ -86,6 +88,14 @@ export default function PublicSynastryClient({ slug, viewerIsParticipant }: Prop
           : 'ASTROLO.GE';
   }, [reading, language]);
 
+  useEffect(() => {
+    document.body.classList.toggle('zodiac-names', !symbolMode);
+    return () => document.body.classList.remove('zodiac-names');
+  }, [symbolMode]);
+
+  // Starfield with scroll parallax + trails, identical to the individual reading.
+  useEffect(() => initReadingStarfield(document.getElementById('public-stars')), [reading]);
+
   if (error) {
     return (
       <div style={{ padding: 80, textAlign: 'center' }}>
@@ -117,63 +127,38 @@ export default function PublicSynastryClient({ slug, viewerIsParticipant }: Prop
     );
   }
 
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(shareHref); } catch { prompt('Copy link:', shareHref); }
+  };
+
   return (
     <div>
+      <div className="stars" id="public-stars" />
       <GlyphDefs />
-      {viewerIsParticipant && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 12,
-            right: 12,
-            zIndex: 1000,
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 8,
-            justifyContent: 'flex-end',
-            maxWidth: 'min(420px, 96vw)',
-          }}
-        >
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(shareHref);
-              } catch {
-                prompt('Copy link:', shareHref);
-              }
-            }}
-            style={{
-              background: 'rgba(201,168,76,.12)',
-              border: '1px solid var(--gold)',
-              color: 'var(--gold)',
-              padding: '8px 14px',
-              borderRadius: 10,
-              fontSize: '.8rem',
-              cursor: 'pointer',
-            }}
-          >
-            {language === 'ka' ? 'ბმულის კოპირება' : 'Copy link'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              window.location.href = '/';
-            }}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border)',
-              color: 'var(--text)',
-              padding: '8px 14px',
-              borderRadius: 10,
-              fontSize: '.8rem',
-              cursor: 'pointer',
-            }}
-          >
-            {language === 'ka' ? 'აპლიკაცია' : 'Open app'}
-          </button>
+
+      {/* Real webapp top bar (.tb) — logo, language + zodiac toggles */}
+      <nav className="tb">
+        <a className="tbl" href="/" aria-label="ASTROLO.GE">
+          <span className="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#gl-sparkle" /></svg></span>
+          <span className="lt">ASTROLO<span className="lt-ge"><span className="lt-dot">.</span>GE</span></span>
+        </a>
+        <div className="tbr">
+          <div className="lg">
+            <button className={`lo${language === 'ka' ? ' active' : ''}`} onClick={() => setLanguage('ka')}>ქარ</button>
+            <button className={`lo${language === 'en' ? ' active' : ''}`} onClick={() => setLanguage('en')}>EN</button>
+          </div>
+          <div className="zt" aria-label="Zodiac display">
+            <button className={`zo${symbolMode ? ' active' : ''}`} data-zodiac-mode="icon" title="Zodiac icons" onClick={() => setSymbolMode(true)}><svg aria-hidden="true"><use href="#gl-sparkle" /></svg></button>
+            <button className={`zo${!symbolMode ? ' active' : ''}`} data-zodiac-mode="name" title="Zodiac names" onClick={() => setSymbolMode(false)}><svg aria-hidden="true"><use href="#gl-text-lines" /></svg></button>
+          </div>
+          {viewerIsParticipant && (
+            <button type="button" className="pb" title={language === 'ka' ? 'ბმულის კოპირება' : 'Copy link'} onClick={copyLink}>
+              <span className="pa"><svg style={{ width: 13, height: 13, fill: 'var(--gold)' }} aria-hidden="true"><use href="#gl-share" /></svg></span>
+            </button>
+          )}
         </div>
-      )}
+      </nav>
+
       <SynastryView
         reading={reading}
         language={language}

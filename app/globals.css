@@ -284,11 +284,11 @@ section.vis{opacity:1;transform:translateY(0)}
 }
 .sh{text-align:center;margin-bottom:32px}
 .sh .section-icon{width:48px;height:48px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
-.sh .section-icon svg{width:30px;height:30px;color:var(--gold)}
-/* Desktop: slightly larger section icons. Mobile keeps the 30px size above. */
+.sh .section-icon svg{width:34px;height:34px;color:var(--gold)}
+/* Desktop: slightly larger section icons. Mobile keeps the size above. */
 @media (min-width:768px){
   .sh .section-icon,.section-head .section-icon{width:56px;height:56px}
-  .sh .section-icon svg,.section-head .section-icon svg{width:37px;height:37px}
+  .sh .section-icon svg,.section-head .section-icon svg{width:42px;height:42px}
 }
 /* Subtle interactive bloom: section icons glow + lift on hover (desktop) and
    when scrolled to the viewport center band (mobile, via .sh-active toggled by
@@ -389,6 +389,11 @@ html[lang="ka"] body.zodiac-names span.pt{font-family:var(--fb)}
 body .zm-name{display:none}
 body.zodiac-names .zm-icon{display:none}
 body.zodiac-names .zm-name{display:inline}
+/* Labels stay compact: keep the symbol form inside card badges + their popups
+   even in name mode, so long planet/sign names can't blow the badge or its
+   crossReferences popup out of the card. Higher specificity wins over the swap above. */
+body.zodiac-names .b .zm-icon,body.zodiac-names .card-label .zm-icon,body.zodiac-names .label-popup .zm-icon{display:inline}
+body.zodiac-names .b .zm-name,body.zodiac-names .card-label .zm-name,body.zodiac-names .label-popup .zm-name{display:none}
 /* Tooltip system */
 .tip{position:relative;cursor:help}.tip::after{content:attr(data-tip);position:absolute;bottom:125%;left:50%;transform:translateX(-50%);background:var(--sf2);color:var(--silver);padding:5px 10px;border-radius:6px;font-size:.68rem;font-family:var(--fb);font-weight:400;font-style:normal;letter-spacing:.02em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .25s;border:1px solid rgba(201,168,76,.12);z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.4)}
 .tip:hover::after{opacity:1}
@@ -591,10 +596,15 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 .ai-pulse .al,.ai-pulse .ai-body{animation:ai-pulse-kf 1s ease-in-out 2}
 /* Acronym badge for points without SVG (MC, IC, DSC, ASC) */
 .gi-acr{display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--gold);min-width:1.4em;font-weight:600;letter-spacing:.03em;vertical-align:middle}
-.pq{text-align:center;padding:36px 28px;background:linear-gradient(135deg,var(--sf),var(--sf2));border-radius:16px;border:1px solid rgba(201,168,76,.06);margin:18px 0;transition:all .5s var(--ease)}
+.pq{text-align:center;padding:36px 28px;background:linear-gradient(135deg,color-mix(in srgb,var(--sf) 50%,transparent),color-mix(in srgb,var(--sf2) 40%,transparent));border-radius:16px;border:1px solid rgba(201,168,76,.06);margin:18px 0;transition:all .5s var(--ease)}
 .pq:hover{border-color:rgba(201,168,76,.15);box-shadow:0 4px 24px rgba(201,168,76,.04)}
 .pq p{font-family:var(--fd);font-size:1.1rem;font-style:italic;color:var(--gold);line-height:1.85;max-width:560px;margin:0 auto}
 .pq p::before{content:'〈 ';opacity:.5;font-style:normal}.pq p::after{content:' 〉';opacity:.5;font-style:normal}
+
+/* View-aware sidebar share label: chart vs synastry */
+.sbl-syn{display:none}
+body[data-view="synastry"] .sbl-natal{display:none}
+body[data-view="synastry"] .sbl-syn{display:inline}
 .hl{color:var(--gold);font-family:var(--fd);font-style:italic;font-size:1rem}
 
 /* ═══ INLINE SVG GLYPHS ═══ */
@@ -918,6 +928,127 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
 .cat-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold),rgba(201,168,76,.55));box-shadow:0 0 8px rgba(201,168,76,.18);transition:width 1.4s cubic-bezier(.22,.61,.36,1)}
 .cat-desc{font-size:.72rem;color:var(--txd);line-height:1.7}
 
+/* ── Synastry aspect wheel — bi-wheel with real cross-chart aspect lines ── */
+.syn-wheel{max-width:380px;margin:0 auto 16px}
+.syn-wheel-canvas{position:relative}
+.syn-wheel svg{width:100%;height:auto;display:block}
+/* Floating planet tooltip — HTML overlay positioned at the glyph's fractional
+   coords within the square canvas (overflow visible so top-ring tips aren't clipped). */
+.syn-wheel-tip{position:absolute;transform:translate(-50%,-125%);white-space:nowrap;background:var(--sf2);color:var(--silver);padding:5px 11px;border-radius:8px;font-size:.66rem;font-family:var(--fb);letter-spacing:.02em;line-height:1.5;pointer-events:none;border:1px solid rgba(201,168,76,.15);box-shadow:0 4px 16px rgba(0,0,0,.5);z-index:20}
+/* Aspect lines ignite on load (staggered draw-in); planets + threads fade on hover-focus. */
+.syn-aspect-line{stroke-dasharray:1;stroke-dashoffset:1;animation:syn-draw 1.15s cubic-bezier(.22,.61,.36,1) forwards;animation-delay:calc(var(--i,0)*.05s + .25s);transition:opacity .3s ease,stroke-width .3s ease}
+@keyframes syn-draw{to{stroke-dashoffset:0}}
+.syn-planet{transition:opacity .3s ease}
+@media(prefers-reduced-motion:reduce){.syn-aspect-line{animation:none;stroke-dashoffset:0}}
+.syn-wheel-legend{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 14px;margin-top:8px;font-size:.6rem;color:var(--txd);letter-spacing:.04em}
+.syn-wheel-legend .swl-item{display:inline-flex;align-items:center;gap:5px}
+.syn-wheel-legend .swl-dot{width:8px;height:8px;border-radius:50%}
+.syn-wheel-legend .swl-line{width:13px;height:3px;border-radius:2px}
+.syn-wheel-legend .swl-sep{width:1px;height:11px;background:rgba(201,168,76,.15)}
+
+/* ── Resonance block (redesigned synastry opening: dimensions lead, overall resolves last) ── */
+.rzn-head{display:flex;align-items:baseline;justify-content:space-between;margin:18px 2px 15px}
+.rzn-head h2{font-family:var(--fd);font-size:1.42rem;font-weight:500;color:var(--tx);margin:0;letter-spacing:.01em}
+.rzn-hint{font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--txd);opacity:.6}
+
+/* signature — strongest dimension, horizontal banner on desktop */
+/* overflow stays visible so hover tooltips inside the insight/detail escape the
+   card and float on top (the stat panel clips its own colour/gradient instead). */
+.rzn-sig{display:grid;grid-template-columns:270px 1fr;border:1px solid rgba(201,168,76,.09);border-radius:18px;
+  background:var(--sf);margin-bottom:14px;cursor:pointer;
+  transition:border-color .4s var(--ease),box-shadow .4s var(--ease)}
+.rzn-sig:hover{border-color:color-mix(in srgb,var(--el) 42%,transparent);
+  box-shadow:0 12px 38px -16px color-mix(in srgb,var(--el) 45%,transparent)}
+.rzn-sig:focus-visible{outline:2px solid color-mix(in srgb,var(--el) 60%,transparent);outline-offset:3px}
+.rzn-sig-stat{position:relative;overflow:hidden;border-radius:18px 0 0 18px;padding:24px 26px;display:flex;flex-direction:column;justify-content:center;
+  background:color-mix(in srgb,var(--el) 8%,var(--sf));border-right:1px solid rgba(201,168,76,.08)}
+.rzn-sig-stat::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(240px 180px at 20% 20%,color-mix(in srgb,var(--el) 16%,transparent),transparent 70%)}
+.rzn-sig-eyebrow{position:relative;font-size:.54rem;letter-spacing:.18em;text-transform:uppercase;color:var(--txd)}
+.rzn-sig-cat{position:relative;font-family:var(--fd);font-size:1.35rem;color:var(--el);font-weight:500;margin:8px 0 2px;letter-spacing:.02em}
+.rzn-sig-num{position:relative;font-family:'Cormorant Garamond',serif;font-size:3.4rem;font-weight:400;line-height:.9;color:var(--el)}
+.rzn-sig-num small{font-size:1.1rem;color:color-mix(in srgb,var(--el) 55%,var(--txd));margin-left:3px}
+.rzn-sig-body{padding:24px 28px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.rzn-sig-ins{font-family:var(--fd);font-size:1.16rem;font-weight:500;line-height:1.45;color:var(--tx);letter-spacing:.01em}
+/* No CSS line-clamp here: an overflow:hidden container would clip the hover
+   tooltips inside the detail. Length is capped in JS (capPopup) instead. */
+.rzn-sig-detail{font-size:.82rem;line-height:1.62;color:var(--txd);margin:0}
+.rzn-sig-explore{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gd);margin-top:2px}
+
+/* resonance grid — reflows 2-up (mobile) → 4-up (desktop), stretching to fill
+   the full width (auto-fit collapses the empty trailing track auto-fill would keep) */
+.rzn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+/* overflow visible so hover tooltips escape upward and float on top; the jump
+   bar rounds its own bottom corners since it can no longer be clipped here. */
+.rzn-tile{display:flex;flex-direction:column;position:relative;background:var(--sf);border:1px solid rgba(201,168,76,.09);
+  border-radius:14px;padding:16px 16px 15px;cursor:pointer;will-change:transform;
+  transition:transform .45s cubic-bezier(.22,.61,.36,1),box-shadow .45s cubic-bezier(.22,.61,.36,1),border-color .4s var(--ease),background .4s var(--ease)}
+.rzn-tile:hover{border-color:color-mix(in srgb,var(--el) 48%,transparent);
+  background:color-mix(in srgb,var(--el) 8%,var(--sf));transform:translateY(-3px);
+  box-shadow:0 10px 28px -12px color-mix(in srgb,var(--el) 45%,transparent)}
+.rzn-tile:focus-visible{outline:2px solid color-mix(in srgb,var(--el) 60%,transparent);outline-offset:3px}
+.rzn-tile-top{display:flex;align-items:baseline;justify-content:space-between}
+.rzn-tile-nm{font-size:.74rem;color:var(--tx)}
+.rzn-tile-sc{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:400;color:var(--el);line-height:1}
+.rzn-tile-bar{height:3px;background:var(--sf2);border-radius:2px;overflow:hidden;margin:10px 0 9px}
+.rzn-tile-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--el),color-mix(in srgb,var(--el) 45%,transparent));transition:width 1.4s cubic-bezier(.22,.61,.36,1)}
+.rzn-tile-cap{font-size:.68rem;color:var(--tx);line-height:1.5}
+.rzn-tile-detail{margin-top:7px;font-size:.63rem;color:var(--txd);line-height:1.55}
+.rzn-tile-jump{position:absolute;left:0;right:0;bottom:0;padding:9px 14px 8px;text-align:right;font-size:.6rem;
+  letter-spacing:.05em;color:var(--el);opacity:0;transition:opacity .35s var(--ease);border-radius:0 0 14px 14px;
+  background:linear-gradient(transparent,color-mix(in srgb,var(--el) 20%,var(--sf)) 60%)}
+.rzn-tile:hover .rzn-tile-jump{opacity:1}
+
+/* growth edge — challenge reframed; segmented meter, NOT a fill bar */
+.rzn-edge{display:flex;gap:16px;align-items:center;background:var(--sf);border:1px solid rgba(196,122,138,.16);
+  border-left:2px dashed var(--rose);border-radius:0 14px 14px 0;padding:16px 20px;margin:0 0 26px;cursor:pointer;
+  transition:border-color .35s var(--ease),box-shadow .35s var(--ease)}
+.rzn-edge:hover{border-color:rgba(196,122,138,.42);box-shadow:0 8px 24px -13px rgba(196,122,138,.4)}
+.rzn-edge:focus-visible{outline:2px solid rgba(196,122,138,.6);outline-offset:3px}
+.rzn-edge-icon svg{width:16px;height:16px;fill:var(--rose)}
+.rzn-edge-main{flex:1;min-width:0}
+.rzn-edge-lab{font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--rose);font-weight:500}
+.rzn-edge-cap{font-size:.78rem;color:var(--txd);line-height:1.5;margin-top:3px}
+.rzn-edge-link{font-size:.58rem;letter-spacing:.09em;text-transform:uppercase;color:var(--rose);margin-top:8px;opacity:.7;transition:opacity .3s}
+.rzn-edge:hover .rzn-edge-link{opacity:1}
+.rzn-edge-right{margin-left:auto;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:9px}
+.rzn-edge-intensity{display:flex;align-items:baseline;gap:7px}
+.rzn-edge-intensity .n{font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:var(--rose);line-height:1}
+.rzn-edge-intensity .l{font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;color:var(--txd)}
+.rzn-edge-dots{display:flex;gap:5px}
+.rzn-edge-dots .dot{width:18px;height:4px;border-radius:2px;background:rgba(196,122,138,.18)}
+.rzn-edge-dots .dot.on{background:var(--rose)}
+
+/* deep resonance — the derived overall, resolving after the dimensions */
+.rzn-chord{display:flex;align-items:center;justify-content:center;gap:28px;margin:0 0 8px;padding:26px 20px;cursor:pointer;
+  border:1px solid rgba(201,168,76,.09);border-radius:20px;background:linear-gradient(180deg,rgba(201,168,76,.05),transparent);
+  transition:border-color .4s var(--ease),box-shadow .4s var(--ease)}
+.rzn-chord:hover{border-color:rgba(201,168,76,.28);box-shadow:0 12px 38px -18px rgba(201,168,76,.35)}
+.rzn-chord:focus-visible{outline:2px solid rgba(201,168,76,.5);outline-offset:3px}
+.rzn-chord-explore{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gd);margin-top:12px}
+.rzn-ring{width:100px;height:100px;position:relative;flex-shrink:0}
+.rzn-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.rzn-ring-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:300;color:var(--gold)}
+.rzn-chord-txt{max-width:380px}
+.rzn-tier{font-family:var(--fd);font-size:1.6rem;color:var(--gold);font-weight:500;letter-spacing:.01em}
+.rzn-tier-desc{font-size:.82rem;color:var(--tx);line-height:1.5;margin-top:5px;max-width:38ch}
+.rzn-method{font-size:.68rem;color:var(--txd);line-height:1.6;margin-top:8px}
+.rzn-method-q{color:var(--gd);border-bottom:1px dotted rgba(201,168,76,.35);cursor:help}
+.rzn-band{display:flex;gap:6px;align-items:center;margin-top:12px}
+.rzn-band i{width:24px;height:3px;border-radius:2px;background:rgba(201,168,76,.15)}
+.rzn-band i.on{background:var(--gold)}
+.rzn-band span{font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;color:var(--txd);margin-left:6px}
+
+@media(max-width:720px){
+  .rzn-sig{grid-template-columns:1fr}
+  .rzn-sig-stat{border-right:none;border-bottom:1px solid rgba(201,168,76,.08);border-radius:18px 18px 0 0}
+  .rzn-sig-num{font-size:2.9rem}
+  .rzn-chord{flex-direction:column;text-align:center;gap:18px}
+  .rzn-chord-txt{max-width:none}
+  .rzn-band{justify-content:center}
+}
+
 /* Section Nav (sticky) — mirrors the natal reading's .nb / .nb .ct:
    .snav is the full-bleed sticky bar; .snav-track is the inset scroll
    container, so the bar background spans edge-to-edge while pills scroll
@@ -935,7 +1066,7 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
 .analysis-section.vis{opacity:1;transform:translateY(0)}
 .section-head{text-align:center;margin-bottom:32px;position:relative}
 .section-head .section-icon{width:48px;height:48px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center}
-.section-head .section-icon svg{width:30px;height:30px}
+.section-head .section-icon svg{width:34px;height:34px}
 .section-head h2{font-family:var(--fd);font-weight:400;font-size:clamp(1.3rem,3vw,1.7rem);color:var(--gold);letter-spacing:.06em;margin-bottom:4px}
 .section-head .st{font-size:.82rem;color:var(--silver);letter-spacing:.06em;text-align:center;max-width:520px;margin:4px auto 0;line-height:1.7}
 

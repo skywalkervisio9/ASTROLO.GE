@@ -246,6 +246,16 @@ function normalizeHouseNotation(p: string): string {
   return p.replace(/\bH(1[0-2]|[1-9])\b/g, (_m, n) => HOUSE_ROMAN[+n]);
 }
 
+// A bare "R" right after a planet/sign glyph is the model's retrograde shorthand
+// (e.g. "♋ R in XII House", "♂R"). Canonicalize to ℞ at generation so stored
+// readings carry the marker the renderers already handle. Degree-attached "R"
+// ("8°32'R") is handled by the renderer's degree token, so it is intentionally
+// NOT matched here. Mirrors renderText.tsx + app-runtime.js.
+function normalizeRetrograde(p: string): string {
+  if (typeof p !== 'string') return p;
+  return p.replace(/([☉☽☿♀♂♃♄♅♆♇⚸☊☋⚷♈♉♊♋♌♍♎♏♐♑♒♓])(\s*)R(?![\wა-ჰ])/gu, '$1$2℞');
+}
+
 // Numeric orb tucked in a parenthetical, e.g. „(2°06' ორბით)" / „(orb 2°06')" /
 // „(0.62° ორბი)". The i14 prompt bans these in prose (aspect strength is conveyed
 // in words; the numeric orb already renders in the aspect table) but the AI still
@@ -303,7 +313,7 @@ function normalizeCards(cards: unknown[]): unknown[] {
     else if (c.expandedContent && !Array.isArray(c.expandedContent)) c.expandedContent = [];
     // Normalize terminology: chart points (Ascendant→ASC, i12) + planet words
     // (მზის→☉-ის) so the renderer's icon/name toggle owns every planet.
-    const sanitizeText = (s: string) => normalizeHouseNotation(sanitizePlanetTerminology(sanitizeTerminology(s)));
+    const sanitizeText = (s: string) => normalizeRetrograde(normalizeHouseNotation(sanitizePlanetTerminology(sanitizeTerminology(s))));
     c.body = (c.body as string[]).map(sanitizeText);
     if (Array.isArray(c.expandedContent)) {
       // expandedContent: sanitize terms + split inline lists + number bold-colon items
