@@ -206,6 +206,15 @@ export async function POST(req: NextRequest) {
         // ── Step 6: Store reading ──
         send('Storing synastry reading...');
 
+        // Inject gender into meta so the UI (aspect-wheel colours) has it.
+        const injectGender = (reading: unknown) => {
+          const meta = (reading as { meta?: { personA?: Record<string, unknown>; personB?: Record<string, unknown> } })?.meta;
+          if (meta?.personA) meta.personA.gender = profileA.gender ?? null;
+          if (meta?.personB) meta.personB.gender = profileB.gender ?? null;
+        };
+        injectGender(result.readingEn);
+        injectGender(result.readingKa);
+
         const scores = extractSynastryScores(
           result.readingEn as unknown as Record<string, unknown>,
         );
@@ -221,7 +230,7 @@ export async function POST(req: NextRequest) {
           compatibility_score: scores.compatibility_score,
           category_scores: scores.category_scores,
           share_slug: generateShareSlug(),
-          prompt_version: 'SYSTEM-PROMPT-Couple_s4',
+          prompt_version: relationshipType === 'couple' ? 'SYSTEM-PROMPT-Couple_s7' : 'SYSTEM-PROMPT-Friend_s7',
           model_call2: result.meta.modelCall2,
           tokens_call2_ka: result.meta.tokensCall2Ka,
           tokens_call2_en: result.meta.tokensCall2En,
