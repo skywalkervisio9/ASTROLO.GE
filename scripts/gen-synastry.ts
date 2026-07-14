@@ -71,6 +71,12 @@ async function main() {
   injectGender(result.readingEn);
   injectGender(result.readingKa);
 
+  // Unify categoryScores across languages (EN is canonical — it also backs the
+  // stored category_scores column) so the EN and KA overalls can't disagree.
+  const enScores = (result.readingEn as { meta?: { categoryScores?: unknown } }).meta?.categoryScores;
+  const kaMeta = (result.readingKa as { meta?: { categoryScores?: unknown } }).meta;
+  if (enScores && kaMeta) kaMeta.categoryScores = enScores;
+
   const scores = extractSynastryScores(result.readingEn as unknown as Record<string, unknown>);
   const enMeta = (result.readingEn as { meta?: Record<string, unknown> }).meta ?? {};
   console.log('categoryScores:', JSON.stringify(enMeta.categoryScores));
