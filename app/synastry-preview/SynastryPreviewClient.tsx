@@ -17,7 +17,7 @@ import { initReadingStarfield } from '@/lib/utils/reading-starfield';
 
 export default function SynastryPreviewClient() {
   const [language, setLanguage] = useState<Language>('en');
-  const [symbolMode, setSymbolMode] = useState(true); // true = glyphs, false = names
+  const [symbolMode, setSymbolMode] = useState(false); // true = glyphs, false = names; starts OFF
   const [real, setReal] = useState<{
     reading: SynastryReadingData; chartA: ChartPersonData | null; chartB: ChartPersonData | null;
   } | null>(null);

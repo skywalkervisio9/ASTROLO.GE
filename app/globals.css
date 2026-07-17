@@ -144,6 +144,36 @@ body[data-public-view] .pn{color:#a6d9e4;max-width:180px;white-space:nowrap;over
 @keyframes synCTAPulse{0%,100%{border-color:rgba(201,168,76,.25);box-shadow:0 0 0 0 rgba(201,168,76,0)}50%{border-color:rgba(201,168,76,.4);box-shadow:0 0 16px rgba(201,168,76,.12)}}
 @keyframes synCTAGlow{0%,100%{opacity:0;transform:scale(1)}50%{opacity:1;transform:scale(1.02)}}
 
+/* Synastry generating — the invitee lands here with the sidebar already open
+   (?invited=1) while their synastry is still being written. A slow, patient
+   breathe: this state is "wait", not "act", so it stays quieter than the CTA
+   above and deliberately calmer than .syn-ready-pulse below. The icon breathes
+   with it so the row reads as alive rather than merely tinted. */
+.sb-nav-item.syn-generating{border-color:rgba(201,168,76,.18);background:rgba(201,168,76,.03);animation:synGenPulse 3.2s ease-in-out infinite}
+.sb-nav-item.syn-generating .sb-nav-label{color:var(--gold);font-weight:500}
+.sb-nav-item.syn-generating .sb-nav-partner{color:var(--gd);opacity:1}
+.sb-nav-item.syn-generating .sb-nav-icon{animation:synGenIcon 3.2s ease-in-out infinite}
+@keyframes synGenPulse{0%,100%{border-color:rgba(201,168,76,.14);box-shadow:0 0 0 0 rgba(201,168,76,0)}50%{border-color:rgba(201,168,76,.34);box-shadow:0 0 14px rgba(201,168,76,.1)}}
+@keyframes synGenIcon{0%,100%{box-shadow:0 0 0 0 rgba(228,199,107,0)}50%{box-shadow:0 0 12px rgba(228,199,107,.35)}}
+
+/* Synastry ready — it finished while the user stayed on their natal reading.
+   Louder than the generating breathe (faster, brighter, with a travelling
+   sheen) because this one IS a call to act. Cleared the moment they open it. */
+.sb-nav-item.syn-ready-pulse{border-color:rgba(201,168,76,.4);background:rgba(201,168,76,.06);animation:synReadyPulse 1.8s ease-in-out infinite}
+.sb-nav-item.syn-ready-pulse .sb-nav-label{color:var(--gold-bright);font-weight:500}
+.sb-nav-item.syn-ready-pulse .sb-nav-icon{background:rgba(201,168,76,.2);border-color:rgba(201,168,76,.45)}
+.sb-nav-item.syn-ready-pulse .sb-nav-icon svg{color:var(--gold-bright);filter:drop-shadow(0 0 8px rgba(228,199,107,.6))}
+.sb-nav-item.syn-ready-pulse::after{content:'';position:absolute;inset:-2px;border-radius:12px;border:1px solid rgba(201,168,76,.3);animation:synCTAGlow 1.8s ease-in-out infinite;pointer-events:none}
+@keyframes synReadyPulse{0%,100%{border-color:rgba(201,168,76,.4);box-shadow:0 0 0 0 rgba(201,168,76,0)}50%{border-color:rgba(228,199,107,.7);box-shadow:0 0 22px rgba(201,168,76,.22)}}
+
+/* Both pulses are attention cues, not information — respect reduced motion by
+   holding their lit state instead of animating it. */
+@media(prefers-reduced-motion:reduce){
+  .sb-nav-item.syn-generating,.sb-nav-item.syn-generating .sb-nav-icon,
+  .sb-nav-item.syn-ready-pulse,.sb-nav-item.syn-ready-pulse::after{animation:none}
+  .sb-nav-item.syn-ready-pulse{border-color:rgba(228,199,107,.7);box-shadow:0 0 22px rgba(201,168,76,.22)}
+}
+
 /* Invite price tag in modal */
 .invite-price-tag{text-align:center;margin-bottom:16px;font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:var(--gold);display:none}
 .invite-price-tag.show{display:block;animation:fadeScale .4s var(--ease)}
@@ -890,6 +920,12 @@ body.lang-en .pay-method-cards .lg-ka{display:none}
 .pc-row-label svg{width:12px;height:12px;fill:var(--gd)}
 .pc-row-glyph{font-size:.95rem;color:var(--gd);line-height:1;min-width:16px;text-align:center}
 .pc-row-name{font-size:.68rem;color:var(--txd);font-family:'Outfit',sans-serif;letter-spacing:.03em}
+/* Placement popup triggers. Padding is cancelled by an equal negative margin so
+   adding the hit area doesn't reflow the row. Mirrors the natal planet table's
+   cell affordance (.pt td.pl-btn:hover). */
+.pc-pop{cursor:pointer;border-radius:4px;padding:2px 4px;margin:-2px -4px;transition:background .3s var(--ease)}
+.pc-pop:hover{background:rgba(201,168,76,.09)}
+.pc-pop:focus-visible{outline:1px solid rgba(201,168,76,.5);outline-offset:1px}
 .pc-row-glyph--asc{cursor:help;border-bottom:1px dotted rgba(201,168,76,.4)}
 .pc-row-label .gi-acr{font-size:.78rem}
 .pc-row-val{font-size:.76rem;color:var(--silver);display:flex;align-items:center;gap:5px}
