@@ -25,8 +25,15 @@ function shouldReturnToBirth(status: number, message: string) {
 }
 
 /** Existing onboarded users skip chart/generate — synastry invite is accepted here. Idempotent (409 ok). */
-function ownerReadingUrl(slug: string, focusSynastry: boolean) {
-  return focusSynastry ? `/r/${slug}?synastry=1` : `/r/${slug}`;
+/**
+ * Invitees land on their OWN natal reading, not the synastry view: their reading
+ * is the thing they just waited for, so it leads. `?invited=1` opens the sidebar
+ * onto the still-generating synastry slot (BodyContent) so the pending reading
+ * is advertised without hijacking the page. The param also tells /r/[slug] not
+ * to bounce them to /loading while Call 1 finishes in the background.
+ */
+function ownerReadingUrl(slug: string, fromInvite: boolean) {
+  return fromInvite ? `/r/${slug}?invited=1` : `/r/${slug}`;
 }
 
 async function postInviteAcceptFromLoading(code: string | null | undefined): Promise<string | null> {
@@ -175,8 +182,8 @@ export default function LoadingRouteClient() {
       whenRuntimeReady().then(() => {
         const fn = (window as unknown as Record<string, unknown>).startLoading as ((lang?: string, durationMs?: number) => void) | undefined;
         // 20s free (Astrologer API only), 60s fake-full (Call 1 only),
-        // 30s invite (Astrologer API only — Call 1 + synastry deferred to the
-        //              synastry-view cosmic loader on /r/[slug]?synastry=1),
+        // 30s invite (Astrologer API only — Call 1 + synastry finish in the
+        //              background while the invitee reads their natal chart),
         // 6min generate-full (full AI reading).
         const duration = isFree ? 20000
           : isFakeFull ? 60000
@@ -482,8 +489,9 @@ export default function LoadingRouteClient() {
         if (status.status === 'complete') {
           if (navigated) return;
           if (status.shareSlug) {
-            // Accept invite synchronously, but don't block on synastry AI —
-            // the synastry view's cosmic loader takes over on /r/[slug]?synastry=1.
+            // Accept invite synchronously, but don't block on synastry AI — it
+            // finishes in the background while they read their natal chart, and
+            // the sidebar's synastry slot reports its progress.
             await postInviteAcceptFromLoading(inviteFromUrl);
             navigated = true;
             window.location.href = ownerReadingUrl(status.shareSlug, Boolean(inviteFromUrl));

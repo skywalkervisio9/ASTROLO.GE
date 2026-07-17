@@ -217,11 +217,19 @@ var _synastryPartnerName = null;
 var _synastryConnectionId = null;
 var _synastryRelType = null;
 var _synastryGenerating = false;
-// Latch: set when a synastry generation STARTS in this session so that the
-// matching `synastry-ready` can auto-switch the user to the finished reading.
-// Guards against redirecting on plain page loads where the reading already
-// existed (that path fires `synastry-ready` without a preceding start).
+// Latch: set when a synastry generation STARTS in this session, so the matching
+// `synastry-ready` knows the user actually waited for it and can escalate the
+// sidebar item to its ready highlight. Guards against highlighting on plain page
+// loads where the reading already existed (that path fires `synastry-ready`
+// without a preceding start).
+// It deliberately does NOT auto-switch the view: the user is reading their own
+// natal chart, and yanking the page out from under them mid-sentence is worse
+// than letting the pulsing sidebar item invite the click.
 var _synGenRedirectPending = false;
+// Set when a synastry finished generating in this session and the user hasn't
+// opened it yet — drives .syn-ready-pulse. Read by rebuildSidebar so the
+// highlight survives the rebuilds that follow (rebuild resets all nav classes).
+var _synReadyHighlight = false;
 
 function occupySlot(slotNum, btn) {
   // Get effective unlock state
@@ -314,6 +322,13 @@ function switchSynastry(mode, btn) {
 }
 
 // ═══ REBUILD SIDEBAR (single source of truth) ═══
+// The "still being written" placeholder on #synPartnerName. Shared by
+// rebuildSidebar and applyTranslations — the invitee now waits on this label for
+// the whole generation, so both paths must agree on it.
+function _synGeneratingLabel(isEn) {
+  return isEn ? '(Generating…)' : '(იქმნება…)';
+}
+
 function rebuildSidebar() {
   const synItem = document.getElementById('synNavItem');
   const partnerName = document.getElementById('synPartnerName');
@@ -329,7 +344,7 @@ function rebuildSidebar() {
   synItem.style.display = '';
   synItem.style.opacity = '';
   synItem.style.pointerEvents = '';
-  synItem.classList.remove('has-partner', 'syn-cta-pulsate', 'locked-syn', 'syn-generating');
+  synItem.classList.remove('has-partner', 'syn-cta-pulsate', 'locked-syn', 'syn-generating', 'syn-ready-pulse');
 
   // Get effective slot states (tier defaults + dev overrides)
   const s1Unlocked = getSlot1Unlocked();
@@ -353,9 +368,7 @@ function rebuildSidebar() {
   if (_synastryGenerating && s1Unlocked) {
     synItem.classList.add('has-partner', 'syn-generating');
     if (partnerName) {
-      partnerName.textContent = document.body.classList.contains('lang-en')
-        ? '(Generating…)'
-        : '(იქმნება…)';
+      partnerName.textContent = _synGeneratingLabel(document.body.classList.contains('lang-en'));
     }
     if (modeBadge) { modeBadge.className = 'mode-badge'; modeBadge.textContent = ''; }
     buildSlot2NavItem(synItem, s2Unlocked, s2Occupied);
@@ -366,6 +379,9 @@ function rebuildSidebar() {
   // If synastry was generated in this session, keep it permanently occupied
   if (_synastryGenerated && s1Unlocked) {
     synItem.classList.add('has-partner');
+    // Finished while the user was on their natal reading and still unopened →
+    // keep it pulsing through rebuilds until they click it.
+    if (_synReadyHighlight) synItem.classList.add('syn-ready-pulse');
     if (partnerName) partnerName.textContent = '(' + (_synastryPartnerName || 'Partner') + ')';
     var relType = _synastryRelType || 'couple';
     if (modeBadge) {
@@ -483,13 +499,19 @@ function _loadChunk(name) {
 
 // ═══ SIDEBAR ═══
 let ddOpen = false;
-function openSidebar() {
-  // If public view (not logged in), redirect to auth
+// No arg = toggle (the header button). `true` = open regardless of current
+// state — used by callers that must guarantee it's open (the ?invited=1 landing
+// and the synastry-ready highlight), where a toggle would close it instead.
+function openSidebar(forceOpen) {
+  // If public view (not logged in), redirect to auth — but only for the
+  // user-initiated toggle. A forced open is programmatic (the ?invited=1
+  // landing, the synastry-ready highlight) and must never navigate the page.
   if (window.__ASTROLO_PUBLIC_VIEW) {
-    window.location.href = '/auth';
+    if (forceOpen !== true) window.location.href = '/auth';
     return;
   }
-  ddOpen = !ddOpen; document.getElementById('accountDD').classList.toggle('open', ddOpen);
+  ddOpen = forceOpen === true ? true : !ddOpen;
+  document.getElementById('accountDD').classList.toggle('open', ddOpen);
 }
 function closeSidebar() { ddOpen = false; document.getElementById('accountDD').classList.remove('open'); }
 document.addEventListener('click', e => {
@@ -502,6 +524,9 @@ document.querySelector('#sbNavRow .sb-nav-item:first-child').onclick = function(
   switchView('natal', document.getElementById('devNatal'));
 };
 document.getElementById('synNavItem').onclick = function() {
+  // Opening it is the acknowledgement the ready-pulse was asking for.
+  _synReadyHighlight = false;
+  this.classList.remove('syn-ready-pulse');
   if (_synastryGenerating) { closeSidebar(); switchView('synastry'); return; }
   // If synastry already generated, just show it
   if (_synastryGenerated) { closeSidebar(); switchView('synastry'); return; }
@@ -576,14 +601,21 @@ window.addEventListener('synastry-ready', function(e) {
 
   console.log('[DEV] Synastry ready:', name, _synastryRelType, _synastryConnectionId);
 
-  // Generation just finished in this session → take the user to the reading.
-  // Only when armed by a preceding `synastry-generation-started`, so we never
-  // yank users away from their natal view on a plain reload of an already-
-  // generated synastry.
+  // Generation just finished in this session → advertise it, don't jump to it.
+  // Only when armed by a preceding `synastry-generation-started`, so a plain
+  // reload of an already-generated synastry stays quiet.
   if (_synGenRedirectPending) {
     _synGenRedirectPending = false;
-    closeSidebar();
-    switchView('synastry');
+    // If they're already watching the synastry view, its own cosmic loader
+    // resolves straight into the reading — a sidebar nudge would just be noise
+    // on top of the thing it's pointing at.
+    if (document.body.getAttribute('data-view') !== 'synastry') {
+      _synReadyHighlight = true;
+      if (synItem) synItem.classList.add('syn-ready-pulse');
+      // Reopen the sidebar if the user closed it while they were reading — the
+      // pulse is only an invitation if it's on screen to be seen.
+      openSidebar(true);
+    }
   }
 });
 
@@ -640,7 +672,10 @@ function setLang(l, b) {
 }
 window.setLang = setLang;
 
-var _zodiacDisplayMode = 'icon';
+// Names, not glyphs, are the default: the symbols toggle starts OFF. The
+// server-rendered <body> carries `zodiac-names` to match (app/layout.tsx), so
+// the default costs no first-paint correction.
+var _zodiacDisplayMode = 'name';
 
 function setZodiacMode(mode, b) {
   _zodiacDisplayMode = mode === 'name' ? 'name' : 'icon';
@@ -661,8 +696,10 @@ function setZodiacMode(mode, b) {
 window.setZodiacMode = setZodiacMode;
 
 function _initZodiacMode() {
-  var saved = 'icon';
-  try { saved = localStorage.getItem('astrolo:zodiac-display') === 'name' ? 'name' : 'icon'; } catch (e) {}
+  // Only an explicit, stored 'icon' turns symbols on — an unset key (first
+  // visit) or unreadable storage falls back to the 'name' default.
+  var saved = 'name';
+  try { saved = localStorage.getItem('astrolo:zodiac-display') === 'icon' ? 'icon' : 'name'; } catch (e) {}
   setZodiacMode(saved, document.querySelector('.zo[data-zodiac-mode="' + saved + '"]'));
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _initZodiacMode);
@@ -760,6 +797,12 @@ function applyTranslations(l) {
     const isCouple = modeBadge.classList.contains('couple');
     modeBadge.textContent = isCouple ? sb.couple : sb.friend;
   }
+  // #synPartnerName is rebuildSidebar's, not TR.sidebar's — but a language
+  // switch mid-generation must still retranslate the placeholder, or the
+  // invitee watches the old language for the rest of the wait. Uses `l` rather
+  // than the body class so it doesn't depend on setLang's ordering.
+  const synPartner = document.getElementById('synPartnerName');
+  if (synPartner && _synastryGenerating) synPartner.textContent = _synGeneratingLabel(l === 'en');
 
   // Hero
   const heroSub = document.querySelector('.hero-sub');

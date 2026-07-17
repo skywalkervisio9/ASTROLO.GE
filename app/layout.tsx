@@ -27,8 +27,12 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Serif+Georgian:wght@300;400;500;600;700&family=Noto+Sans+Georgian:wght@200;300;400;500;600&family=Outfit:wght@200;300;400;500;600&display=swap"
         />
       </head>
+      {/* `zodiac-names` is the server default because the symbols toggle starts
+          OFF — first paint then matches the common case with no JS correction.
+          _initZodiacMode (public/app-runtime.js) drops it for the minority who
+          stored an explicit 'icon' preference. */}
       <body
-        className="mode-couple"
+        className="mode-couple zodiac-names"
         data-view="natal"
         suppressHydrationWarning
       >

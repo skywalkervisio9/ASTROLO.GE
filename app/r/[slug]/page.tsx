@@ -75,10 +75,12 @@ export default async function ReadingPage({ params, searchParams }: Props) {
     // Reloading (or logging in from another device) while the owner's reading
     // is still generating must land on /loading, not on a stale/partial
     // reading. Synastry flows are excluded: the invite path intentionally
-    // parks the user on /r/[slug]?synastry=1 while Call 1 runs in the
-    // background — the synastry view's cosmic loader owns that wait.
+    // parks the user on /r/[slug] while Call 1 runs in the background —
+    // `?invited=1` is the fresh invitee landing (sidebar opens onto the
+    // generating synastry slot), `?synastry=1` the older deep-link into the
+    // synastry view's cosmic loader.
     const sp = await searchParams;
-    if (!('synastry' in sp)) {
+    if (!('synastry' in sp) && !('invited' in sp)) {
       const st = await computeOnboardingStatus(user.id);
       if (st.status === 'generating') {
         // resume = watch + poll only; never re-fires the AI calls.

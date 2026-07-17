@@ -59,7 +59,8 @@ type ProtoGlobals = {
   toggleSlot?: (slot: number, btn: HTMLElement) => void;
   occupySlot?: (slot: number, btn: HTMLElement) => void;
   toggleDiscount?: (btn: HTMLElement) => void;
-  openSidebar?: () => void;
+  /** No arg toggles; `true` forces open (see app-runtime.js). */
+  openSidebar?: (forceOpen?: boolean) => void;
   closeSidebar?: () => void;
   openInviteModal?: () => void;
   closeInviteModal?: () => void;
@@ -282,6 +283,38 @@ export default function BodyContent() {
       delete w.lockDev;
     };
   }, [openUnlockDialog]);
+
+  /**
+   * Fresh invitees land on /r/[slug]?invited=1 — their own natal reading, with
+   * the sidebar opened onto the synastry slot that's still generating, so the
+   * pending reading is advertised without taking the page over. Same retry
+   * shape as the ?synastry=1 effect below: app-runtime loads afterInteractive,
+   * so a single tick usually races React's mount.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('invited') !== '1') return;
+    let tries = 0;
+    const path = window.location.pathname;
+    const strip = () => {
+      sp.delete('invited');
+      const q = sp.toString();
+      window.history.replaceState({}, '', q ? `${path}?${q}` : path);
+    };
+    const id = window.setInterval(() => {
+      tries += 1;
+      const open = proto().openSidebar;
+      if (typeof open === 'function') {
+        open(true); // force: a bare call toggles, and would close it on a re-run
+        strip();
+        window.clearInterval(id);
+      } else if (tries >= 80) {
+        window.clearInterval(id);
+      }
+    }, 150);
+    return () => window.clearInterval(id);
+  }, []);
 
   /** After invite flow we land on /r/[slug]?synastry=1 — switch tab once app-runtime is up (retry; single tick often races). */
   useEffect(() => {
@@ -642,8 +675,8 @@ export default function BodyContent() {
     <button className="lo" onClick={(e) => { proto().setLang?.("en", e.currentTarget); }}>EN</button>
   </div>
   <div className="zt" aria-label="Zodiac display">
-    <button className="zo active" data-zodiac-mode="icon" title="Zodiac icons" onClick={(e) => { proto().setZodiacMode?.("icon", e.currentTarget); }}><svg aria-hidden="true"><use href="#gl-sparkle"/></svg></button>
-    <button className="zo" data-zodiac-mode="name" title="Zodiac names" onClick={(e) => { proto().setZodiacMode?.("name", e.currentTarget); }}><svg aria-hidden="true"><use href="#gl-text-lines"/></svg></button>
+    <button className="zo" data-zodiac-mode="icon" title="Zodiac icons" onClick={(e) => { proto().setZodiacMode?.("icon", e.currentTarget); }}><svg aria-hidden="true"><use href="#gl-sparkle"/></svg></button>
+    <button className="zo active" data-zodiac-mode="name" title="Zodiac names" onClick={(e) => { proto().setZodiacMode?.("name", e.currentTarget); }}><svg aria-hidden="true"><use href="#gl-text-lines"/></svg></button>
   </div>
 <button type="button" className="pb" onClick={() => { proto().openSidebar?.(); }}><div className="pa"></div><span className="pn"></span></button></div></nav>
 

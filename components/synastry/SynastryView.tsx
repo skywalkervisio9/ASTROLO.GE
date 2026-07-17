@@ -13,6 +13,8 @@ import type { Language } from '@/types/user';
 import { renderText, setRenderLang } from '@/lib/utils/renderText';
 import { renderExpanded } from '@/components/reading/renderBody';
 import { computeOverallScore, resolveTier, type TierResult } from '@/lib/synastry/scoring';
+import PlacementPopups, { useFinePointer, type PopSpec } from '@/components/synastry/PlacementPopup';
+import { loadInterp, signIndex, SIGN_EL_CLASS, SIGN_EL_COLOR, SIGN_GLYPH_IDS, type InterpData } from '@/lib/utils/interp';
 
 // ── Types matching the s4 JSON schema ──
 
@@ -633,6 +635,30 @@ const PLANET_KA: Record<string, string> = {
   Uranus: 'ურანი', Neptune: 'ნეპტუნი', Pluto: 'პლუტონი',
 };
 
+// A partner-card placement. `kind` picks which interp dictionary the popup
+// reads: 'planet' → plData, 'point' → cpData (ASC and friends live there).
+interface PlacementRow {
+  key: string;
+  kind: 'planet' | 'point';
+  glyph: string;
+  label: string;
+  sign: string;
+  degree: string;
+  retrograde: boolean;
+}
+
+interface PopState {
+  /** Bumped per open so the popups remount and replay their fade, matching the
+   *  planet table (_showPopup removes and recreates its node every time). */
+  id: number;
+  /** The half (fine pointer) or the whole row (touch) the popups hang off. */
+  anchor: HTMLElement;
+  specs: PopSpec[];
+}
+
+/** Dwell before a hover opens a popup. Mirrors app-runtime.js:1590. */
+const HOVER_OPEN_DELAY = 1000;
+
 function PartnerCard({
   person,
   isYou,
@@ -653,8 +679,18 @@ function PartnerCard({
   const displayName = (chart?.fullName ?? '').trim() || person.name;
   const initial = displayName.charAt(0).toUpperCase();
 
+  const [pop, setPop] = useState<PopState | null>(null);
+  const finePointer = useFinePointer();
+  const hoverTimer = useRef<number | null>(null);
+  // Mirrors `pop` so the hover timeout and click handlers read the live value
+  // rather than the one captured when their closure was created.
+  const popRef = useRef<PopState | null>(null);
+  const setPopState = (next: PopState | null) => { popRef.current = next; setPop(next); };
+
+  useEffect(() => () => { if (hoverTimer.current) clearTimeout(hoverTimer.current); }, []);
+
   // Build ordered planet rows from chart data, falling back to meta sun/moon/asc
-  const planetRows: { glyph: string; label: string; sign: string; degree: string; retrograde: boolean }[] = [];
+  const planetRows: PlacementRow[] = [];
 
   if (chart?.planets && chart.planets.length > 0) {
     const byName = new Map(chart.planets.map(p => [p.name, p]));
@@ -662,8 +698,10 @@ function PartnerCard({
     const ascDeg = chart.points?.ascendant?.degree ?? '';
     const ascSign = chart.points?.ascendant?.sign ?? person.asc;
     // Insert ASC after Moon
-    const insertAsc = (rows: typeof planetRows) => {
+    const insertAsc = (rows: PlacementRow[]) => {
       rows.push({
+        key: 'asc',
+        kind: 'point',
         glyph: 'ASC',
         label: 'ASC',
         sign: ascSign,
@@ -676,6 +714,8 @@ function PartnerCard({
       const p = byName.get(name);
       if (!p) continue;
       planetRows.push({
+        key: name.toLowerCase(),
+        kind: 'planet',
         glyph: PLANET_GLYPHS[name] || name,
         label: language === 'ka' ? (PLANET_KA[name] || name) : name,
         sign: p.sign,
@@ -686,10 +726,105 @@ function PartnerCard({
     }
   } else {
     // Fallback: only sun, moon, asc from meta
-    planetRows.push({ glyph: '☉', label: language === 'ka' ? 'მზე' : 'Sun', sign: person.sun, degree: '', retrograde: false });
-    planetRows.push({ glyph: '☽', label: language === 'ka' ? 'მთვარე' : 'Moon', sign: person.moon, degree: '', retrograde: false });
-    planetRows.push({ glyph: 'ASC', label: 'ASC', sign: person.asc, degree: '', retrograde: false });
+    planetRows.push({ key: 'sun', kind: 'planet', glyph: '☉', label: language === 'ka' ? 'მზე' : 'Sun', sign: person.sun, degree: '', retrograde: false });
+    planetRows.push({ key: 'moon', kind: 'planet', glyph: '☽', label: language === 'ka' ? 'მთვარე' : 'Moon', sign: person.moon, degree: '', retrograde: false });
+    planetRows.push({ key: 'asc', kind: 'point', glyph: 'ASC', label: 'ASC', sign: person.asc, degree: '', retrograde: false });
   }
+
+  // The same informative popups the natal planet table shows, from the same
+  // runtime-interp.json copy.
+  const buildPlacement = (D: InterpData, row: PlacementRow): PopSpec | null => {
+    if (row.kind === 'point') {
+      const d = D.cpData[language]?.[row.key];
+      if (!d) return null;
+      return {
+        popClass: 'planet-pop', body: d.b, place: 'above',
+        title: <><span className="cp-pop-acr">{d.acr}</span>{d.t}</>,
+      };
+    }
+    const d = D.plData[language]?.[row.key];
+    if (!d) return null;
+    // d.t carries a legacy Unicode symbol prefix ("☉ Sun") — strip it and use
+    // the real SVG glyph, exactly as the runtime does at :1424, so the popup and
+    // the table can never show mismatched symbols.
+    return {
+      popClass: 'planet-pop', body: d.b, place: 'above',
+      title: <>
+        <svg className="pl-pop-gi" viewBox="0 0 24 24" aria-hidden="true"><use href={`#gl-${row.key}`} /></svg>
+        {d.t.replace(/^\S+\s+/, '')}
+      </>,
+    };
+  };
+
+  const buildSign = (D: InterpData, sign: string): PopSpec | null => {
+    const si = signIndex(sign);
+    if (si < 0) return null;
+    const d = D._SIGN_DATA[language]?.[si];
+    if (!d) return null;
+    return {
+      popClass: `sign-pop ${SIGN_EL_CLASS[si % 4]}`, body: d.b, place: 'below',
+      title: <>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+          style={{ verticalAlign: -3, marginRight: 6, color: SIGN_EL_COLOR[si] }}>
+          <use href={`#${SIGN_GLYPH_IDS[si]}`} />
+        </svg>
+        {d.t}
+      </>,
+    };
+  };
+
+  const show = (anchor: HTMLElement, build: (D: InterpData) => (PopSpec | null)[]) => {
+    loadInterp().then((D) => {
+      const specs = build(D).filter((s): s is PopSpec => s !== null);
+      if (specs.length) setPopState({ id: (popRef.current?.id ?? 0) + 1, anchor, specs });
+    }).catch((err) => console.error('[synastry] interp data unavailable', err));
+  };
+
+  // Touch: the two halves are far too small to aim at, so one tap on the row
+  // answers for both — placement above, sign below, never overlapping. Fine
+  // pointers keep the planet table's behaviour, where each half speaks only for
+  // itself and there's room to hover one precisely.
+  const anchorFor = (half: HTMLElement) =>
+    finePointer ? half : ((half.closest('.pc-row') as HTMLElement | null) ?? half);
+
+  const specsFor = (row: PlacementRow, which: 'placement' | 'sign') => (D: InterpData) =>
+    finePointer
+      ? [which === 'placement' ? buildPlacement(D, row) : buildSign(D, row.sign)]
+      : [buildPlacement(D, row), buildSign(D, row.sign)];
+
+  const openFrom = (half: HTMLElement, row: PlacementRow, which: 'placement' | 'sign') => {
+    const anchor = anchorFor(half);
+    if (popRef.current?.anchor === anchor) { setPopState(null); return; } // toggle, like .pl-btn
+    show(anchor, specsFor(row, which));
+  };
+
+  // Desktop only: 1s dwell opens, mirroring the planet table (app-runtime.js:1590).
+  const onEnter = (half: HTMLElement, row: PlacementRow, which: 'placement' | 'sign') => {
+    if (!finePointer) return;
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => {
+      hoverTimer.current = null;
+      if (popRef.current?.anchor === half) return; // already showing this one
+      show(half, specsFor(row, which));
+    }, HOVER_OPEN_DELAY);
+  };
+  const cancelHover = () => {
+    if (hoverTimer.current) { clearTimeout(hoverTimer.current); hoverTimer.current = null; }
+  };
+
+  // Every trigger stops propagation: the whole .pc card is a click target that
+  // navigates to that partner's natal chart.
+  const popTrigger = (row: PlacementRow, which: 'placement' | 'sign') => ({
+    role: 'button',
+    tabIndex: 0,
+    onClick: (e: React.MouseEvent<HTMLElement>) => { e.stopPropagation(); openFrom(e.currentTarget, row, which); },
+    onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault(); e.stopPropagation(); openFrom(e.currentTarget, row, which);
+    },
+    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => onEnter(e.currentTarget, row, which),
+    onMouseLeave: cancelHover,
+  });
 
   const handleCardClick = shareSlug && onOpenChart ? () => onOpenChart(shareSlug) : undefined;
 
@@ -706,10 +841,10 @@ function PartnerCard({
       }</div>
       <div className="pc-placements">
         {planetRows.map((row) => (
-          <div className="pc-row" key={row.label}>
-            <span className="pc-row-label">
-              {row.glyph === 'ASC' ? (
-                <span className="gi-acr tip" data-tip={language === 'ka' ? 'ასცენდენტი' : 'Ascendant'}>{row.glyph}</span>
+          <div className="pc-row" key={row.key}>
+            <span className="pc-row-label pc-pop" {...popTrigger(row, 'placement')}>
+              {row.kind === 'point' ? (
+                <span className="gi-acr">{row.glyph}</span>
               ) : (
                 <>
                   <span className="pc-row-glyph">{row.glyph}</span>
@@ -717,7 +852,7 @@ function PartnerCard({
                 </>
               )}
             </span>
-            <span className="pc-row-val">
+            <span className="pc-row-val pc-pop" {...popTrigger(row, 'sign')}>
               {renderText(localizeSign(row.sign, language))}
               {row.degree && <span className="pc-row-deg">{row.degree}</span>}
               {row.retrograde && <span className="pc-row-rx">℞</span>}
@@ -725,6 +860,14 @@ function PartnerCard({
           </div>
         ))}
       </div>
+      {pop && (
+        <PlacementPopups
+          key={pop.id}
+          anchor={pop.anchor}
+          specs={pop.specs}
+          onClose={() => setPopState(null)}
+        />
+      )}
     </div>
   );
 }
@@ -991,14 +1134,44 @@ function splitCaption(caption?: string): { prose: string; aspect: string } {
   return { prose: caption.trim(), aspect: '' };
 }
 
-// First sentence of a paragraph — used to give each tile a short, concrete
-// teaser drawn from its chapter's lead card (the symbols already live in the
-// full reading, so the opening cards carry meaning, not notation).
-function firstSentence(text?: string): string {
-  if (!text) return '';
-  const t = text.trim();
-  const m = t.match(/^[\s\S]*?[.!?](?=\s|$)/);
-  return (m ? m[0] : t).trim();
+// renderText pairs its inline markers (**bold**, _italic_), so a cut that lands
+// between a pair leaves the survivor to render as a literal * or _. Drop the
+// orphaned opener, plus any punctuation left dangling by the cut.
+function trimDanglingMarkers(s: string): string {
+  let out = s;
+  if ((out.match(/\*\*/g) || []).length % 2) out = out.slice(0, out.lastIndexOf('**'));
+  if ((out.match(/_/g) || []).length % 2) out = out.slice(0, out.lastIndexOf('_'));
+  return out.replace(/[\s,;:·—-]+$/u, '');
+}
+
+// Split into whole sentences, remainder included. Decimals and degree tokens
+// survive: the boundary requires whitespace/end after the stop.
+function sentences(text: string): string[] {
+  return text.match(/[\s\S]*?[.!?](?=\s|$)|[\s\S]+/g) || [text];
+}
+
+// Teaser for a resonance tile. The model writes wildly uneven lead cards — one
+// chapter opens on a 40-word sentence, the next on six words — so taking a flat
+// first sentence left the tiles visually lopsided. Fill toward a common band
+// instead: add whole sentences while they fit, and only fall back to a hard cut
+// (marked with an ellipsis, so the reader knows it continues) when even the
+// first sentence overruns on its own.
+const TEASER_TARGET = 150;
+const TEASER_MAX = 200;
+function tileTeaser(text?: string): string {
+  const t = (text || '').trim();
+  if (!t) return '';
+  let out = '';
+  for (const s of sentences(t)) {
+    const next = (out ? out + ' ' : '') + s.trim();
+    if (out && next.length > TEASER_MAX) break;
+    out = next;
+    if (out.length >= TEASER_TARGET) break;
+  }
+  if (out.length <= TEASER_MAX) return out;
+  const slice = out.slice(0, TEASER_MAX);
+  const sp = slice.lastIndexOf(' ');
+  return trimDanglingMarkers(sp > TEASER_TARGET * 0.6 ? out.slice(0, sp) : slice) + '…';
 }
 
 // Keep the crossReferences hover popup short regardless of how long the model
@@ -1010,7 +1183,7 @@ function capPopup(s: string): string {
   const punct = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('? '), slice.lastIndexOf('! '));
   if (punct > 120) return s.slice(0, punct + 1).trim();
   const sp = slice.lastIndexOf(' ');
-  return (sp > 120 ? s.slice(0, sp) : slice).trim() + '…';
+  return trimDanglingMarkers((sp > 120 ? s.slice(0, sp) : slice).trim()) + '…';
 }
 
 // The single strongest resonance dimension, rendered large with its insight.
@@ -1049,7 +1222,7 @@ function ResonanceTile({ catKey, label, score, caption, detail, language, onJump
 }) {
   const el = CAT_TO_ELEMENT[catKey] || 'var(--gold)';
   const { prose } = splitCaption(caption);
-  const cont = firstSentence(detail);
+  const cont = tileTeaser(detail);
   return (
     <div
       className="rzn-tile"

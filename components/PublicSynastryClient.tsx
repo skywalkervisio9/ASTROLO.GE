@@ -22,7 +22,7 @@ type Props = {
 
 export default function PublicSynastryClient({ slug, viewerIsParticipant }: Props) {
   const [language, setLanguage] = useState<Language>('ka');
-  const [symbolMode, setSymbolMode] = useState(true);
+  const [symbolMode, setSymbolMode] = useState(false); // false = names; the toggle starts OFF
   const [reading, setReading] = useState<SynastryReadingData | null>(null);
   const [chartA, setChartA] = useState<ChartPersonData | null>(null);
   const [chartB, setChartB] = useState<ChartPersonData | null>(null);

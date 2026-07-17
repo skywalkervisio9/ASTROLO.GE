@@ -433,9 +433,11 @@ export async function POST(req: NextRequest) {
 
     // ── INVITED PATH ──
     // Only do the synchronous work the invitee strictly needs before landing on
-    // /r/[slug]?synastry=1: a share_slug + accepted connection. Call 1 and the
-    // synastry AI run are deferred — the synastry view's cosmic loader will
-    // await them via /api/synastry/start (which handles Call 1 internally).
+    // /r/[slug]?invited=1: a share_slug + accepted connection. Call 1 and the
+    // synastry AI run are deferred — they finish in the background while the
+    // invitee reads their natal chart, and the sidebar's synastry slot tracks
+    // them (it also still resolves via /api/synastry/start if they open the
+    // synastry view early, which handles Call 1 internally).
     const adminInvite = createAdminSupabase();
     const { data: nrInvite } = await adminInvite
       .from('natal_readings')
