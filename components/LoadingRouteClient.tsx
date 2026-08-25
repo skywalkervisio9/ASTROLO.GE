@@ -92,22 +92,63 @@ export default function LoadingRouteClient() {
     // (possibly stalled) loop to resume.
     let navigated = false;
 
-    // Explicit (re)generation modes fire the AI run themselves, but the server
-    // takes a moment to flip generation_started_at — until it does, the status
-    // endpoint still reports 'not_started'. Without a grace window, the very
-    // first poll right after firing would surface the "hasn't been generated
-    // yet" prompt even though a run is on its way. Tolerate a few not_started
-    // polls in those modes so the prompt only appears when the trigger genuinely
-    // never landed (i.e. after a real attempt failed to start), not immediately.
+    // A status of 'not_started' is only ever returned for a PREMIUM user whose
+    // paid full reading is missing and whose run either never stamped
+    // generation_started_at or went stale (see computeOnboardingStatus). That is
+    // never a terminal state we should dead-end on: the correct response is to
+    // fire the idempotent generate-full run and keep watching. Older builds
+    // surfaced the "hasn't been generated yet" prompt on the very first
+    // not_started read, so it flashed spuriously on:
+    //   • a fresh load / reload before the server wrote generation_started_at,
+    //   • mobile lock→unlock (a poll-count grace burned through on visibility
+    //     churn without real time passing),
+    //   • a reopened tab (a manual dead-end where a re-fire would have healed it).
+    // Fix: auto-fire generate-full ONCE, tolerate a wall-clock grace, and only
+    // surface the manual prompt if generation still never starts after it — the
+    // one case where the trigger genuinely keeps failing.
     const topMode = new URLSearchParams(window.location.search).get('mode');
+    // Modes whose main flow fires the AI run itself — do NOT also auto-fire from
+    // here (that could double-fire generate-full before the first run stamps
+    // generation_started_at). We still apply the wall-clock grace for them.
     const didTriggerGeneration =
       topMode === 'generate-full' || topMode === 'regenerate-full' || topMode === 'regenerate-call1';
-    const NOT_STARTED_GRACE_ATTEMPTS = 6; // 6 × 5s = 30s
-    let notStartedPolls = 0;
-    /** Returns true if the caller should stop (prompt shown); false to keep waiting. */
+    const NOT_STARTED_GRACE_MS = 45_000; // wall-clock, robust to timer throttling
+    let notStartedSince = 0;   // first consecutive not_started observation (epoch ms)
+    let autoFiredFull = false; // generate-full fired at most once per page load
+
+    const fireGenerateFullOnce = () => {
+      if (autoFiredFull) return;
+      autoFiredFull = true;
+      // keepalive so the request survives tab teardown; not awaited — the server
+      // run writes to the DB regardless of HTTP timing and the poll loop detects it.
+      withCsrfHeaders({ method: 'POST', credentials: 'include', keepalive: true })
+        .then((init) => {
+          fetch('/api/reading/generate-full', init).catch((err) =>
+            console.error('[loading] auto-recover generate-full network error (expected on long runs):', err)
+          );
+        })
+        .catch(() => { /* csrf/header failure — the poll loop will retry via grace */ });
+    };
+
+    // Reset the grace clock whenever we see forward progress (queued/generating/
+    // complete). The grace then measures CONSECUTIVE not_started time only, so a
+    // run that starts, dies, and is re-fired each gets a fresh window instead of
+    // inheriting a stale deadline.
+    const noteProgress = () => { notStartedSince = 0; };
+
+    /**
+     * Called on every 'not_started' observation. Auto-fires the idempotent
+     * generate-full (unless the caller's mode already fired it), then reports
+     * whether the manual prompt should now be shown.
+     * @returns true if the caller should stop (prompt shown); false to keep waiting.
+     */
     const reportNotStarted = (): boolean => {
-      notStartedPolls += 1;
-      if (didTriggerGeneration && notStartedPolls < NOT_STARTED_GRACE_ATTEMPTS) return false;
+      const now = Date.now();
+      if (notStartedSince === 0) notStartedSince = now;
+      // In trigger modes the main flow already fired the run; here (plain load,
+      // resume, reopened tab, or a stale/dead run) nothing did, so recover.
+      if (!didTriggerGeneration) fireGenerateFullOnce();
+      if (now - notStartedSince < NOT_STARTED_GRACE_MS) return false;
       setNotStarted(true);
       return true;
     };
@@ -125,6 +166,10 @@ export default function LoadingRouteClient() {
           return;
         }
         if (status.status === 'not_started') { reportNotStarted(); return; }
+        // Any non-not_started status is forward progress — reset the grace clock
+        // so a subsequent stale/dead state gets a fresh window rather than
+        // tripping instantly on a deadline set before the tab was suspended.
+        noteProgress();
         if (status.status !== 'complete') return;
         const invTab = new URLSearchParams(window.location.search).get('invite');
         // complete but slug not written yet (e.g. ensureShareSlug lag) — never finishLoading on invite flow
@@ -203,6 +248,11 @@ export default function LoadingRouteClient() {
       // Early exit: already complete. Skipped for fake-full — that mode is
       // explicitly a re-generation and must run regardless of existing rows.
       let serverGenerating = false;
+      // Set when the early check finds a premium reading that was never started
+      // (or went stale) on a non-trigger load: we auto-fire generate-full and
+      // switch to watch-only so the poll loop below watches our recovery run
+      // instead of falling through to chart/generate.
+      let recoverToFull = false;
       if (!isFakeFull) {
         const earlyCheck = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (earlyCheck.ok) {
@@ -226,12 +276,18 @@ export default function LoadingRouteClient() {
           // the watch-only decision from the server state instead of the URL
           // makes every re-entry converge on: wait for the in-flight run, then
           // navigate to the reading.
-          // Premium user, no reading, nothing in flight. Unless we arrived here
-          // explicitly to (re)generate, don't watch-only (spins forever) or fall
-          // through to chart/generate — surface a Generate button instead.
+          // Premium user, no reading, nothing in flight (a plain reload before
+          // generation_started_at was written, a post-payment/cross-device
+          // landing, a reopened tab, or a stale/dead run). Instead of dead-ending
+          // on the manual prompt — which flashed spuriously in exactly these
+          // transient cases — auto-fire the idempotent full run and watch it. The
+          // prompt only appears later if generation still never starts after the
+          // wall-clock grace (reportNotStarted in the poll loop below). Trigger
+          // modes already fire the run themselves, so they skip this.
           if (earlyStatus.status === 'not_started' && !isGenerateFull && !isRegenerate && !isFakeFull) {
-            setNotStarted(true);
-            return;
+            fireGenerateFullOnce();
+            recoverToFull = true;
+            // fall through to the polling loop (watch-only) — do NOT return.
           }
           if (earlyStatus.status === 'generating') {
             serverGenerating = true;
@@ -252,7 +308,7 @@ export default function LoadingRouteClient() {
       // Explicit (re)generation modes are excluded — they are deliberate user
       // actions (post-payment full reading, DOB-correction regen) that must run
       // even when a partial row already exists.
-      const watchOnly = isResume || (serverGenerating && !isGenerateFull && !isRegenerate);
+      const watchOnly = isResume || recoverToFull || (serverGenerating && !isGenerateFull && !isRegenerate);
 
       // ── DEV CALL1 PREMIUM: real Call 1 + cloned Call 2 (no Call 2 spend) ──
       // Single round-trip — await the response and redirect with the returned
@@ -478,13 +534,18 @@ export default function LoadingRouteClient() {
           return;
         }
 
-        // Nothing is generating (e.g. the trigger request never reached the
-        // server). Stop polling and offer an explicit Generate action rather
-        // than looping to the timeout cap.
+        // 'not_started' ⟹ premium reading that needs (re)generating. reportNotStarted
+        // auto-fires the idempotent full run once and tolerates a wall-clock grace,
+        // surfacing the manual prompt only if generation still never starts — so it
+        // no longer flashes on fresh loads, mobile lock/unlock, or a reopened tab.
         if (status.status === 'not_started') {
           if (reportNotStarted()) return;
           continue;
         }
+
+        // Forward progress (queued/generating) — reset the grace clock so the next
+        // not_started (if the run dies and is re-fired) gets a fresh window.
+        noteProgress();
 
         if (status.status === 'complete') {
           if (navigated) return;

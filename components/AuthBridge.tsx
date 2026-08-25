@@ -595,8 +595,10 @@ export default function AuthBridge() {
               return;
             }
             // Premium with no reading and nothing generating (manual tier change
-            // or a dropped generate-full). Plain /loading shows a Generate button
-            // — resume would watch-only a run that isn't happening.
+            // or a dropped generate-full). Plain /loading auto-fires the idempotent
+            // generate-full and watches it (LoadingRouteClient early-check), only
+            // surfacing the manual Generate prompt if the run still never starts —
+            // resume would instead watch-only a run that isn't happening.
             if (s.status === 'not_started') {
               console.log("[AB] onAuthSuccess: reading not generated yet, redirecting to /loading");
               const inviteNs = new URLSearchParams(window.location.search).get('invite');
