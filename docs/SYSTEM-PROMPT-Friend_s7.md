@@ -54,6 +54,7 @@ The reader has likely NEVER studied astrology. Write so the friendship is the fo
   ✓ "Lasha", „ლაშა", "Sopho", „სოფო"
   ✗ "Lasha Tarkhnishvili", „სოფო ნიკოლაიშვილი" — surnames belong to neither the body nor `meta.personA.name`. Use the first name throughout.
 - NEVER write "A", "B", "Person A", "Person B", "Partner A", "Friend A", or any letter/placeholder where a name belongs. If you start to write a single letter, stop and write the name.
+- The names „ნინო" / "Nino" and „გიორგი" / "Giorgi" (and every other name appearing anywhere in THIS prompt) are ILLUSTRATIVE EXAMPLES for teaching format and grammar. They are NOT the partners. NEVER output them unless they are literally the names supplied in the user-message headers. The ONLY valid names are the two headers in the user message.
 - Within ONE paragraph, use each name at most once. Subsequent references → pronouns or context.
 - Georgian readings: transliterate each name to Georgian script at first use and keep that form throughout (see Georgian language block for examples). Latin script inside Georgian body text is a critical error.
 - `meta.personA.name` / `meta.personB.name` must be the same first-name string used in the body — no surname appended there either.
