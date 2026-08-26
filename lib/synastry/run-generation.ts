@@ -46,6 +46,48 @@ function deepNameNormalize(value: unknown, from: string, to: string): unknown {
   return deepReplace(value, buildNameBoundaryRegExp(from), to);
 }
 
+// Running-example names hard-baked into docs/SYSTEM-PROMPT-*.md. Throughout the
+// prompt's illustrative examples (and the Georgian genitive grammar lessons)
+// Nino/ნინო plays personA and Giorgi/გიორგი plays personB. The model
+// occasionally copies one of these straight into the prose while still writing
+// the *correct* real name into meta.personA.name — so the generatedA===personAName
+// guard in enforcePersonNames skips, and the leak survives (observed: a whole KA
+// reading calling personA „ნინო" while the EN reading was clean). Each group
+// lists both scripts, since KA and EN are separate model calls AND a partner
+// genuinely named ნინო has their EN reading legitimately say "Nino" (and vice
+// versa) — so a real name in either script must protect the whole group.
+const EXAMPLE_NAME_GROUPS: { forms: string[]; person: 'A' | 'B' }[] = [
+  { forms: ['ნინო', 'Nino'], person: 'A' },
+  { forms: ['გიორგი', 'Giorgi'], person: 'B' },
+];
+
+// A real name safe to splice into prose. Rejects the email-as-full_name test
+// rows (injecting "user@gmail.com" ×140 into the reading is worse than the leak)
+// and absurdly long handles.
+function isUsableDisplayName(name: string): boolean {
+  const n = name.trim();
+  return n.length > 0 && n.length <= 40 && !n.includes('@');
+}
+
+// Scrub leaked system-prompt example names, mapping each to the person it stands
+// for. Skips a group entirely when a partner genuinely bears that name (in
+// either script), and never injects a non-name.
+export function scrubPromptExampleNames(
+  reading: unknown,
+  personAName: string,
+  personBName: string,
+): unknown {
+  const realLower = new Set([personAName.toLowerCase(), personBName.toLowerCase()]);
+  let next = reading;
+  for (const { forms, person } of EXAMPLE_NAME_GROUPS) {
+    if (forms.some((f) => realLower.has(f.toLowerCase()))) continue;
+    const to = person === 'A' ? personAName : personBName;
+    if (!isUsableDisplayName(to)) continue;
+    for (const form of forms) next = deepNameNormalize(next, form, to);
+  }
+  return next;
+}
+
 function enforcePersonNames(
   reading: Record<string, unknown>,
   personAName: string,
@@ -64,6 +106,10 @@ function enforcePersonNames(
   if (generatedB && generatedB !== personBName) {
     next = deepNameNormalize(next, generatedB, personBName) as Record<string, unknown>;
   }
+
+  // Second safety net: catch example names the model leaked into the prose even
+  // when meta.personA.name was written correctly (see PROMPT_EXAMPLE_NAMES).
+  next = scrubPromptExampleNames(next, personAName, personBName) as Record<string, unknown>;
 
   const m = (next.meta as Record<string, unknown> | undefined) ?? {};
   const pa = (m.personA as Record<string, unknown> | undefined) ?? {};
