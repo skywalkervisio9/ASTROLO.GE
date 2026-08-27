@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
           compatibility_score: scores.compatibility_score,
           category_scores: scores.category_scores,
           share_slug: generateShareSlug(),
-          prompt_version: relationshipType === 'couple' ? 'SYSTEM-PROMPT-Couple_s7' : 'SYSTEM-PROMPT-Friend_s7',
+          prompt_version: relationshipType === 'couple' ? 'SYSTEM-PROMPT-Couple_s8' : 'SYSTEM-PROMPT-Friend_s8',
           model_call2: result.meta.modelCall2,
           tokens_call2_ka: result.meta.tokensCall2Ka,
           tokens_call2_en: result.meta.tokensCall2En,
