@@ -98,6 +98,23 @@ export async function POST() {
         ? (existingReading!.generation_started_at as string)
         : new Date().toISOString();
 
+    // Mark the run underway BEFORE the (slow) inline Call 1 so
+    // /api/onboarding/status reports 'generating' from the very first poll.
+    // Previously generation_started_at was only stamped AFTER Call 1 finished,
+    // leaving a Call-1-long window (often >45s on a fresh premium run where
+    // analysis_en is missing) where status still returned 'not_started'. That
+    // tripped /loading's not_started auto-recover grace and flashed
+    // "your reading hasn't been generated yet" mid-generation. Matches the
+    // stamp-before-AI-call order already used by /api/reading/generate-call1.
+    await admin
+      .from('natal_readings')
+      .upsert({
+        user_id: authUser.id,
+        generation_status: 'generating',
+        generation_started_at: startedAtIso,
+        generation_finished_at: null,
+      }, { onConflict: 'user_id' });
+
     // Call 1 (chart analysis) is the prerequisite for Call 2. Normally the
     // /loading flow runs it first, but this endpoint is self-contained: if the
     // analysis is missing it runs Call 1 here. That lets the client fire a
@@ -118,8 +135,9 @@ export async function POST() {
       analysis = call1.analysis;
       call1Model = call1.model;
       call1Tokens = call1.tokens;
-      // Persist Call 1 output + stamp the launch time (marks the row as underway
-      // so /api/onboarding/status reports 'generating', not 'not_started').
+      // Persist Call 1 output. The row was already stamped 'generating' with
+      // generation_started_at above (before this call), so status reporting does
+      // not depend on this write landing.
       await admin
         .from('natal_readings')
         .upsert({
@@ -127,23 +145,8 @@ export async function POST() {
           analysis_en: analysis,
           model_call1: call1Model,
           tokens_call1: call1Tokens,
-          generation_started_at: startedAtIso,
         }, { onConflict: 'user_id' });
     }
-
-    // Tier-2: mark generation underway. A hard kill (300s timeout) then leaves
-    // a detectable 'generating' row for the recovery sweep, and the status
-    // endpoint can tell in-progress apart from failed.
-    await admin
-      .from('natal_readings')
-      .update({
-        generation_status: 'generating',
-        // Call 1 launch time for fresh runs (bar spans the whole run); reset to
-        // now when re-firing over a stale/hard-killed row. See startedAtIso above.
-        generation_started_at: startedAtIso,
-        generation_finished_at: null,
-      })
-      .eq('user_id', authUser.id);
 
     try {
       // Call 2: KA + EN in parallel
