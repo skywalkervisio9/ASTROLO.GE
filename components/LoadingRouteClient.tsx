@@ -229,12 +229,13 @@ export default function LoadingRouteClient() {
         // 20s free (Astrologer API only), 60s fake-full (Call 1 only),
         // 30s invite (Astrologer API only — Call 1 + synastry finish in the
         //              background while the invitee reads their natal chart),
-        // 6min generate-full (full AI reading).
+        // ~6.75min generate-full (full AI reading).
         const duration = isFree ? 20000
           : isFakeFull ? 60000
           : hasInvite && !isResume ? 30000
           : isRegenerateCall1 ? 120000   // DOB correction, invited tier — Call 1 only
-          : 360000;                      // generate-full + resume (remaining time unknown)
+          : 405000;                      // generate-full + resume — 6.75min, the measured
+                                         // avg full-reading generation time (remaining time unknown)
         if (fn) fn(userLang, duration);
       });
 
