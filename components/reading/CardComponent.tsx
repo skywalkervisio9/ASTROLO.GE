@@ -34,7 +34,7 @@ export default function CardComponent({ card, lang }: Props) {
             {card.crossReferences!.map((r, i) => (
               <React.Fragment key={i}>
                 {i > 0 && ' · '}
-                {renderText(r)}
+                {renderText(r, { keepOrb: true })}
               </React.Fragment>
             ))}
           </span>

@@ -1424,7 +1424,7 @@ function SynastryCardComponent({
       {/* Label badge — uses .b (matches natal). No leading aspect glyph. */}
       <div className={`b${hasCrossRefs ? ' has-popup' : ''}`}>
         {renderText(card.label)}
-        {hasCrossRefs && <span className="label-popup">{crossRefPopup ? renderText(crossRefPopup) : null}</span>}
+        {hasCrossRefs && <span className="label-popup">{crossRefPopup ? renderText(crossRefPopup, { keepOrb: true }) : null}</span>}
       </div>
 
       {/* Title — .c h3 styled automatically */}

@@ -422,9 +422,14 @@ const ORB_PAREN_RE = /\s*\((?=[^)]*[°º])(?=[^)]*(?:ორბ|orb))[^)]*\)/giu;
  * Render rich text with bold, italic, astrological symbols, chart points, and retrograde markers.
  * Call setRenderLang() before rendering to set tooltip language.
  */
-export function renderText(text: string): React.ReactNode {
+export function renderText(text: string, opts?: { keepOrb?: boolean }): React.ReactNode {
   if (!text) return null;
-  text = normalizeRetrograde(normalizeHouseNotation(text)).replace(ORB_PAREN_RE, '');
+  // i15: orbs are banned in body prose but allowed in the crossReferences
+  // nerd-layer. Strip by default (body, hints, expanded); crossReferences render
+  // passes { keepOrb: true } to preserve „(2°06' orb)". keepOrb propagates into
+  // the recursive bold/italic renders below so an orb inside **bold** survives too.
+  text = normalizeRetrograde(normalizeHouseNotation(text));
+  if (!opts?.keepOrb) text = text.replace(ORB_PAREN_RE, '');
 
   const ptTips = _renderLang === 'ka' ? PT_TIPS_KA : PT_TIPS_EN;
   const retroTip = _renderLang === 'ka'
@@ -447,12 +452,12 @@ export function renderText(text: string): React.ReactNode {
 
     if (m[1] !== undefined) {
       const savedIdx = TEXT_TOKEN_RE.lastIndex;
-      const inner = renderText(m[1]);
+      const inner = renderText(m[1], opts);
       TEXT_TOKEN_RE.lastIndex = savedIdx;
       nodes.push(<strong key={k++}>{inner}</strong>);
     } else if (m[2] !== undefined) {
       const savedIdx = TEXT_TOKEN_RE.lastIndex;
-      const inner = renderText(m[2]);
+      const inner = renderText(m[2], opts);
       TEXT_TOKEN_RE.lastIndex = savedIdx;
       nodes.push(<em key={k++} className="hl">{inner}</em>);
     } else if (m[3] !== undefined) {

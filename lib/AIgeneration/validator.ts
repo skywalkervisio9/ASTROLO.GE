@@ -262,20 +262,15 @@ function normalizeRetrograde(p: string): string {
   return p.replace(/([☉☽☿♀♂♃♄♅♆♇⚸☊☋⚷♈♉♊♋♌♍♎♏♐♑♒♓])(\s*)R(?![\wა-ჰ])/gu, '$1$2℞');
 }
 
-// Numeric orb tucked in a parenthetical, e.g. „(2°06' ორბით)" / „(orb 2°06')" /
-// „(0.62° ორბი)". The i14 prompt bans these in prose (aspect strength is conveyed
-// in words; the numeric orb already renders in the aspect table) but the AI still
-// slips them in, and older cached readings carry them — so strip at generation
-// AND at display time (see ORB_PAREN_RE use in renderText.tsx / app-runtime.js).
-// Both lookaheads must hold — a degree AND the orb keyword — so a plain degree
-// parenthetical like „(11°25')" is left untouched.
-const ORB_PAREN_RE = /\s*\((?=[^)]*[°º])(?=[^)]*(?:ორბ|orb))[^)]*\)/giu;
+// Orb parentheticals „(2°06' ორბით)" / „(orb 2°06')" are no longer stripped at
+// generation — the raw model output is stored as-is. Orb visibility is governed
+// entirely at display time in renderText.tsx (stripped in body prose, kept in the
+// crossReferences nerd-layer via { keepOrb }).
 
 /** Replace verbose English terms with standard abbreviations (i12) */
 function sanitizeTerminology(p: string): string {
   if (typeof p !== 'string') return p;
   let t = p
-    .replace(ORB_PAREN_RE, '')
     .replace(/\bAscendant\b/gi, 'ASC')
     .replace(/\bDescendant\b/gi, 'DSC')
     .replace(/\bMidheaven\b/gi, 'MC')
