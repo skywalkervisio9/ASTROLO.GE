@@ -454,6 +454,10 @@ body.zodiac-names .b .zm-name,body.zodiac-names .card-label .zm-name,body.zodiac
    silver headline + soft-white body via .tt-silver. */
 .retro{color:var(--silver)}
 .retro.tip::after{color:var(--silver)}
+/* In name mode the planet renders as a spelled word (☽→„მთვარე"), so the ℞
+   marker glues to the end („მთვარე℞", read as a stray suffix). Nudge it off the
+   word. Glyph mode („♃℞") stays tight — the rule is name-mode only. */
+body.zodiac-names .retro{margin-left:.14em}
 /* Inline degree token — subtle, tabular tint so numerals/°/′ read as data. */
 .deg{font-family:'Outfit',sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.01em;color:var(--silver);opacity:.85}
 /* Element pills: single-line tooltip tinted to element color */
