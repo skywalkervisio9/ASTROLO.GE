@@ -340,6 +340,8 @@ ANGLES — STRICT FORMATTING (MANDATORY):
 
 BORROWED TERMS: Acceptable in parentheses: „flow state"
 
+DIGNITY — NEVER LABELED: never append an English dignity term in parentheses (Domicile / Exaltation / Detriment / Fall). Say what it FEELS like instead: ✗ „საკუთარ ნიშანში (Domicile)" → ✓ „საკუთარ ნიშანშია და ბუნებრივ სიმტკიცეს იძენს".
+
 NEVER TRANSLITERATE: ✗ „ტაიტ" → ✓ „ზუსტი" | ✗ „ესკაპიზმი" → ✓ „გაქცევა"
 
 GEORGIAN WRITING: Write all Georgian natively. Prefer simple, common verb forms over complex constructions. If a sentence feels like translated English, rewrite from scratch.
