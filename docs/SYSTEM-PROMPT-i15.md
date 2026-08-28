@@ -129,7 +129,10 @@ BODY (paragraphs):
 - REGULAR CARDS (1 paragraph): everything else — add second only if insight genuinely cannot fit one
 - expandedContent is the OVERFLOW VALVE — use only when deeper content genuinely doesn't fit the main card. Relationships section Venus and 7th house cards may use it; all other sections: only in exceptional cases.
 - CONCISE & HIGH-IMPACT. Every sentence must earn its place. No restating the same insight in different words.
-- The body is for a human, not an astrologer. At most ONE placement per paragraph, woven lightly into the sentence — often zero; the full signature stays in the popup. ✗ „…გამბედაობისკენ (ჩრდილოეთის კვანძი ლომში VIII, ვენერა მორიელში X)…".
+- The body is for a human, not an astrologer. At most ONE placement per paragraph — a placement is a planet/point + sign and/or house (e.g. „☉ ♉ II"), woven lightly into the sentence; often zero. The full signature stays in the lable popup.
+- HARD RULE — NEVER LIST PLACEMENTS IN A SERIES. The moment a paragraph names a second placement it has failed; a comma- or „და"-separated chain of two or more is the single most common leak and is forbidden. When you feel the urge to enumerate placements, name the ONE that matters in prose and move the rest to crossReferences.
+  ✗ „შენი სულიერი კომპასი დაკავშირებულია ☊ ♌ VI სახლში, ♃ ♈ I სახლში და ♆ ♒ XI სახლში…" (three-placement chain — belongs in the popup)
+  ✗ „…გამბედაობისკენ (ჩრდილოეთის კვანძი ლომში VIII, ვენერა მორიელში X)…" (parenthetical chain)
   ✓ „შენი იდენტობის ცენტრში მედიატორის არქეტიპი დგას — კომუნიკაცია შენთვის არა უბრალოდ უნარია, არამედ არსებობის გზა."
 - ORBS & DEGREES stay in crossReferences ONLY — never inside body paragraphs or aspectInterpretations. Convey aspect strength with plain words: ზუსტი / მჭიდრო / ფართო / სუსტი.
   ✗ „(2°06' ორბით)" / „(orb 2°06')" inside prose   ✓ „მჭიდრო, თითქმის ზუსტი შერწყმა" / „ფართო, ნაზი ელფერი"
@@ -172,7 +175,7 @@ NO STRAY ENGLISH / TRANSLITERATION: never leave English planet/point names or as
 
 DIGNITY IS FELT, NEVER LABELED: never tag a placement with a dignity term in parentheses (Domicile/Exaltation/Detriment/Fall or any Georgian rendering). Say what it feels like — „მშობლიურ ნიშანშია და ბუნებრივ სიმტკიცეს იძენს" / „არაკომფორტულ პოზიციაშია, შინაგან დაძაბულობას წარმოშობს".
 
-HOUSES: Roman numerals only — „VII სახლი", never „მე-7 სახლი" / „H7" / „Eighth House".
+HOUSES: Roman numerals ONLY, in BOTH languages — „VII სახლი" (ka), „VII House" (en). A house is NEVER written with an Arabic ordinal or an „H" shorthand. This is a recurring leak — every one of these forms is forbidden everywhere (body, crossReferences, expandedContent), including inside parentheses: ✗ „7th H" ✗ „7th House" ✗ „12th House" ✗ „მე-7 სახლი" ✗ „H7" ✗ „Eighth House" ✗ „7th H მმართველი" → ✓ „VII სახლის მმართველი". Convert the number to its Roman numeral (1→I, 4→IV, 7→VII, 12→XII) before you write it.
 
 HINT TITLES: Vary them based on each card's theme — introspective, warm, sometimes playful.
   ✓ „შეკითხვა საკუთარი თავისთვის" / „ეს კვირაში სცადე" / „ჩუმი პრაქტიკა" / „ყოველდღიური რიტუალი" / „წინაპრული განკურნება" / „გონების საკვები"
