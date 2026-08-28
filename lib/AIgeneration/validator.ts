@@ -227,12 +227,6 @@ function sanitizePlanetTerminology(p: string): string {
   );
   // 1. Inflected planet words → canonical symbol(-suffix).
   t = t.replace(KA_PLANET_WORD_RE, (w) => KA_PLANET_WORD_MAP.get(w) ?? w);
-  // 1.5. Node-axis de-dup: the model sometimes writes the bare adjective
-  //      „ჩრდილოეთი(ს)" / „სამხრეთი(ს)" right before the node glyph (without
-  //      „კვანძი", so step 1 misses it). In name mode ☊ already expands to the
-  //      full „ჩრდილოეთის კვანძი", yielding the doubled „ჩრდილოეთი ჩრდილოეთის
-  //      კვანძი". Drop the redundant adjective when it directly precedes ☊/☋.
-  t = t.replace(/(?<![ა-ჰ])(?:ჩრდილოეთის|ჩრდილოეთი|სამხრეთის|სამხრეთი)\s+(?=[☊☋])/g, '');
   // 2. Collapse a symbol immediately followed by the same symbol — the old
   //    "☉ მზე" pairing becomes "☉ ☉" after step 1. Keep the second token's
   //    suffix if it has one (the word carried the case), else keep the first.

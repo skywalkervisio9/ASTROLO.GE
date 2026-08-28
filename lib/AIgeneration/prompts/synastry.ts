@@ -1,7 +1,7 @@
 // ============================================================
-// Synastry prompts — Couple + Friend variants (single call, no Call 1)
-// Full prompt text lives in docs/SYSTEM-PROMPT-Couple_s8.md
-// and docs/SYSTEM-PROMPT-Friend_s8.md
+// Synastry prompts — Couple + Friend variants (s5: no Call 1)
+// Full prompt text lives in docs/SYSTEM-PROMPT-Couple_s5.md
+// and docs/SYSTEM-PROMPT-Friend_s5.md
 // ============================================================
 
 import { readFileSync } from 'fs';
@@ -40,8 +40,8 @@ export function getSynastryPrompt(
   language: Language
 ): string {
   const filename = type === 'couple'
-    ? 'SYSTEM-PROMPT-Couple_s8.md'
-    : 'SYSTEM-PROMPT-Friend_s8.md';
+    ? 'SYSTEM-PROMPT-Couple_s7.md'
+    : 'SYSTEM-PROMPT-Friend_s7.md';
 
   const spec = loadPromptFile(filename);
 
