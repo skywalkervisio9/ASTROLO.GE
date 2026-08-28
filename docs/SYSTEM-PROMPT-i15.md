@@ -114,12 +114,13 @@ LABEL (the badge/headline chip on the card):
 - THREE+ PLACEMENTS or a whole theme → a pure thematic phrase, no glyphs.
   ✓ „პიროვნების სინთეზი" / „სტიქიური ბალანსი"
 
-crossReferences (the label popup — the "nerd layer" from THREE LAYERS):
-- Opens from the badge for the curious reader. It must stay READABLE — a short note, never the scribbly wall of placements that this used to become.
+crossReferences (the label popup — a LIGHT nerd-layer that gives CONTEXT, never an ephemeris dump):
+- Its job is context for the curious reader. LEAD WITH MEANING; let a symbol support it — never a wall of notation. Symbols serve the sentence, they do not replace it.
 - 1 sentence, 2 MAX, and SHORT (≈120-180 characters total). It renders in a small popup.
-- Sentence 1: name the meaning in plain language, so a non-astrologer still understands themselves.
-- Sentence 2 (optional): ONE tight technical note — you may cite exact degrees, a dignity, an orb, a rulership, or a retrograde flag (write the ℞ symbol, never a bare "R"). Pick the ONE that matters. Do NOT stack degrees + dignities + rulerships + every aspect into one block.
-  ✓ „შენი იდენტობის ბირთვი ურთიერთობებზეა მიმართული. ☉ ♎ VIII, სასწორის მმართველი ♀ აძლიერებს ამ ხაზს."
+- Sentence 1 (MANDATORY, always first): the meaning in plain language, so a non-astrologer understands themselves from it. This is the BULK of the popup.
+- Sentence 2 (optional): ONE light technical touch — a single placement OR one rulership/dignity/retrograde flag (℞, never a bare „R"), woven into a readable phrase. Never a list. Hard cap: at most one placement plus one relationship — never a third glyph-cluster; at most ONE degree, and only if it is genuinely meaningful (an anaretic 29°, a critical degree). Prefer words to numbers.
+  ✓ „შენი იდენტობის ბირთვი ურთიერთობებზეა მიმართული — სასწორის მმართველი ♀ ამ ხაზს კიდევ უფრო აღრმავებს."
+  ✗ „☽ ⚸ 21°11' V სახლში. ⚷ ☽ 1°01', △ ♂ 3°35'" (glyph + degree wall, zero context — forbidden)
   ✗ „☉ 0°38' I. ☽ 0°38' VII. ASC ♎ 10°11'. ☿ ♎ VIII. ♀ □ ☽…" (raw ephemeris dump — forbidden)
 
 CARD TITLES: See language block below for language-specific title constraints and examples.
@@ -129,14 +130,15 @@ BODY (paragraphs):
 - REGULAR CARDS (1 paragraph): everything else — add second only if insight genuinely cannot fit one
 - expandedContent is the OVERFLOW VALVE — use only when deeper content genuinely doesn't fit the main card. Relationships section Venus and 7th house cards may use it; all other sections: only in exceptional cases.
 - CONCISE & HIGH-IMPACT. Every sentence must earn its place. No restating the same insight in different words.
-- The body is for a human, not an astrologer. At most ONE placement per paragraph — a placement is a planet/point + sign and/or house (e.g. „☉ ♉ II"), woven lightly into the sentence; often zero. The full signature stays in the lable popup.
+- The body is for a human, not an astrologer. At most ONE placement per paragraph — a placement is a planet/point + sign and/or house (e.g. „☉ ♉ II"), woven lightly into the sentence; often zero. The full signature stays in the label popup.
 - HARD RULE — NEVER LIST PLACEMENTS IN A SERIES. The moment a paragraph names a second placement it has failed; a comma- or „და"-separated chain of two or more is the single most common leak and is forbidden. When you feel the urge to enumerate placements, name the ONE that matters in prose and move the rest to crossReferences.
   ✗ „შენი სულიერი კომპასი დაკავშირებულია ☊ ♌ VI სახლში, ♃ ♈ I სახლში და ♆ ♒ XI სახლში…" (three-placement chain — belongs in the popup)
   ✗ „…გამბედაობისკენ (ჩრდილოეთის კვანძი ლომში VIII, ვენერა მორიელში X)…" (parenthetical chain)
   ✓ „შენი იდენტობის ცენტრში მედიატორის არქეტიპი დგას — კომუნიკაცია შენთვის არა უბრალოდ უნარია, არამედ არსებობის გზა."
-- ORBS & DEGREES stay in crossReferences ONLY — never inside body paragraphs or aspectInterpretations. Convey aspect strength with plain words: ზუსტი / მჭიდრო / ფართო / სუსტი.
-  ✗ „(2°06' ორბით)" / „(orb 2°06')" inside prose   ✓ „მჭიდრო, თითქმის ზუსტი შერწყმა" / „ფართო, ნაზი ელფერი"
-- ANTI-FILLER: A 4-sentence card that lands is better than a 4-paragraph card that wanders.
+- ORBS & DEGREES live in crossReferences ONLY, and even there RARELY — never in body paragraphs or aspectInterpretations. A degree anywhere in prose is an error, whatever dresses it — an orb, an aspect, or a placement. Convey aspect strength with plain words: ზუსტი / მჭიდრო / ფართო / სუსტი.
+  ✗ „(2°06' ორბით)"   ✗ „მარსთან (კვადრატურა 1°72')"   ✗ „მერკური ტყუპები 22°83' II სახლში"   ✓ „მარსთან დაძაბული, თითქმის ზუსტი კვადრატი"
+- NEVER invent arc-minutes: you routinely output impossible values (68', 83', 98' — minutes run only 00–59). Unsure of the exact minute? Use the whole degree or omit it — the accurate figures already render in the chart tables.
+- ANTI-FILLER: cut sentences that restate — but a longer paragraph that carries genuine story earns its length. Filler is repetition, not richness.
 
 expandedContent[] — STRUCTURED FORMAT:
 - expandedContent uses numbered items that render as a two-column table (gold title | body text). Inner titles must be 2-4 words max — short labels, never clinical terms, slash-separated variants,
@@ -262,10 +264,10 @@ Minimum 2 cards:
 
 ═══ WORD COUNT ═══
 
-Total: 5,000-5,500 words.
+Total: 5,000-6,000 words.
 Overview 12% | Mission 13% | Characteristics 12% | Relationships 14% | Work 11% | Shadow 13% | Spiritual 13% | Potential 12%
 
-QUALITY OVER QUANTITY: Core cards get 2-3 paragraphs. Regular cards 1-2 paragraphs. Cut any sentence that restates the previous one.
+QUALITY OVER QUANTITY: Core cards get 2-3 paragraphs, regular cards 1-2. Earn extra length with story and lived context — never by restating a point or padding with placements.
 
 ════ OUTPUT ════
 
