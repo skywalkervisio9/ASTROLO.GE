@@ -119,7 +119,7 @@ crossReferences (the label popup — a LIGHT nerd-layer that gives CONTEXT, neve
 - 1 sentence, 2 MAX, and SHORT (≈120-180 characters total). It renders in a small popup.
 - Sentence 1 (MANDATORY, always first): the meaning in plain language, so a non-astrologer understands themselves from it. This is the BULK of the popup.
 - Sentence 2 (optional): ONE light technical touch — a single placement OR one rulership/dignity/retrograde flag (℞, never a bare „R"), woven into a readable phrase. Never a list. Hard cap: at most one placement plus one relationship — never a third glyph-cluster; at most ONE degree, and only if it is genuinely meaningful (an anaretic 29°, a critical degree). Prefer words to numbers.
-  ✓ „შენი იდენტობის ბირთვი ურთიერთობებზეა მიმართული — სასწორის მმართველი ♀ ამ ხაზს კიდევ უფრო აღრმავებს."
+  ✓ „შენი იდენტობის ბირთვი ურთიერთობებზეა მიმართული — ♎-ის მმართველი ♀ ამ ხაზს კიდევ უფრო აღრმავებს."
   ✗ „☽ ⚸ 21°11' V სახლში. ⚷ ☽ 1°01', △ ♂ 3°35'" (glyph + degree wall, zero context — forbidden)
   ✗ „☉ 0°38' I. ☽ 0°38' VII. ASC ♎ 10°11'. ☿ ♎ VIII. ♀ □ ☽…" (raw ephemeris dump — forbidden)
 
@@ -133,10 +133,10 @@ BODY (paragraphs):
 - The body is for a human, not an astrologer. At most ONE placement per paragraph — a placement is a planet/point + sign and/or house (e.g. „☉ ♉ II"), woven lightly into the sentence; often zero. The full signature stays in the label popup.
 - HARD RULE — NEVER LIST PLACEMENTS IN A SERIES. The moment a paragraph names a second placement it has failed; a comma- or „და"-separated chain of two or more is the single most common leak and is forbidden. When you feel the urge to enumerate placements, name the ONE that matters in prose and move the rest to crossReferences.
   ✗ „შენი სულიერი კომპასი დაკავშირებულია ☊ ♌ VI სახლში, ♃ ♈ I სახლში და ♆ ♒ XI სახლში…" (three-placement chain — belongs in the popup)
-  ✗ „…გამბედაობისკენ (ჩრდილოეთის კვანძი ლომში VIII, ვენერა მორიელში X)…" (parenthetical chain)
+  ✗ „…გამბედაობისკენ (☊ ♌ VIII, ♀ ♏ X)…" (parenthetical chain)
   ✓ „შენი იდენტობის ცენტრში მედიატორის არქეტიპი დგას — კომუნიკაცია შენთვის არა უბრალოდ უნარია, არამედ არსებობის გზა."
 - ORBS & DEGREES live in crossReferences ONLY, and even there RARELY — never in body paragraphs or aspectInterpretations. A degree anywhere in prose is an error, whatever dresses it — an orb, an aspect, or a placement. Convey aspect strength with plain words: ზუსტი / მჭიდრო / ფართო / სუსტი.
-  ✗ „(2°06' ორბით)"   ✗ „მარსთან (კვადრატურა 1°72')"   ✗ „მერკური ტყუპები 22°83' II სახლში"   ✓ „მარსთან დაძაბული, თითქმის ზუსტი კვადრატი"
+  ✗ „(2°06' ორბით)"   ✗ „♂-თან (კვადრატურა 1°72')"   ✗ „☿ ♊ 22°83' II სახლში"   ✓ „♂-თან დაძაბული, თითქმის ზუსტი კვადრატი"
 - NEVER invent arc-minutes: you routinely output impossible values (68', 83', 98' — minutes run only 00–59). Unsure of the exact minute? Use the whole degree or omit it — the accurate figures already render in the chart tables.
 - ANTI-FILLER: cut sentences that restate — but a longer paragraph that carries genuine story earns its length. Filler is repetition, not richness.
 
@@ -167,11 +167,11 @@ GEORGIAN SYMBOL GRAMMAR — planets and zodiac signs behave identically:
 
 SYMBOLS, NOT NAMES: in body text always use the Unicode symbol, never the spelled-out name — planets ☉ ☽ ☿ ♀ ♂ ♃ ♄ ♅ ♆ ♇ ⚸ ☊ ☋ ⚷ (☊ = North Node, ☋ = South Node, ⚷ = Chiron — never the word „Chiron") and signs ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓. The interface's text-mode switch renders the name itself, so NEVER write a symbol beside its own name („☉ მზე" ✗ , „მზე ☉" ✗ , bare „მთვარე" ✗ → „☉" , „☽" ✓).
 
-CASE SUFFIXES: keep the symbol BARE before a Roman numeral, house, aspect, or comma („☉ VII სახლში" , „☿ ♊ III" , „♌ VI სახლში"). Attach a HYPHEN suffix for oblique cases — genitive „♏-ის ენერგია", locative „♋-ში", dative „♂-ს სჭირდება", benefactive „♀-ისთვის". NEVER the `-ული` form („♒-ული სიცივე" ✗ → „♒-ის დისტანცია" / „მერწყულის დისტანცია").
+CASE SUFFIXES: keep the symbol BARE before a Roman numeral, house, aspect, or comma („☉ VII სახლში" , „☿ ♊ III" , „♌ VI სახლში"). Attach a HYPHEN suffix for oblique cases — genitive „♏-ის ენერგია", locative „♋-ში", dative „♂-ს სჭირდება", benefactive „♀-ისთვის". NEVER the `-ული` form („♒-ული სიცივე" ✗ → „♒-ის დისტანცია").
 
 NODE AXIS (recurring bug): ☊ and ☋ already render on their own as „ჩრდილოეთის კვანძი" / „სამხრეთის კვანძი" — never place the words „ჩრდილოეთი / სამხრეთი / კვანძი" beside the glyph, or it doubles („☊ კვანძი" ✗ , „ჩრდილოეთის კვანძი ☊" ✗ → „შენი ☊ VIII სახლში" ✓ , „☋ წარსულის ჩვევა" ✓).
 
-IF YOU SPELL A SIGN AS A WORD, decline it natively: მორიელი → მორიელის / მორიელში / მორიელს (likewise კირჩხიბი, ლომი, თხის რქა, თევზები). If a phrase reads like translated English, rewrite it from scratch.
+NEVER SPELL A SIGN AS A WORD — always the glyph (♈…♓), bare before a house/aspect/comma („♌ VI სახლში") or with a hyphen-suffix for oblique cases („♏-ის ენერგია", „♋-ში"). The interface renders the glyph as the correctly-declined Georgian name itself; a spelled word („მორიელში", „თხის რქაში") cannot be rendered or colored and breaks the display. If a phrase reads like translated English, rewrite it from scratch.
 
 NO STRAY ENGLISH / TRANSLITERATION: never leave English planet/point names or astrology terms in Georgian body — „Moon □ Pluto" → „☽ □ ♇" , „Ascendant" → „ASC" , „natal chart-ებში" → „ნატალურ რუკაში". Only a borrowed term like „flow state" may appear, in parentheses.
 
@@ -318,7 +318,7 @@ BODY (ტექსტი): ფორმალური-ლიტერატუ�
 
 Planets: მზე, მთვარე, მერკური, ვენერა, მარსი, იუპიტერი, სატურნი, ურანი, ნეპტუნი, პლუტონი
 Points: ASC (always), MC (always), IC (always), ჩრდილოეთი კვანძი, სამხრეთი კვანძი, ლილითი, ქირონი
-Signs: ვერძი, კურო, ტყუპები, კირჩხიბი, ლომი, ქალწული, სასწორი, მორიელი, მშვილდოსანი, თხის რქა, მერწყული, თევზები
+Signs (WRITE the glyph ♈♉♊♋♌♍♎♏♐♑♒♓ — the interface shows these names itself; never type the word): ვერძი, კურო, ტყუპები, კირჩხიბი, ლომი, ქალწული, სასწორი, მორიელი, მშვილდოსანი, თხის რქა, მერწყული, თევზები
 Aspects: კონიუნქცია, ტრინი, კვადრატი, ოპოზიცია, სექსტილი
 Elements: ცეცხლი, მიწა, ჰაერი, წყალი
 Houses: I სახლი ... XII სახლი
