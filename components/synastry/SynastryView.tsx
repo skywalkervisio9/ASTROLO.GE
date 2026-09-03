@@ -1364,6 +1364,7 @@ const SynastrySection = React.forwardRef<HTMLElement, {
 
       {section.pullQuote && (
         <div className="pq">
+          <div className="sheen" />
           <p>{renderText(section.pullQuote)}</p>
         </div>
       )}
