@@ -626,10 +626,24 @@ table.pt{width:100%;border-collapse:collapse;margin-top:10px;table-layout:fixed}
 .ai-pulse .al,.ai-pulse .ai-body{animation:ai-pulse-kf 1s ease-in-out 2}
 /* Acronym badge for points without SVG (MC, IC, DSC, ASC) */
 .gi-acr{display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--gold);min-width:1.4em;font-weight:600;letter-spacing:.03em;vertical-align:middle}
-.pq{text-align:center;padding:36px 28px;background:linear-gradient(135deg,color-mix(in srgb,var(--sf) 50%,transparent),color-mix(in srgb,var(--sf2) 40%,transparent));border-radius:16px;border:1px solid rgba(201,168,76,.06);margin:18px 0;transition:all .5s var(--ease)}
-.pq:hover{border-color:rgba(201,168,76,.15);box-shadow:0 4px 24px rgba(201,168,76,.04)}
-.pq p{font-family:var(--fd);font-size:1.1rem;font-style:italic;color:var(--gold);line-height:1.85;max-width:560px;margin:0 auto}
-.pq p::before{content:'〈 ';opacity:.5;font-style:normal}.pq p::after{content:' 〉';opacity:.5;font-style:normal}
+/* Pull-quote — "Aurora" reticle. Corner brackets that spread + breathe, a
+   one-shot light sweep, and a soft lift. Activates on :hover (desktop) and
+   .pq-active (mobile scroll-center band, toggled by IntersectionObserver in
+   app-runtime.js). Sheen needs the <div class="sheen"> child in the markup. */
+.pq{--pqe:cubic-bezier(.22,.61,.36,1);position:relative;text-align:center;padding:44px 34px;background:linear-gradient(135deg,color-mix(in srgb,var(--sf) 50%,transparent),color-mix(in srgb,var(--sf2) 40%,transparent));border-radius:16px;border:1px solid rgba(201,168,76,.06);margin:18px 0;transition:transform 1s var(--pqe),border-color 1s var(--pqe),box-shadow 1s var(--pqe);will-change:transform}
+.pq::before,.pq::after{content:'';position:absolute;width:24px;height:24px;border:1.5px solid var(--gold);opacity:.45;pointer-events:none;transition:opacity 1s var(--pqe),transform 1s var(--pqe)}
+.pq::before{top:15px;left:15px;border-right:0;border-bottom:0;border-top-left-radius:4px;transform-origin:top left}
+.pq::after{bottom:15px;right:15px;border-left:0;border-top:0;border-bottom-right-radius:4px;transform-origin:bottom right}
+.pq p{font-family:var(--fd);font-size:1.1rem;font-style:italic;color:var(--gold);line-height:1.85;max-width:560px;margin:0 auto;position:relative;z-index:1}
+.pq .sheen{position:absolute;inset:0;border-radius:16px;overflow:hidden;pointer-events:none;z-index:0}
+.pq .sheen::before{content:'';position:absolute;top:0;left:-10%;width:70%;height:100%;transform:translateX(-160%) skewX(-14deg);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--gold-bright) 100%,transparent) 50%,transparent);opacity:.13;mix-blend-mode:screen}
+.pq:hover,.pq.pq-active{transform:translateY(-4px) scale(1.008);border-color:rgba(201,168,76,.22);box-shadow:0 16px 54px rgba(201,168,76,.09),0 3px 26px rgba(201,168,76,.06)}
+.pq:hover::before,.pq.pq-active::before{opacity:1;transform:translate(-5px,-5px);animation:pq-breathe 3.6s ease-in-out infinite}
+.pq:hover::after,.pq.pq-active::after{opacity:1;transform:translate(5px,5px);animation:pq-breathe 3.6s ease-in-out infinite}
+.pq:hover .sheen::before,.pq.pq-active .sheen::before{animation:pq-sweep 1.6s var(--pqe) .1s forwards}
+@keyframes pq-sweep{to{transform:translateX(240%) skewX(-14deg)}}
+@keyframes pq-breathe{0%,100%{opacity:.85;filter:drop-shadow(0 0 0 transparent)}50%{opacity:1;filter:drop-shadow(0 0 4px rgba(201,168,76,.4))}}
+@media(prefers-reduced-motion:reduce){.pq,.pq::before,.pq::after{transition:none}.pq .sheen::before,.pq:hover::before,.pq:hover::after,.pq.pq-active::before,.pq.pq-active::after{animation:none!important}}
 
 /* View-aware sidebar share label: chart vs synastry */
 .sbl-syn{display:none}

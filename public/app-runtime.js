@@ -3495,7 +3495,7 @@ function _buildSectionContent(sectionKey, section) {
 
   // Pull quote
   if (section.pullQuote) {
-    html += '<div class="pq"><p>' + _renderRichText(section.pullQuote) + '</p></div>';
+    html += '<div class="pq"><div class="sheen"></div><p>' + _renderRichText(section.pullQuote) + '</p></div>';
   }
 
   html += '</section>';
@@ -3711,6 +3711,11 @@ window.hydrateReading = hydrateReading;
   var _shObs = new IntersectionObserver(function(entries) {
     entries.forEach(function(en) { en.target.classList.toggle('sh-active', en.isIntersecting); });
   }, BAND);
+  // Pull-quotes: bloom the reticle + sweep while the quote crosses center,
+  // mirroring the desktop .pq:hover reaction (see .pq-active in globals.css).
+  var _pqObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(en) { en.target.classList.toggle('pq-active', en.isIntersecting); });
+  }, BAND);
   function attachObservers() {
     document.querySelectorAll('.c:not([data-c-obs]),.card:not([data-c-obs])').forEach(function(el) {
       el.setAttribute('data-c-obs', '1');
@@ -3723,6 +3728,10 @@ window.hydrateReading = hydrateReading;
     document.querySelectorAll('.sh:not([data-sh-obs])').forEach(function(el) {
       el.setAttribute('data-sh-obs', '1');
       _shObs.observe(el);
+    });
+    document.querySelectorAll('.pq:not([data-pq-obs])').forEach(function(el) {
+      el.setAttribute('data-pq-obs', '1');
+      _pqObs.observe(el);
     });
   }
   // Coalesce bursts of mutations (React commits, language re-hydrate) into one
