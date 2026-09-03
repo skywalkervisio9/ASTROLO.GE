@@ -299,7 +299,9 @@ CARD TITLES: 2-3 words maximum — evocative noun phrases, never full sentences.
   ✓ "Mirror From Within" / "Deep Connections" / "Inner Nature" / "Hidden Gifts" / "Sacred Fire"
   ✗ "The Light You Came Here to Be" (too long)
 
-BODY: Formal-literary, elevated but accessible. Philosophical treatise by someone who cares.
+LABELS (badge): ≤18 characters — a badge, never a chart dump. One placement or a single thematic word; if it needs a comma, it has already failed. Aspect strings, degrees and house lists belong in crossReferences, never in the label.
+
+BODY: Formal-literary and elevated, but disciplined — every sentence earns its place. Aim for the Georgian's economy, not twice its length.
 **BOLD FORMATTING (MANDATORY)**: Use **double asterisks** around key phrases in card body paragraphs. 0-2 bold phrases per paragraph
 
 ANGLES — STRICT FORMATTING (MANDATORY):

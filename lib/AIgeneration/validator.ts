@@ -314,7 +314,9 @@ function normalizeCards(cards: unknown[]): unknown[] {
     // Normalize terminology: chart points (Ascendant→ASC, i12) + planet words
     // (მზის→☉-ის) so the renderer's icon/name toggle owns every planet.
     const sanitizeText = (s: string) => normalizeRetrograde(normalizeHouseNotation(sanitizePlanetTerminology(sanitizeTerminology(s))));
-    c.body = (c.body as string[]).map(sanitizeText);
+    // Drop blank paragraphs — a truncated tail can leave empty strings that
+    // render as ghost gaps between paragraphs.
+    c.body = (c.body as string[]).map(sanitizeText).filter((p) => typeof p === 'string' && p.trim().length > 0);
     if (Array.isArray(c.expandedContent)) {
       // expandedContent: sanitize terms + split inline lists + number bold-colon items
       c.expandedContent = numberBoldColonItems(
@@ -328,6 +330,12 @@ function normalizeCards(cards: unknown[]): unknown[] {
     if (c.hint && typeof c.hint === 'object') {
       const h = c.hint as Record<string, unknown>;
       delete h.bullets;
+      // A hint with no real text renders as an empty sparkle box (the blank
+      // panel a truncated card leaves behind). Collapse it to null so the
+      // renderer skips it entirely — `{card.hint && …}` in CardComponent.
+      const hintTitle = typeof h.title === 'string' ? h.title.trim() : '';
+      const hintContent = typeof h.content === 'string' ? h.content.trim() : '';
+      if (!hintTitle && !hintContent) c.hint = null;
     }
     // Coerce crossReferences to string array
     if (!Array.isArray(c.crossReferences)) c.crossReferences = [];
@@ -339,18 +347,52 @@ function normalizeCards(cards: unknown[]): unknown[] {
   });
 }
 
+// Fields that belong to a Card, never to a section. When a truncated tail
+// collapses a whole section into one bare card, the model hoists these straight
+// onto the section object (no `cards[]` wrapper) — rescueBareCard lifts them
+// back into a single-card array so the section renders instead of showing blank.
+const CARD_FIELDS = ['id', 'label', 'title', 'body', 'crossReferences', 'expandedContent', 'hint', 'accentElement'] as const;
+
+/** A card is worth rendering if it carries real prose or a title. Everything
+ *  else (an empty husk left by truncation) is dropped rather than rendered. */
+function cardHasContent(card: unknown): boolean {
+  if (!card || typeof card !== 'object') return false;
+  const c = card as Record<string, unknown>;
+  const hasBody = Array.isArray(c.body) && (c.body as unknown[]).some((p) => typeof p === 'string' && p.trim().length > 0);
+  const hasTitle = typeof c.title === 'string' && c.title.trim().length > 0;
+  const hasExpanded = Array.isArray(c.expandedContent) && (c.expandedContent as unknown[]).length > 0;
+  return hasBody || hasTitle || hasExpanded;
+}
+
+/** Rescue a section whose single card was flattened onto the section object
+ *  (no `cards[]`). Lifts the hoisted Card fields into a one-element cards array,
+ *  leaving the true section fields (sectionTitle/Tagline/pullQuote) in place. */
+function rescueBareCard(section: Record<string, unknown>): void {
+  if (Array.isArray(section.cards) || Array.isArray(section.coreCards)) return;
+  const hasBareCard = CARD_FIELDS.some((f) => section[f] != null);
+  if (!hasBareCard) return;
+  const card: Record<string, unknown> = {};
+  for (const f of CARD_FIELDS) {
+    if (section[f] != null) { card[f] = section[f]; delete section[f]; }
+  }
+  section.cards = [card];
+}
+
 export function normalizeNatalReadingShape(input: Record<string, unknown>): Record<string, unknown> {
   const json: Record<string, unknown> = { ...input };
   // Drop meta — all that data lives in Supabase (i10+)
   delete json.meta;
   const sections = Array.isArray(json.sections) ? (json.sections as Array<Record<string, unknown>>) : [];
 
-  // Normalize accentElement on top-level sections that already exist
+  // Rescue + normalize + prune each top-level section. Order matters: rescue a
+  // flattened bare-card section FIRST so its lifted card gets normalized too,
+  // then drop any husk cards a truncated tail left behind.
   for (const key of SECTION_KEYS) {
     const section = json[key] as Record<string, unknown> | undefined;
     if (!section) continue;
-    if (Array.isArray(section.cards)) section.cards = normalizeCards(section.cards);
-    if (Array.isArray(section.coreCards)) section.coreCards = normalizeCards(section.coreCards);
+    if (key !== 'overview') rescueBareCard(section);
+    if (Array.isArray(section.cards)) section.cards = normalizeCards(section.cards).filter(cardHasContent);
+    if (Array.isArray(section.coreCards)) section.coreCards = normalizeCards(section.coreCards).filter(cardHasContent);
   }
 
   if (sections.length === 0) return json;
