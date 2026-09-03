@@ -219,8 +219,10 @@ function startLoading(lang, durationMs) {
   const zInt = setInterval(() => { zSigns.forEach(z => z.classList.remove('lit')); if (zIdx < zSigns.length) { zSigns[zIdx].classList.add('lit'); zIdx++; } else zIdx = 0; }, 800);
 
   // Messages + progress bar — caller can pass explicit duration; defaults to 20s live / 252s demo
-  const TOTAL_DURATION = durationMs || (liveMode ? 20000 : 252000);
-  const MSG_INTERVAL = TOTAL_DURATION / loadMsgs.length;
+  // `let` (not const): window.extendLoading below lengthens these when an
+  // auto-retry adds a call's worth of wall-clock mid-run.
+  let TOTAL_DURATION = durationMs || (liveMode ? 20000 : 252000);
+  let MSG_INTERVAL = TOTAL_DURATION / loadMsgs.length;
   const msgEl = document.getElementById('loadingMsg');
   const fillEl = document.getElementById('loadingFill');
   // `let` (not const): window.rebaseLoading below reassigns this so a
@@ -302,6 +304,18 @@ function startLoading(lang, durationMs) {
     if (typeof elapsedMs !== 'number' || !isFinite(elapsedMs) || elapsedMs <= 0) return;
     var candidate = Date.now() - elapsedMs;
     if (candidate < startTime) { startTime = candidate; tick(); }
+  };
+
+  // Auto-retry support: when Call 2 re-runs a single thin language server-side,
+  // the total wall-clock grows by roughly that one call's cost. The React layer
+  // reads that ETA from /api/onboarding/status and calls this ONCE so the bar
+  // stretches — easing toward 100% over the longer timeline instead of pinning
+  // at 100% while the retry finishes. Only ever lengthens the timeline.
+  window.extendLoading = function(extraMs) {
+    if (typeof extraMs !== 'number' || !isFinite(extraMs) || extraMs <= 0) return;
+    TOTAL_DURATION += extraMs;
+    MSG_INTERVAL = TOTAL_DURATION / loadMsgs.length;
+    tick();
   };
 
   // Parallax + twinkle. Cursor / gyro sets a target offset; each star eases

@@ -149,8 +149,22 @@ export async function POST() {
     }
 
     try {
-      // Call 2: KA + EN in parallel
-      const call2 = await runNatalCall2(analysis, context, storedAspects ?? undefined);
+      // Call 2: KA + EN in parallel. onRetry fires (once) if a thin language is
+      // being auto-regenerated — stamp a transient RETRYING:<langs>:<ts> marker
+      // so /api/onboarding/status can report `retrying` and /loading can show a
+      // non-blocking notice + extend its bar. Row stays 'generating'; the marker
+      // is overwritten by the real validation_warnings on success (or the
+      // GENERATION_FAILED sentinel on failure), so it never outlives the run.
+      const call2 = await runNatalCall2(analysis, context, storedAspects ?? undefined, async (langs) => {
+        try {
+          await admin
+            .from('natal_readings')
+            .update({ validation_warnings: [`RETRYING:${langs.join(',')}:${Date.now()}`] })
+            .eq('user_id', authUser.id);
+        } catch (markErr) {
+          console.warn('[generate-full] failed to write retry marker (non-fatal):', markErr);
+        }
+      });
 
       // Inject chart_data into readings
       const planetTable = buildPlanetTableForReading(storedPlanets, storedPoints);

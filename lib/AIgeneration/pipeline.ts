@@ -101,40 +101,86 @@ export async function runNatalCall1(chartContext: string): Promise<Call1Result> 
   return { analysis: call1.text, model: call1.model, tokens: call1.inputTokens + call1.outputTokens };
 }
 
+type SingleReading = Awaited<ReturnType<typeof generateSingleReading>>;
+
+/**
+ * Tier-1 quality gate assessment. Reports which language(s) are unshippable
+ * (below the absolute floor, or the smaller side of a lopsided KA/EN pair) plus
+ * a human-readable reason string. Empty `failing` ⟹ ship it.
+ */
+function assessCall2Quality(readingKa: SingleReading, readingEn: SingleReading): {
+  failing: Language[];
+  reasons: string;
+} {
+  const kaCards = readingKa.quality.totalCards;
+  const enCards = readingEn.quality.totalCards;
+  const maxCards = Math.max(kaCards, enCards, 1);
+  const parityThin = Math.min(kaCards, enCards) < PARITY_MIN_RATIO * maxCards;
+
+  const failing: Language[] = [];
+  if (readingKa.quality.tooThin) failing.push('ka');
+  if (readingEn.quality.tooThin) failing.push('en');
+  // Lopsided but neither below the absolute floor: regenerate only the smaller
+  // side — the fuller one is already good and must not be thrown away.
+  if (parityThin) {
+    const smaller: Language = kaCards <= enCards ? 'ka' : 'en';
+    if (!failing.includes(smaller)) failing.push(smaller);
+  }
+
+  const reasons = [
+    readingKa.quality.tooThin && `ka below floor (cards=${kaCards}, words≈${readingKa.quality.wordEstimate})`,
+    readingEn.quality.tooThin && `en below floor (cards=${enCards}, words≈${readingEn.quality.wordEstimate})`,
+    parityThin && `ka/en parity off (ka=${kaCards}, en=${enCards}, need ≥${Math.round(PARITY_MIN_RATIO * 100)}% of larger)`,
+  ].filter(Boolean).join('; ');
+
+  return { failing, reasons };
+}
+
 /** Call 2 only — full reading (KA + EN). Requires existing Call 1 analysis. */
 export async function runNatalCall2(
   analysis: string,
   chartContext: string,
-  chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>
+  chartAspects?: Array<{ planet1: string; planet2: string; aspect: string; orb: number }>,
+  // Fired once, server-side, the moment a thin language is about to be
+  // regenerated — lets generate-full stamp a transient "retrying" marker on the
+  // row so /loading can flash a non-blocking notice and stretch its progress bar
+  // by the retried call's cost. No user interaction; generation keeps running.
+  onRetry?: (langs: Language[]) => void | Promise<void>
 ): Promise<Call2Result> {
   const aspectsSection = chartAspects && chartAspects.length > 0
     ? `\n\nKey Aspects (interpret 2–5 of these in aspectInterpretations — see schema rules):\n${chartAspects.map(a => `${a.planet1} ${a.aspect} ${a.planet2} (orb ${a.orb}°)`).join('\n')}`
     : '';
   const userMsg = `Chart Analysis:\n${analysis}\n\nOriginal Chart Data:\n${chartContext}${aspectsSection}`;
 
-  const [readingKa, readingEn] = await Promise.all([
+  let [readingKa, readingEn] = await Promise.all([
     generateSingleReading(userMsg, 'ka'),
     generateSingleReading(userMsg, 'en'),
   ]);
 
-  // ── Tier-1 quality gate ──
+  // ── Tier-1 quality gate (selective auto-retry) ──
   // Each language already attempted ONE top-up pass inside generateSingleReading.
-  // Here we make the final ship/no-ship call: reject if either language is still
-  // below the absolute floor, or if the two are badly lopsided (full EN +
-  // skeletal KA, the bogpremium signature). Rejecting throws ReadingTooThinError
-  // so generate-full marks the row failed rather than saving a hollow reading.
-  const kaCards = readingKa.quality.totalCards;
-  const enCards = readingEn.quality.totalCards;
-  const maxCards = Math.max(kaCards, enCards, 1);
-  const parityThin = Math.min(kaCards, enCards) < PARITY_MIN_RATIO * maxCards;
+  // If a language is still below the absolute floor (or is the skeletal side of a
+  // lopsided KA/EN pair — the bogpremium signature), regenerate ONLY that
+  // language once. The healthy side is kept as-is, so a full EN is never thrown
+  // away to repair a thin KA. We only give up (throw ReadingTooThinError) if the
+  // reading is still unshippable after this targeted retry.
+  let { failing, reasons } = assessCall2Quality(readingKa, readingEn);
+  if (failing.length > 0) {
+    console.warn(`[call2] thin after first pass (${reasons}) — regenerating: ${failing.join(', ')}`);
+    await onRetry?.(failing);
+    const [retriedKa, retriedEn] = await Promise.all([
+      failing.includes('ka') ? generateSingleReading(userMsg, 'ka') : Promise.resolve(readingKa),
+      failing.includes('en') ? generateSingleReading(userMsg, 'en') : Promise.resolve(readingEn),
+    ]);
+    // Guard against a retry that comes back thinner than the first draft — never
+    // regress: keep whichever pass produced more cards for that language.
+    if (failing.includes('ka') && retriedKa.quality.totalCards >= readingKa.quality.totalCards) readingKa = retriedKa;
+    if (failing.includes('en') && retriedEn.quality.totalCards >= readingEn.quality.totalCards) readingEn = retriedEn;
+    ({ failing, reasons } = assessCall2Quality(readingKa, readingEn));
+  }
 
-  if (readingKa.quality.tooThin || readingEn.quality.tooThin || parityThin) {
-    const reasons = [
-      readingKa.quality.tooThin && `ka below floor (cards=${kaCards}, words≈${readingKa.quality.wordEstimate})`,
-      readingEn.quality.tooThin && `en below floor (cards=${enCards}, words≈${readingEn.quality.wordEstimate})`,
-      parityThin && `ka/en parity off (ka=${kaCards}, en=${enCards}, need ≥${Math.round(PARITY_MIN_RATIO * 100)}% of larger)`,
-    ].filter(Boolean).join('; ');
-    throw new ReadingTooThinError(`Reading too thin after top-up: ${reasons}`);
+  if (failing.length > 0) {
+    throw new ReadingTooThinError(`Reading too thin after selective retry: ${reasons}`);
   }
 
   const interpKa = readingKa.aspectInterpretations.length > 0
@@ -212,11 +258,16 @@ async function generateSingleReading(
 }> {
   const prompt = getNatalCall2Prompt(language);
   // Georgian is ~2 chars/token (Mkhedruli script); English is ~4 chars/token.
-  // Production KA outputs were landing at 39–43k tokens, right at the previous
-  // 40k cap. Hitting the cap truncates JSON mid-write, triggering the repair +
-  // section-completion cascade, which then blew the 300s function budget. 32k
-  // forces the model to stay under the ceiling instead of bumping it.
-  const maxTokens = language === 'ka' ? 32000 : 20000;
+  // A full KA reading needs ~39–43k output tokens. The old 32k cap sat BELOW
+  // that, so KA got truncated mid-JSON and the repair pass salvaged it down to a
+  // skeleton (~9 cards), failing the Tier-1 floor + KA/EN parity gate while EN
+  // (token-cheaper) shipped full. 44k clears the top of the observed range with
+  // slack. The earlier fear of a 40k cap was the truncation→repair cascade
+  // blowing a 300s function budget, but generate-full now runs with
+  // maxDuration=600 and KA Call 2 measures ~168s at 32k (~230s projected at
+  // 44k), so an untruncated single pass fits with headroom. Ceiling is safe for
+  // both providers (Gemini 2.5 Flash and Claude Sonnet 4 cap output at ~64k).
+  const maxTokens = language === 'ka' ? 44000 : 20000;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {

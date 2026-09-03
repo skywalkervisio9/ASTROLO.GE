@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { withCsrfHeaders } from '@/lib/auth/client';
 import { whenRuntimeReady } from '@/lib/runtime-ready';
@@ -65,6 +65,14 @@ export default function LoadingRouteClient() {
   // Premium user whose reading was never generated (status 'not_started').
   // Renders an explicit Generate action instead of spinning on watch-only polling.
   const [notStarted, setNotStarted] = useState(false);
+  // Non-blocking notice while Call 2 auto-regenerates a thin language server-side
+  // (see /api/onboarding/status `retrying`). Shows for 25s, then hides itself;
+  // generation and polling continue underneath — no user action required.
+  const [retryNotice, setRetryNotice] = useState(false);
+  const [lang, setLang] = useState('ka');
+  // Ensures the notice + bar-stretch fire at most once per page load even though
+  // the marker stays fresh across several 5s polls.
+  const retryHandledRef = useRef(false);
 
   // Lock body scroll while the loading overlay is mounted. The /loading page
   // also renders BodyContent (the full app shell) so the document is taller
@@ -136,6 +144,19 @@ export default function LoadingRouteClient() {
     // inheriting a stale deadline.
     const noteProgress = () => { notStartedSince = 0; };
 
+    // Server reported an in-flight auto-retry (a thin language being regenerated).
+    // Flash the non-blocking notice for 25s and stretch the progress bar by the
+    // retry's ETA — once per load. Never blocks: the poll loop keeps watching and
+    // navigates the moment the run completes.
+    const handleRetrySignal = (etaMs?: number) => {
+      if (retryHandledRef.current) return;
+      retryHandledRef.current = true;
+      setRetryNotice(true);
+      const w = window as unknown as { extendLoading?: (ms: number) => void };
+      w.extendLoading?.(typeof etaMs === 'number' && etaMs > 0 ? etaMs : 230_000);
+      window.setTimeout(() => setRetryNotice(false), 25_000);
+    };
+
     /**
      * Called on every 'not_started' observation. Auto-fires the idempotent
      * generate-full (unless the caller's mode already fired it), then reports
@@ -158,13 +179,14 @@ export default function LoadingRouteClient() {
       try {
         const res = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (!res.ok) return;
-        const status = await res.json() as { status: string; complete?: boolean; shareSlug?: string; error?: string };
+        const status = await res.json() as { status: string; complete?: boolean; shareSlug?: string; error?: string; retrying?: boolean; retryEtaMs?: number };
         if (status.status === 'failed') {
           const detail = status.error ? `: ${status.error.slice(0, 240)}` : '';
           setErrorText(`Generation failed${detail}`);
           setCanReturnToBirth(false);
           return;
         }
+        if (status.retrying) handleRetrySignal(status.retryEtaMs);
         if (status.status === 'not_started') { reportNotStarted(); return; }
         // Any non-not_started status is forward progress — reset the grace clock
         // so a subsequent stale/dead state gets a fresh window rather than
@@ -220,7 +242,7 @@ export default function LoadingRouteClient() {
         const langRes = await fetch('/api/auth/session', { credentials: 'include' });
         if (langRes.ok) {
           const sess = await langRes.json() as { profile?: { language?: string } };
-          if (sess.profile?.language) userLang = sess.profile.language;
+          if (sess.profile?.language) { userLang = sess.profile.language; setLang(userLang); }
         }
       } catch { /* default to ka */ }
 
@@ -526,7 +548,7 @@ export default function LoadingRouteClient() {
 
         const statusRes = await fetch('/api/onboarding/status', { credentials: 'include' });
         if (!statusRes.ok) continue;
-        const status = await statusRes.json() as { status: string; complete?: boolean; readingId?: string | null; shareSlug?: string; error?: string };
+        const status = await statusRes.json() as { status: string; complete?: boolean; readingId?: string | null; shareSlug?: string; error?: string; retrying?: boolean; retryEtaMs?: number };
 
         if (status.status === 'failed') {
           const detail = status.error ? `: ${status.error.slice(0, 240)}` : '';
@@ -534,6 +556,10 @@ export default function LoadingRouteClient() {
           setCanReturnToBirth(false);
           return;
         }
+
+        // In-flight server-side auto-retry — flash the non-blocking notice and
+        // stretch the bar (once). Keep polling; this is not a terminal state.
+        if (status.retrying) handleRetrySignal(status.retryEtaMs);
 
         // 'not_started' ⟹ premium reading that needs (re)generating. reportNotStarted
         // auto-fires the idempotent full run once and tolerates a wall-clock grace,
@@ -616,44 +642,81 @@ export default function LoadingRouteClient() {
     );
   }
 
-  if (!errorText) return null;
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 24,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 10001,
-        width: 'min(480px, calc(100vw - 32px))',
-        background: 'rgba(7,10,20,0.92)',
-        border: '1px solid rgba(255,80,80,0.3)',
-        borderRadius: 12,
-        padding: '12px 16px',
-        color: '#fecaca',
-        fontFamily: 'system-ui, sans-serif',
-        fontSize: 13,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-      }}
-    >
-      <span style={{ flex: 1, lineHeight: 1.4 }}>{errorText}</span>
-      <button
-        onClick={() => window.location.reload()}
-        style={{ border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', color: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+  if (errorText) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10001,
+          width: 'min(480px, calc(100vw - 32px))',
+          background: 'rgba(7,10,20,0.92)',
+          border: '1px solid rgba(255,80,80,0.3)',
+          borderRadius: 12,
+          padding: '12px 16px',
+          color: '#fecaca',
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: 13,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
       >
-        Retry
-      </button>
-      {canReturnToBirth && (
+        <span style={{ flex: 1, lineHeight: 1.4 }}>{errorText}</span>
         <button
-          onClick={goBirth}
-          style={{ border: '1px solid rgba(251,191,36,0.5)', background: 'rgba(251,191,36,0.12)', color: '#fde68a', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          onClick={() => window.location.reload()}
+          style={{ border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.06)', color: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
         >
-          Back to form
+          Retry
         </button>
-      )}
-    </div>
-  );
+        {canReturnToBirth && (
+          <button
+            onClick={goBirth}
+            style={{ border: '1px solid rgba(251,191,36,0.5)', background: 'rgba(251,191,36,0.12)', color: '#fde68a', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            Back to form
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Non-blocking, auto-dismissing (25s) notice shown while a thin language is
+  // being regenerated server-side. Amber/info (not red/error) and button-less —
+  // framed as extra polish, not a failure — because nothing needs the user to act.
+  if (retryNotice) {
+    const notice = lang === 'ka'
+      ? 'ღრმა ანალიზი მიმდინარეობს — კიდევ ცოტა ხანი…'
+      : 'Adding more depth to your reading — just a little longer…';
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10001,
+          width: 'min(480px, calc(100vw - 32px))',
+          background: 'rgba(7,10,20,0.92)',
+          border: '1px solid rgba(251,191,36,0.3)',
+          borderRadius: 12,
+          padding: '12px 16px',
+          color: '#fde68a',
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: 13,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <span style={{ flex: 1, lineHeight: 1.4 }}>{notice}</span>
+      </div>
+    );
+  }
+
+  return null;
 }

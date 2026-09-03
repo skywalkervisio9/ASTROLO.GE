@@ -20,6 +20,28 @@ import crypto from 'crypto';
 // before the failure handler ran — treat it as dead and re-fireable, not live.
 export const STALE_GENERATION_MS = 15 * 60 * 1000;
 
+// Rough wall-clock cost of one Call-2 language regeneration, used to stretch the
+// /loading bar when an auto-retry fires. KA (~44k-token cap, Mkhedruli is
+// token-dense) runs ~230s; EN (~20k cap) ~100s. "Roughly" by design — the bar
+// only needs to keep easing forward, not be exact.
+const CALL2_RETRY_EST_MS: Record<string, number> = { ka: 230_000, en: 100_000 };
+// A retry marker older than this is treated as stale (the retry has since
+// finished or the run moved on) — long enough for a 5s poll to catch it, short
+// enough that it never lingers into the next run.
+const RETRY_MARKER_FRESH_MS = 30_000;
+
+/** Parse the RETRYING:<langs>:<ts> marker generate-full stamps mid-run. */
+function parseRetryMarker(warnings: unknown): { langs: string[]; at: number } | null {
+  const arr = Array.isArray(warnings) ? warnings : [];
+  const marker = arr.find((w) => typeof w === 'string' && w.startsWith('RETRYING:'));
+  if (typeof marker !== 'string') return null;
+  const [, langsRaw = '', tsRaw = ''] = marker.split(':');
+  const langs = langsRaw.split(',').filter(Boolean);
+  const at = Number(tsRaw);
+  if (!langs.length || !Number.isFinite(at) || at <= 0) return null;
+  return { langs, at };
+}
+
 export type OnboardingStatus = {
   // 'not_started': a full/invited reading was never launched (no
   // generation_started_at) — distinct from 'generating' so the client offers an
@@ -33,6 +55,12 @@ export type OnboardingStatus = {
    *  while still generating. Lets /loading resume its progress bar from the
    *  real start after a refresh instead of restarting at 0. */
   startedAt?: number;
+  /** True while Call 2 is auto-regenerating a thin language (server-side, no
+   *  user action). /loading flashes a transient notice instead of failing. */
+  retrying?: boolean;
+  /** Rough extra wall-clock the in-flight retry adds — /loading stretches its
+   *  progress bar by this so it keeps easing forward instead of pinning at 100%. */
+  retryEtaMs?: number;
 };
 
 function generateShareSlug(): string {
@@ -128,7 +156,15 @@ export async function computeOnboardingStatus(userId: string): Promise<Onboardin
     if (!reading?.generation_started_at || stale) {
       return { status: 'not_started', complete: false };
     }
-    return { status: 'generating', complete: false, startedAt };
+    // A fresh RETRYING marker ⟹ Call 2 is auto-regenerating a thin language.
+    // Report it (with a rough ETA) so /loading shows a non-blocking notice and
+    // stretches its bar — still 'generating', never terminal.
+    const retry = parseRetryMarker(reading?.validation_warnings);
+    const retrying = !!retry && Date.now() - retry.at < RETRY_MARKER_FRESH_MS;
+    const retryEtaMs = retry && retrying
+      ? Math.max(...retry.langs.map((l) => CALL2_RETRY_EST_MS[l] ?? 120_000))
+      : undefined;
+    return { status: 'generating', complete: false, startedAt, retrying, retryEtaMs };
   }
 
   // ── INVITED: needs Call 1 (analysis_en) ──
